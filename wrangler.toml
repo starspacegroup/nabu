@@ -1,0 +1,33 @@
+name = "nebulakit"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "nebulakit-db"
+database_id = "your-database-id"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-id"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "nebulakit-files"
+
+# Queue
+[[queues.producers]]
+binding = "QUEUE"
+queue = "nebulakit-queue"
+
+[[queues.consumers]]
+queue = "nebulakit-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Environment Variables
+[vars]
+TURNSTILE_SECRET_KEY = "your-turnstile-secret-key"
