@@ -37,10 +37,36 @@ npm run deploy
 
 Visit `http://localhost:5173` to see your app!
 
+## 🧪 Testing (TDD Required!)
+
+NebulaKit follows **Test-Driven Development** with 90%+ code coverage requirements:
+
+```bash
+# Run all tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Check coverage (must be ≥90%)
+npm run test:coverage
+
+# Run E2E tests
+npm run test:e2e
+
+# Run all tests (unit + E2E)
+npm run test:all
+```
+
+**Important**: All features and bug fixes require tests written FIRST. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+
 ## 📚 Documentation
 
 - [Setup Guide](./SETUP.md) - Complete installation and configuration instructions
 - [Features](./FEATURES.md) - Detailed feature documentation and usage examples
+- [Contributing Guide](./CONTRIBUTING.md) - Development workflow and testing standards
+- [Theme System Guide](./docs/THEME_SYSTEM.md) - Comprehensive theming and accessibility guide
+- [GitHub Copilot Instructions](.github/copilot-instructions.md) - AI-assisted development guidelines
 
 ## 🏗️ Project Structure
 
@@ -64,27 +90,36 @@ NebulaKit/
 
 ## 🎨 Theming
 
-NebulaKit includes a complete theme system with light and dark modes:
+NebulaKit includes a comprehensive theme system with:
+
+- ✅ **WCAG AA compliant** colors (4.5:1 contrast minimum)
+- 🌓 Light and dark modes with automatic system detection
+- 🎨 CSS custom properties for all design tokens
+- ♿ Accessibility-first design approach
+- 🧪 Automated contrast validation
 
 ```css
-/* Customize colors */
-:root {
-  --color-primary: #0066cc;
-  --color-secondary: #6366f1;
-  /* ... */
-}
-
-/* Add custom themes */
-[data-theme='custom'] {
-  --color-primary: #your-color;
+/* All colors use CSS variables - never hardcode! */
+.button {
+	background-color: var(--color-primary);
+	color: var(--color-background);
+	border-radius: var(--radius-md);
+	padding: var(--spacing-sm) var(--spacing-md);
 }
 ```
 
-The theme switcher automatically detects system preferences and persists user choices.
+**Validate theme contrast:**
+
+```bash
+npm run validate:contrast
+```
+
+See the [Theme System Guide](./docs/THEME_SYSTEM.md) for complete documentation.
 
 ## 🔐 Authentication
 
 Built-in auth pages with support for:
+
 - Email/password authentication
 - OAuth providers (Google, GitHub)
 - Session management
@@ -99,36 +134,40 @@ The included chat interface is ready to connect to your LLM API:
 ```typescript
 // In /routes/chat/+page.svelte
 async function sendMessage() {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    body: JSON.stringify({ message: input })
-  });
-  // Handle response
+	const response = await fetch('/api/chat', {
+		method: 'POST',
+		body: JSON.stringify({ message: input })
+	});
+	// Handle response
 }
 ```
 
 ## ☁️ Cloudflare Integration
 
 ### D1 Database
+
 ```typescript
-const result = await platform.env.DB.prepare(
-  'SELECT * FROM users WHERE email = ?'
-).bind(email).first();
+const result = await platform.env.DB.prepare('SELECT * FROM users WHERE email = ?')
+	.bind(email)
+	.first();
 ```
 
 ### KV Storage
+
 ```typescript
 await platform.env.KV.put('key', 'value');
 const value = await platform.env.KV.get('key');
 ```
 
 ### R2 Storage
+
 ```typescript
 await platform.env.BUCKET.put('file.jpg', fileData);
 const file = await platform.env.BUCKET.get('file.jpg');
 ```
 
 ### Queues
+
 ```typescript
 await platform.env.QUEUE.send({ data: 'message' });
 ```
@@ -136,6 +175,7 @@ await platform.env.QUEUE.send({ data: 'message' });
 ## 🎯 Drag & Drop
 
 The demo page includes a fully functional kanban board with:
+
 - Desktop drag and drop
 - Mobile touch support
 - Cross-column dragging
@@ -144,6 +184,7 @@ The demo page includes a fully functional kanban board with:
 ## 📱 Mobile Support
 
 NebulaKit is mobile-first with:
+
 - Responsive breakpoints (640px, 768px, 1024px, 1280px)
 - Touch-optimized interactions
 - Mobile navigation menu
@@ -162,7 +203,17 @@ MIT License - feel free to use this template for any project!
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) first.
+
+**Key requirements:**
+
+- ✅ Test-Driven Development (TDD) - write tests first
+- ✅ 90%+ code coverage on all changes
+- ✅ Cloudflare-first architecture
+- ✅ Minimal external dependencies
+- ✅ All tests passing before PR
+
+See [.github/copilot-instructions.md](.github/copilot-instructions.md) for detailed development guidelines.
 
 ## ⭐ Show Your Support
 
