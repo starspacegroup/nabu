@@ -8,7 +8,7 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 [[d1_databases]]
 binding = "DB"
 database_name = "nebulakit-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "bd776be3-9823-4763-abb1-c18b40931456"
 
 # KV Namespace
 # Create with: wrangler kv:namespace create "KV"
