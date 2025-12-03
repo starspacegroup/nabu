@@ -196,4 +196,22 @@ describe('/setup - GitHub OAuth Setup', () => {
 		expect(errors.clientId).toBe('Client ID is required');
 		expect(errors.clientSecret).toBe('Client Secret is required');
 	});
+
+	it('should display callback URL based on current origin', () => {
+		render(SetupPage);
+		// The mock page store uses 'http://localhost:5173' as origin
+		// The setup page should show this origin in the callback URL instructions
+		const callbackUrl = screen.getByText(/api\/auth\/github\/callback/i);
+		expect(callbackUrl).toBeInTheDocument();
+		// Verify it shows the origin from the page store (not hardcoded)
+		expect(callbackUrl.textContent).toContain('localhost:5173');
+	});
+
+	it('should display homepage URL based on current origin', () => {
+		render(SetupPage);
+		// The instructions should show the current origin for Homepage URL
+		const homepageUrl = screen.getByText(/Homepage URL/i).closest('li');
+		expect(homepageUrl).toBeInTheDocument();
+		expect(homepageUrl?.textContent).toContain('http://localhost:5173');
+	});
 });

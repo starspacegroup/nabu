@@ -160,10 +160,10 @@
 					Fill in the form:
 					<ul>
 						<li><strong>Application name:</strong> NebulaKit (or your choice)</li>
-						<li><strong>Homepage URL:</strong> <code>http://localhost:5173</code></li>
+						<li><strong>Homepage URL:</strong> <code>{$page.url.origin}</code></li>
 						<li>
 							<strong>Authorization callback URL:</strong>
-							<code>http://localhost:5173/api/auth/github/callback</code>
+							<code>{$page.url.origin}/api/auth/github/callback</code>
 						</li>
 					</ul>
 				</li>
