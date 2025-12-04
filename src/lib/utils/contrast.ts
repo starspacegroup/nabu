@@ -124,7 +124,7 @@ export function checkContrast(foreground: string, background: string): ContrastR
 		);
 	}
 
-	if (!passesAALarge && passesAALarge) {
+	if (!passesAA && passesAALarge) {
 		warnings.push(`Contrast ratio ${ratio.toFixed(2)}:1 only passes for large text (18pt+).`);
 	}
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateThemeContrast, type ThemeColors } from '../../src/lib/utils/contrast';
+import {
+	checkContrast,
+	validateThemeContrast,
+	type ThemeColors
+} from '../../src/lib/utils/contrast';
 
 describe('Theme Contrast Validation', () => {
 	describe('Light Theme', () => {
@@ -136,6 +140,41 @@ describe('Theme Contrast Validation', () => {
 
 			// Test passes regardless - this is informational
 			expect(result.checks.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('checkContrast function', () => {
+		it('should return warning for colors that only pass large text contrast', () => {
+			// A contrast ratio between 3:1 and 4.5:1 - passes for large text but not normal
+			// #767676 on white gives roughly 4.54:1, so we need something slightly lower
+			// #757575 on #ffffff is approximately 4.41:1
+			const result = checkContrast('#808080', '#ffffff');
+
+			// Gray (#808080) on white has ~3.95:1 ratio - passes large, fails AA
+			expect(result.passesAALarge).toBe(true);
+			expect(result.passesAA).toBe(false);
+			expect(result.warnings.length).toBe(2); // Both AA fail and large text only warnings
+			expect(result.warnings[1]).toContain('only passes for large text');
+		});
+
+		it('should not add large text warning when contrast fails completely', () => {
+			// Very low contrast - fails both AA and AALarge
+			const result = checkContrast('#cccccc', '#ffffff');
+
+			expect(result.passesAALarge).toBe(false);
+			expect(result.passesAA).toBe(false);
+			// Only one warning (AA fail), not the large text warning
+			expect(result.warnings.length).toBe(1);
+			expect(result.warnings[0]).toContain('Low contrast ratio');
+		});
+
+		it('should return no warnings for high contrast colors', () => {
+			const result = checkContrast('#000000', '#ffffff');
+
+			expect(result.passesAA).toBe(true);
+			expect(result.passesAAA).toBe(true);
+			expect(result.passesAALarge).toBe(true);
+			expect(result.warnings.length).toBe(0);
 		});
 	});
 });
