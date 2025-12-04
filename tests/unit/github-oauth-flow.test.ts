@@ -251,25 +251,18 @@ describe('GitHub Auth API', () => {
 
 			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
 
-			try {
-				await GET({
-					url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
-					cookies: mockCookies,
-					platform: mockPlatform
-				} as any);
-				expect.fail('Should have thrown redirect');
-			} catch (err: any) {
-				expect(err.status).toBe(302);
-				expect(err.location).toBe('/admin'); // Owner goes to admin
-				expect(mockCookies.set).toHaveBeenCalledWith(
-					'session',
-					expect.any(String),
-					expect.objectContaining({
-						path: '/',
-						httpOnly: true
-					})
-				);
-			}
+			const response = await GET({
+				url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
+
+			// Should return a redirect response with cookie header
+			expect(response.status).toBe(302);
+			expect(response.headers.get('Location')).toBe('http://localhost:5173/admin'); // Owner goes to admin
+			expect(response.headers.get('Set-Cookie')).toContain('session=');
+			expect(response.headers.get('Set-Cookie')).toContain('Path=/');
+			expect(response.headers.get('Set-Cookie')).toContain('HttpOnly');
 		});
 
 		it('should redirect non-owner to home', async () => {
@@ -305,17 +298,15 @@ describe('GitHub Auth API', () => {
 
 			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
 
-			try {
-				await GET({
-					url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
-					cookies: mockCookies,
-					platform: mockPlatform
-				} as any);
-				expect.fail('Should have thrown redirect');
-			} catch (err: any) {
-				expect(err.status).toBe(302);
-				expect(err.location).toBe('/'); // Non-owner goes to home
-			}
+			const response = await GET({
+				url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
+
+			// Should return a redirect response
+			expect(response.status).toBe(302);
+			expect(response.headers.get('Location')).toBe('http://localhost:5173/'); // Non-owner goes to home
 		});
 
 		it('should store user in database when available', async () => {

@@ -10,32 +10,45 @@ const authHandler: Handle = async ({ event, resolve }) => {
 		// In production, fetch session from D1 or KV
 		// For now, decode the session from the cookie
 		try {
-			const sessionData = JSON.parse(atob(sessionId));
+			// Handle both standard base64 and URL-safe base64
+			// URL-safe uses - instead of +, _ instead of /, and no padding
+			let base64 = sessionId;
 
-			// Check if user is admin from database
+			// Only apply URL-safe decoding if the string contains URL-safe characters
+			if (base64.includes('-') || base64.includes('_')) {
+				base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+			}
+
+			// Add padding if needed (for both standard and URL-safe base64)
+			while (base64.length % 4) {
+				base64 += '=';
+			}
+
+			const decoded = atob(base64);
+			const sessionData = JSON.parse(decoded);
+
+			// Check if user is admin from database (optional - don't fail auth if DB unavailable)
 			if (event.platform?.env?.DB) {
-				const userRecord = await event.platform.env.DB.prepare(
-					'SELECT is_admin FROM users WHERE id = ?'
-				)
-					.bind(sessionData.id)
-					.first<{ is_admin: number }>();
+				try {
+					const userRecord = await event.platform.env.DB.prepare(
+						'SELECT is_admin FROM users WHERE id = ?'
+					)
+						.bind(sessionData.id)
+						.first<{ is_admin: number }>();
 
-				if (userRecord) {
-					sessionData.isAdmin = userRecord.is_admin === 1;
+					if (userRecord) {
+						sessionData.isAdmin = userRecord.is_admin === 1;
+					}
+				} catch {
+					// Database error - continue with session data from cookie
 				}
 			}
 
 			event.locals.user = sessionData;
-			console.log(
-				`[Auth] User authenticated: ${sessionData.login}, isOwner: ${sessionData.isOwner}, isAdmin: ${sessionData.isAdmin}`
-			);
-		} catch (err) {
+		} catch {
 			// Invalid session, clear cookie
-			console.log('[Auth] Invalid session cookie, clearing');
 			event.cookies.delete('session', { path: '/' });
 		}
-	} else {
-		console.log(`[Auth] No session cookie for ${event.url.pathname}`);
 	}
 
 	return resolve(event);

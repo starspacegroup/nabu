@@ -185,9 +185,12 @@ describe('GitHub OAuth Callback - Extended Coverage', () => {
 		mockKVGet.mockResolvedValueOnce(null); // First login check
 		mockKVPut.mockResolvedValue(undefined);
 
-		await expect(GET(createMockEvent() as unknown as Parameters<typeof GET>[0])).rejects.toThrow(
-			'Redirect to /admin'
-		);
+		const response = await GET(createMockEvent() as unknown as Parameters<typeof GET>[0]);
+
+		// Successful auth now returns a Response with redirect
+		expect(response.status).toBe(302);
+		expect(response.headers.get('Location')).toContain('/admin');
+		expect(response.headers.get('Set-Cookie')).toContain('session=');
 
 		expect(mockKVPut).toHaveBeenCalledWith('admin_first_login_completed', 'true');
 	});
@@ -218,9 +221,11 @@ describe('GitHub OAuth Callback - Extended Coverage', () => {
 				})
 			});
 
-		await expect(GET(createMockEvent() as unknown as Parameters<typeof GET>[0])).rejects.toThrow(
-			'Redirect to /'
-		);
+		const response = await GET(createMockEvent() as unknown as Parameters<typeof GET>[0]);
+
+		// Successful auth now returns a Response with redirect
+		expect(response.status).toBe(302);
+		expect(response.headers.get('Location')).toMatch(/\/$/); // Ends with /
 	});
 
 	it('should handle database errors gracefully', async () => {
@@ -256,9 +261,10 @@ describe('GitHub OAuth Callback - Extended Coverage', () => {
 		});
 
 		// Should still complete login even if DB fails
-		await expect(GET(createMockEvent() as unknown as Parameters<typeof GET>[0])).rejects.toThrow(
-			'Redirect to /admin'
-		);
+		const response = await GET(createMockEvent() as unknown as Parameters<typeof GET>[0]);
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get('Location')).toContain('/admin');
 
 		warnSpy.mockRestore();
 	});
@@ -289,19 +295,12 @@ describe('GitHub OAuth Callback - Extended Coverage', () => {
 				})
 			});
 
-		try {
-			await GET(createMockEvent() as unknown as Parameters<typeof GET>[0]);
-		} catch {
-			// Expected redirect
-		}
+		const response = await GET(createMockEvent() as unknown as Parameters<typeof GET>[0]);
 
-		expect(mockCookiesSet).toHaveBeenCalledWith(
-			'session',
-			expect.any(String),
-			expect.objectContaining({
-				path: '/',
-				httpOnly: true
-			})
-		);
+		// Cookie is now set in the Response header
+		const setCookie = response.headers.get('Set-Cookie');
+		expect(setCookie).toContain('session=');
+		expect(setCookie).toContain('Path=/');
+		expect(setCookie).toContain('HttpOnly');
 	});
 });

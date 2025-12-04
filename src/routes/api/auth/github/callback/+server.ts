@@ -160,16 +160,12 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			isAdmin
 		};
 
-		// Store session in cookie (in production, store in D1/KV and use session ID)
-		const sessionCookie = btoa(JSON.stringify(sessionData));
-
-		cookies.set('session', sessionCookie, {
-			path: '/',
-			httpOnly: true,
-			secure: url.protocol === 'https:',
-			sameSite: 'lax',
-			maxAge: 60 * 60 * 24 * 7 // 7 days
-		});
+		// Store session in cookie using URL-safe base64 encoding
+		// Replace +, /, = with URL-safe characters to avoid cookie parsing issues
+		const sessionCookie = btoa(JSON.stringify(sessionData))
+			.replace(/\+/g, '-')
+			.replace(/\//g, '_')
+			.replace(/=+$/, '');
 
 		// Track first admin login to lock setup page
 		if (isOwner && platform?.env?.KV) {
@@ -189,11 +185,32 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 
 		// Redirect to admin if owner, otherwise to home
 		const redirectUrl = isOwner ? '/admin' : '/';
-		console.log(
-			`GitHub OAuth success: user=${githubUser.login}, id=${githubUser.id}, isOwner=${isOwner}, redirecting to ${redirectUrl}`
-		);
 
-		throw redirect(302, redirectUrl);
+		// Build the absolute redirect URL
+		const absoluteRedirectUrl = new URL(redirectUrl, url.origin).toString();
+
+		// Build cookie string manually for proper handling
+		const isSecure = url.protocol === 'https:';
+		const cookieParts = [
+			`session=${sessionCookie}`,
+			'Path=/',
+			'HttpOnly',
+			'SameSite=Lax',
+			`Max-Age=${60 * 60 * 24 * 7}` // 7 days
+		];
+		if (isSecure) {
+			cookieParts.push('Secure');
+		}
+
+		// Return a redirect response with the cookie header set explicitly
+		// This ensures the cookie is properly sent with the redirect
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: absoluteRedirectUrl,
+				'Set-Cookie': cookieParts.join('; ')
+			}
+		});
 	} catch (err) {
 		// Re-throw redirects immediately (they are intentional flow control, not errors)
 		if (isRedirect(err)) {
