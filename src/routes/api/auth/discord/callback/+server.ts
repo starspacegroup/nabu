@@ -1,7 +1,7 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// GET - Handle GitHub OAuth callback
+// GET - Handle Discord OAuth callback
 export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
@@ -11,14 +11,14 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 
 	try {
-		// Fetch GitHub OAuth configuration from env or KV
-		let clientId = platform?.env?.GITHUB_CLIENT_ID;
-		let clientSecret = platform?.env?.GITHUB_CLIENT_SECRET;
+		// Fetch Discord OAuth configuration from env or KV
+		let clientId = platform?.env?.DISCORD_CLIENT_ID;
+		let clientSecret = platform?.env?.DISCORD_CLIENT_SECRET;
 
 		// Try to fetch from KV if environment variables not set
 		if ((!clientId || !clientSecret) && platform?.env?.KV) {
 			try {
-				const stored = await platform.env.KV.get('auth_config:github');
+				const stored = await platform.env.KV.get('auth_config:discord');
 				if (stored) {
 					const config = JSON.parse(stored);
 					clientId = config.clientId;
@@ -30,23 +30,23 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 		}
 
 		if (!clientId || !clientSecret) {
-			console.error('GitHub OAuth not configured - missing clientId or clientSecret');
+			console.error('Discord OAuth not configured - missing clientId or clientSecret');
 			throw redirect(302, '/auth/login?error=not_configured');
 		}
 
-		const callbackUrl = `${url.origin}/api/auth/github/callback`;
+		const callbackUrl = `${url.origin}/api/auth/discord/callback`;
 
 		// Exchange code for access token
-		const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+		const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json'
+				'Content-Type': 'application/x-www-form-urlencoded'
 			},
-			body: JSON.stringify({
+			body: new URLSearchParams({
 				client_id: clientId,
 				client_secret: clientSecret,
 				code,
+				grant_type: 'authorization_code',
 				redirect_uri: callbackUrl
 			})
 		});
@@ -65,12 +65,10 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			throw redirect(302, '/auth/login?error=no_access_token');
 		}
 
-		// Fetch user info from GitHub
-		const userResponse = await fetch('https://api.github.com/user', {
+		// Fetch user info from Discord
+		const userResponse = await fetch('https://discord.com/api/users/@me', {
 			headers: {
-				Authorization: `Bearer ${accessToken}`,
-				Accept: 'application/vnd.github.v3+json',
-				'User-Agent': 'NebulaKit'
+				Authorization: `Bearer ${accessToken}`
 			}
 		});
 
@@ -80,7 +78,15 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			throw redirect(302, '/auth/login?error=user_fetch_failed');
 		}
 
-		const githubUser = await userResponse.json();
+		const discordUser = await userResponse.json();
+
+		// Build avatar URL
+		const avatarUrl = discordUser.avatar
+			? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+			: `https://cdn.discordapp.com/embed/avatars/${parseInt(discordUser.discriminator || '0') % 5}.png`;
+
+		// Generate unique user ID with discord prefix
+		const userId = `discord_${discordUser.id}`;
 
 		// Check for linking mode - if user is already logged in
 		const existingSessionCookie = cookies.get('session');
@@ -103,39 +109,21 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			}
 		}
 
-		// Check if user is the OAuth app owner
-		// First try environment variable, then fall back to KV
-		let appOwnerId = platform?.env?.GITHUB_OWNER_ID;
-
-		// Try to fetch from KV if environment variable not set
-		if (!appOwnerId && platform?.env?.KV) {
-			try {
-				const storedOwnerId = await platform.env.KV.get('github_owner_id');
-				if (storedOwnerId) {
-					appOwnerId = storedOwnerId;
-				}
-			} catch (err) {
-				console.error('Failed to fetch owner ID from KV:', err);
-			}
-		}
-
-		const isOwner = appOwnerId ? githubUser.id === parseInt(appOwnerId) : false;
-
 		// Store or update user in database
 		let isAdmin = false;
 		if (platform?.env?.DB) {
 			try {
-				// Handle linking mode - user is already logged in and wants to link GitHub
 				if (isLinkingMode && existingUser) {
-					// Check if this GitHub account is already linked to another user
+					// Link Discord account to existing user
+					// First check if this Discord account is already linked to another user
 					const existingOAuth = await platform.env.DB.prepare(
 						'SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_account_id = ?'
 					)
-						.bind('github', githubUser.id.toString())
+						.bind('discord', discordUser.id)
 						.first<{ user_id: string }>();
 
 					if (existingOAuth && existingOAuth.user_id !== existingUser.id) {
-						// GitHub account already linked to a different user
+						// Discord account already linked to a different user
 						throw redirect(302, '/profile?error=account_already_linked');
 					}
 
@@ -145,20 +133,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 							`INSERT INTO oauth_accounts (id, user_id, provider, provider_account_id, access_token, created_at)
 							VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
 						)
-							.bind(
-								crypto.randomUUID(),
-								existingUser.id,
-								'github',
-								githubUser.id.toString(),
-								accessToken
-							)
-							.run();
-
-						// Also update user's GitHub info
-						await platform.env.DB.prepare(
-							`UPDATE users SET github_login = ?, github_avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-						)
-							.bind(githubUser.login, githubUser.avatar_url, existingUser.id)
+							.bind(crypto.randomUUID(), existingUser.id, 'discord', discordUser.id, accessToken)
 							.run();
 					}
 
@@ -166,16 +141,16 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					return new Response(null, {
 						status: 302,
 						headers: {
-							Location: new URL('/profile?linked=github', url.origin).toString()
+							Location: new URL('/profile?linked=discord', url.origin).toString()
 						}
 					});
 				}
 
-				// Check if this GitHub account is already linked to a user
+				// Check if this Discord account is already linked to a user
 				const linkedAccount = await platform.env.DB.prepare(
 					'SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_account_id = ?'
 				)
-					.bind('github', githubUser.id.toString())
+					.bind('discord', discordUser.id)
 					.first<{ user_id: string }>();
 
 				if (linkedAccount) {
@@ -194,10 +169,10 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					if (linkedUser) {
 						const sessionData = {
 							id: linkedUser.id,
-							login: linkedUser.github_login || githubUser.login,
-							name: linkedUser.name || githubUser.name,
-							email: linkedUser.email || githubUser.email,
-							avatarUrl: linkedUser.github_avatar_url || githubUser.avatar_url,
+							login: linkedUser.github_login || discordUser.username,
+							name: linkedUser.name,
+							email: linkedUser.email,
+							avatarUrl: linkedUser.github_avatar_url || avatarUrl,
 							isOwner: false,
 							isAdmin: linkedUser.is_admin === 1
 						};
@@ -219,23 +194,21 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 							cookieParts.push('Secure');
 						}
 
-						const redirectUrl = linkedUser.is_admin === 1 ? '/admin' : '/';
-
 						return new Response(null, {
 							status: 302,
 							headers: {
-								Location: new URL(redirectUrl, url.origin).toString(),
+								Location: new URL('/', url.origin).toString(),
 								'Set-Cookie': cookieParts.join('; ')
 							}
 						});
 					}
 				}
 
-				// Check if user exists with GitHub ID
+				// Check if user exists with this ID
 				const existingUserRecord = await platform.env.DB.prepare(
 					'SELECT id, is_admin FROM users WHERE id = ?'
 				)
-					.bind(githubUser.id.toString())
+					.bind(userId)
 					.first<{ id: string; is_admin: number }>();
 
 				if (existingUserRecord) {
@@ -243,45 +216,30 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					isAdmin = existingUserRecord.is_admin === 1;
 					await platform.env.DB.prepare(
 						`UPDATE users 
-							SET name = ?, github_login = ?, github_avatar_url = ?, updated_at = CURRENT_TIMESTAMP 
-							WHERE id = ?`
+						SET name = ?, updated_at = CURRENT_TIMESTAMP 
+						WHERE id = ?`
 					)
-						.bind(
-							githubUser.name,
-							githubUser.login,
-							githubUser.avatar_url,
-							githubUser.id.toString()
-						)
+						.bind(discordUser.global_name || discordUser.username, userId)
 						.run();
 				} else {
-					// Create new user (owner is automatically admin)
-					isAdmin = isOwner;
+					// Create new user
 					await platform.env.DB.prepare(
-						`INSERT INTO users (id, email, name, github_login, github_avatar_url, is_admin, created_at) 
-							VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+						`INSERT INTO users (id, email, name, created_at) 
+						VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
 					)
 						.bind(
-							githubUser.id.toString(),
-							githubUser.email || `${githubUser.login}@github.local`,
-							githubUser.name,
-							githubUser.login,
-							githubUser.avatar_url,
-							isAdmin ? 1 : 0
+							userId,
+							discordUser.email || `${discordUser.username}@discord.local`,
+							discordUser.global_name || discordUser.username
 						)
 						.run();
 
-					// Also create OAuth account record for GitHub
+					// Also create OAuth account record for Discord
 					await platform.env.DB.prepare(
 						`INSERT INTO oauth_accounts (id, user_id, provider, provider_account_id, access_token, created_at)
 						VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
 					)
-						.bind(
-							crypto.randomUUID(),
-							githubUser.id.toString(),
-							'github',
-							githubUser.id.toString(),
-							accessToken
-						)
+						.bind(crypto.randomUUID(), userId, 'discord', discordUser.id, accessToken)
 						.run();
 				}
 			} catch (dbErr) {
@@ -296,42 +254,23 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 
 		// Create session
 		const sessionData = {
-			id: githubUser.id.toString(),
-			login: githubUser.login,
-			name: githubUser.name,
-			email: githubUser.email,
-			avatarUrl: githubUser.avatar_url,
-			isOwner,
+			id: userId,
+			login: discordUser.username,
+			name: discordUser.global_name || discordUser.username,
+			email: discordUser.email,
+			avatarUrl,
+			isOwner: false,
 			isAdmin
 		};
 
 		// Store session in cookie using URL-safe base64 encoding
-		// Replace +, /, = with URL-safe characters to avoid cookie parsing issues
 		const sessionCookie = btoa(JSON.stringify(sessionData))
 			.replace(/\+/g, '-')
 			.replace(/\//g, '_')
 			.replace(/=+$/, '');
 
-		// Track first admin login to lock setup page
-		if (isOwner && platform?.env?.KV) {
-			const hasLoggedInBefore = await platform.env.KV.get('admin_first_login_completed');
-			if (!hasLoggedInBefore) {
-				await platform.env.KV.put('admin_first_login_completed', 'true');
-				console.log('✓ Admin first login completed - setup page is now locked');
-			}
-		}
-
-		// Log GITHUB_OWNER_ID for debugging
-		if (!appOwnerId) {
-			console.warn(
-				'GITHUB_OWNER_ID not set - all users will have isOwner=false. Set GITHUB_OWNER_ID in wrangler.toml to enable admin access.'
-			);
-		}
-
-		// Redirect to admin if owner, otherwise to home
-		const redirectUrl = isOwner ? '/admin' : '/';
-
-		// Build the absolute redirect URL
+		// Redirect to home
+		const redirectUrl = '/';
 		const absoluteRedirectUrl = new URL(redirectUrl, url.origin).toString();
 
 		// Build cookie string manually for proper handling
@@ -347,8 +286,6 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			cookieParts.push('Secure');
 		}
 
-		// Return a redirect response with the cookie header set explicitly
-		// This ensures the cookie is properly sent with the redirect
 		return new Response(null, {
 			status: 302,
 			headers: {
@@ -357,12 +294,12 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			}
 		});
 	} catch (err) {
-		// Re-throw redirects immediately (they are intentional flow control, not errors)
+		// Re-throw redirects immediately
 		if (isRedirect(err)) {
 			throw err;
 		}
 		// Log actual errors only
-		console.error('GitHub OAuth callback error:', err);
+		console.error('Discord OAuth callback error:', err);
 		throw redirect(302, '/auth/login?error=oauth_failed');
 	}
 };

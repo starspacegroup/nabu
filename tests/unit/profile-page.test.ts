@@ -1,12 +1,32 @@
 import { render } from '@testing-library/svelte';
-import { describe, expect, it } from 'vitest';
+import { readable } from 'svelte/store';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock the page store
+vi.mock('$app/stores', () => ({
+	page: readable({
+		url: new URL('http://localhost/profile'),
+		params: {},
+		route: { id: '/profile' },
+		status: 200,
+		error: null,
+		data: {},
+		state: {},
+		form: null
+	})
+}));
 
 describe('Profile Page', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	describe('Server Load Function', () => {
 		it('should redirect to login if user is not authenticated', async () => {
 			const mockEvent = {
 				locals: {},
-				url: new URL('http://localhost:5173/profile')
+				url: new URL('http://localhost:5173/profile'),
+				platform: {}
 			};
 
 			// Import dynamically to test server load
@@ -36,14 +56,19 @@ describe('Profile Page', () => {
 				locals: {
 					user: mockUser
 				},
-				url: new URL('http://localhost:5173/profile')
+				url: new URL('http://localhost:5173/profile'),
+				platform: {}
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
 			const result = await load(mockEvent as any);
 
+			// The server now infers GitHub connection from non-discord user ID
 			expect(result).toEqual({
-				user: mockUser
+				user: mockUser,
+				connectedAccounts: [
+					{ provider: 'github', provider_account_id: 'test-user-id', created_at: '' }
+				]
 			});
 		});
 
@@ -59,7 +84,8 @@ describe('Profile Page', () => {
 				locals: {
 					user: mockUser
 				},
-				url: new URL('http://localhost:5173/profile')
+				url: new URL('http://localhost:5173/profile'),
+				platform: {}
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
@@ -69,6 +95,10 @@ describe('Profile Page', () => {
 			expect(result.user).toBeDefined();
 			expect(result.user.name).toBeUndefined();
 			expect(result.user.avatarUrl).toBeUndefined();
+			// GitHub connection inferred from non-discord user ID
+			expect(result.connectedAccounts).toEqual([
+				{ provider: 'github', provider_account_id: 'test-user-id', created_at: '' }
+			]);
 		});
 	});
 
@@ -86,7 +116,8 @@ describe('Profile Page', () => {
 					isOwner: false,
 					isAdmin: false
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { container, getByText } = render(ProfilePage.default, {
@@ -114,7 +145,8 @@ describe('Profile Page', () => {
 					email: 'test@example.com',
 					isOwner: false
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { container } = render(ProfilePage.default, {
@@ -137,7 +169,8 @@ describe('Profile Page', () => {
 					name: 'Test User',
 					isOwner: false
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { container } = render(ProfilePage.default, {
@@ -162,7 +195,8 @@ describe('Profile Page', () => {
 					isOwner: false,
 					isAdmin: true
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { getByText } = render(ProfilePage.default, {
@@ -184,7 +218,8 @@ describe('Profile Page', () => {
 					avatarUrl: 'https://avatars.githubusercontent.com/u/123456',
 					isOwner: true
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { getByText } = render(ProfilePage.default, {
@@ -205,7 +240,8 @@ describe('Profile Page', () => {
 					name: 'Test User',
 					isOwner: false
 				},
-				hasAIProviders: false
+				hasAIProviders: false,
+				connectedAccounts: []
 			};
 
 			const { container } = render(ProfilePage.default, {
