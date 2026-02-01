@@ -139,6 +139,12 @@ describe('OpenAI Chat Service', () => {
 							})
 							.mockResolvedValueOnce({
 								done: false,
+								value: new TextEncoder().encode(
+									'data: {"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15},"model":"gpt-4o"}\n\n'
+								)
+							})
+							.mockResolvedValueOnce({
+								done: false,
 								value: new TextEncoder().encode('data: [DONE]\n\n')
 							})
 							.mockResolvedValueOnce({ done: true, value: undefined })
@@ -153,12 +159,22 @@ describe('OpenAI Chat Service', () => {
 			const messages = [{ role: 'user' as const, content: 'Hello' }];
 			const stream = await streamChatCompletion('sk-test123', messages);
 
-			const chunks: string[] = [];
+			const contentChunks: string[] = [];
+			let usageData = null;
 			for await (const chunk of stream) {
-				chunks.push(chunk);
+				if (chunk.type === 'content' && chunk.content) {
+					contentChunks.push(chunk.content);
+				} else if (chunk.type === 'usage') {
+					usageData = chunk.usage;
+				}
 			}
 
-			expect(chunks).toEqual(['Hello', ' world']);
+			expect(contentChunks).toEqual(['Hello', ' world']);
+			expect(usageData).toEqual({
+				promptTokens: 10,
+				completionTokens: 5,
+				totalTokens: 15
+			});
 			expect(mockFetch).toHaveBeenCalledWith(
 				'https://api.openai.com/v1/chat/completions',
 				expect.objectContaining({
@@ -342,13 +358,15 @@ describe('OpenAI Chat Service', () => {
 			const messages = [{ role: 'user' as const, content: 'Hello' }];
 			const stream = streamChatCompletion('sk-test123', messages);
 
-			const chunks: string[] = [];
+			const contentChunks: string[] = [];
 			for await (const chunk of stream) {
-				chunks.push(chunk);
+				if (chunk.type === 'content' && chunk.content) {
+					contentChunks.push(chunk.content);
+				}
 			}
 
 			// Should still get valid chunks despite malformed JSON
-			expect(chunks).toEqual(['Hello', ' world']);
+			expect(contentChunks).toEqual(['Hello', ' world']);
 			// Should have logged the error
 			expect(consoleSpy).toHaveBeenCalled();
 

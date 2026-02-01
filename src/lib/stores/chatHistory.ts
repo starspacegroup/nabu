@@ -1,10 +1,19 @@
 import { derived, get, writable } from 'svelte/store';
 
+export interface MessageCost {
+	inputTokens: number;
+	outputTokens: number;
+	totalCost: number;
+	model: string;
+	displayName: string;
+}
+
 export interface Message {
 	id: string;
 	role: 'user' | 'assistant' | 'system';
 	content: string;
 	timestamp: Date;
+	cost?: MessageCost;
 }
 
 export interface Conversation {
@@ -163,13 +172,14 @@ function createChatHistoryStore() {
 
 		addMessage(
 			conversationId: string,
-			message: { role: 'user' | 'assistant' | 'system'; content: string }
+			message: { role: 'user' | 'assistant' | 'system'; content: string; cost?: MessageCost }
 		): Message {
 			const newMessage: Message = {
 				id: generateId(),
 				role: message.role,
 				content: message.content,
-				timestamp: new Date()
+				timestamp: new Date(),
+				cost: message.cost
 			};
 
 			update((state) => {
@@ -203,7 +213,12 @@ function createChatHistoryStore() {
 			return newMessage;
 		},
 
-		updateMessage(conversationId: string, messageId: string, content: string): void {
+		updateMessage(
+			conversationId: string,
+			messageId: string,
+			content: string,
+			cost?: MessageCost
+		): void {
 			update((state) => ({
 				...state,
 				conversations: state.conversations.map((conv) => {
@@ -212,7 +227,7 @@ function createChatHistoryStore() {
 					return {
 						...conv,
 						messages: conv.messages.map((msg) =>
-							msg.id === messageId ? { ...msg, content } : msg
+							msg.id === messageId ? { ...msg, content, ...(cost && { cost }) } : msg
 						),
 						updatedAt: new Date()
 					};

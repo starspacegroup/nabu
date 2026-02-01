@@ -14,12 +14,30 @@ export interface AIKey {
 	provider: string;
 	apiKey: string;
 	enabled: boolean;
+	// Text chat models enabled for this key
+	models?: string[];
+	// Legacy single model field (for backwards compatibility)
+	model?: string;
 	voiceEnabled?: boolean;
+	// Voice models enabled for this key
+	voiceModels?: string[];
+	// Legacy single voice model field (for backwards compatibility)
 	voiceModel?: string;
 }
 
 export interface RealtimeSessionResponse {
 	token: string;
+}
+
+export interface StreamChunk {
+	type: 'content' | 'usage';
+	content?: string;
+	usage?: {
+		promptTokens: number;
+		completionTokens: number;
+		totalTokens: number;
+	};
+	model?: string;
 }
 
 /**
@@ -54,6 +72,7 @@ export async function getEnabledOpenAIKey(platform: App.Platform): Promise<AIKey
 
 /**
  * Stream chat completion from OpenAI API
+ * Yields content chunks and finally a usage chunk with token counts
  */
 export async function* streamChatCompletion(
 	apiKey: string,
@@ -63,7 +82,7 @@ export async function* streamChatCompletion(
 		temperature?: number;
 		maxTokens?: number;
 	} = {}
-): AsyncGenerator<string, void, unknown> {
+): AsyncGenerator<StreamChunk, void, unknown> {
 	const { model = 'gpt-4o', temperature = 0.7, maxTokens = 2048 } = options;
 
 	const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -77,7 +96,8 @@ export async function* streamChatCompletion(
 			messages,
 			temperature,
 			max_tokens: maxTokens,
-			stream: true
+			stream: true,
+			stream_options: { include_usage: true }
 		})
 	});
 
@@ -108,9 +128,24 @@ export async function* streamChatCompletion(
 
 			try {
 				const json = JSON.parse(trimmed.slice(6));
+
+				// Check for usage data (comes in the final chunk)
+				if (json.usage) {
+					yield {
+						type: 'usage',
+						usage: {
+							promptTokens: json.usage.prompt_tokens,
+							completionTokens: json.usage.completion_tokens,
+							totalTokens: json.usage.total_tokens
+						},
+						model: json.model || model
+					};
+				}
+
+				// Check for content delta
 				const content = json.choices?.[0]?.delta?.content;
 				if (content) {
-					yield content;
+					yield { type: 'content', content };
 				}
 			} catch (err) {
 				console.error('Failed to parse SSE line:', trimmed, err);

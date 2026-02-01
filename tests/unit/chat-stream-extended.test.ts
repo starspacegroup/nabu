@@ -79,8 +79,13 @@ describe('Chat Stream API - Extended Coverage', () => {
 	it('should return streaming response when key is available', async () => {
 		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
 		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
-			yield 'Hello';
-			yield ' world';
+			yield { type: 'content', content: 'Hello' };
+			yield { type: 'content', content: ' world' };
+			yield {
+				type: 'usage',
+				usage: { prompt_tokens: 10, completion_tokens: 5 },
+				model: 'gpt-4o-mini'
+			};
 		});
 
 		const response = await POST(createMockEvent() as unknown as Parameters<typeof POST>[0]);
@@ -109,7 +114,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
 		vi.mocked(formatMessagesForOpenAI).mockReturnValue([{ role: 'user', content: 'formatted' }]);
 		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
-			yield 'response';
+			yield { type: 'content', content: 'response' };
 		});
 
 		await POST(createMockEvent() as unknown as Parameters<typeof POST>[0]);
@@ -134,5 +139,44 @@ describe('Chat Stream API - Extended Coverage', () => {
 		).rejects.toThrow();
 
 		consoleSpy.mockRestore();
+	});
+
+	it('should pass model parameter to streamChatCompletion', async () => {
+		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
+		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+			yield { type: 'content', content: 'response' };
+		});
+
+		await POST(
+			createMockEvent({
+				body: {
+					messages: [{ role: 'user', content: 'Hello' }],
+					model: 'gpt-4o-mini'
+				}
+			}) as unknown as Parameters<typeof POST>[0]
+		);
+
+		// Verify streamChatCompletion was called with the model option
+		expect(streamChatCompletion).toHaveBeenCalledWith(
+			'test-key',
+			expect.any(Array),
+			expect.objectContaining({ model: 'gpt-4o-mini' })
+		);
+	});
+
+	it('should use default model when not specified', async () => {
+		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
+		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+			yield { type: 'content', content: 'response' };
+		});
+
+		await POST(createMockEvent() as unknown as Parameters<typeof POST>[0]);
+
+		// Verify streamChatCompletion was called with default model
+		expect(streamChatCompletion).toHaveBeenCalledWith(
+			'test-key',
+			expect.any(Array),
+			expect.objectContaining({ model: 'gpt-4o' })
+		);
 	});
 });

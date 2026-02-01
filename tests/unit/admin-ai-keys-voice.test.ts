@@ -34,7 +34,7 @@ describe('AI Keys Voice Chat Configuration', () => {
 					model: 'gpt-4',
 					enabled: true,
 					voiceEnabled: true,
-					voiceModel: 'gpt-4o-realtime-preview-2024-12-17'
+					voiceModels: ['gpt-4o-realtime-preview-2024-12-17']
 				})
 			};
 
@@ -52,9 +52,9 @@ describe('AI Keys Voice Chat Configuration', () => {
 			expect(result.key).toMatchObject({
 				name: 'OpenAI Voice',
 				provider: 'openai',
-				voiceEnabled: true,
-				voiceModel: 'gpt-4o-realtime-preview-2024-12-17'
+				voiceEnabled: true
 			});
+			expect(result.key.voiceModels).toContain('gpt-4o-realtime-preview-2024-12-17');
 		});
 
 		it('should create key with voice chat disabled by default', async () => {
@@ -129,7 +129,7 @@ describe('AI Keys Voice Chat Configuration', () => {
 					model: 'gpt-4',
 					enabled: true,
 					voiceEnabled: true,
-					voiceModel: 'gpt-4o-realtime-preview-2024-12-17'
+					voiceModels: ['gpt-4o-realtime-preview-2024-12-17']
 				})
 			};
 
@@ -146,7 +146,7 @@ describe('AI Keys Voice Chat Configuration', () => {
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
 			expect(result.key.voiceEnabled).toBe(true);
-			expect(result.key.voiceModel).toBe('gpt-4o-realtime-preview-2024-12-17');
+			expect(result.key.voiceModels).toContain('gpt-4o-realtime-preview-2024-12-17');
 		});
 
 		it('should update key to disable voice chat', async () => {

@@ -29,15 +29,20 @@ export const PUT: RequestHandler = async ({ params, request, platform, locals })
 		const existing = JSON.parse(existingData);
 
 		// Update key data
+		// Support both single model and models array for backwards compatibility
+		const models = data.models || (data.model ? [data.model] : existing.models || []);
+		const voiceModels =
+			data.voiceModels || (data.voiceModel ? [data.voiceModel] : existing.voiceModels || []);
+
 		const updatedKey = {
 			...existing,
 			name: data.name,
 			provider: data.provider,
-			model: data.model,
+			models,
 			enabled: data.enabled !== undefined ? data.enabled : existing.enabled,
 			voiceEnabled:
 				data.voiceEnabled !== undefined ? data.voiceEnabled : (existing.voiceEnabled ?? false),
-			voiceModel: data.voiceModel || existing.voiceModel || 'gpt-4o-realtime-preview-2024-12-17',
+			voiceModels,
 			updatedAt: new Date().toISOString()
 		};
 

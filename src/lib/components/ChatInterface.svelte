@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { chatHistoryStore, currentMessages } from '$lib/stores/chatHistory';
+	import { chatHistoryStore, currentMessages, type MessageCost } from '$lib/stores/chatHistory';
+	import { calculateCost, formatCost, getModelDisplayName } from '$lib/utils/cost';
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { fade, fly } from 'svelte/transition';
@@ -7,6 +8,16 @@
 
 	// Voice availability is passed from server - defaults to false for safety
 	export let voiceAvailable = false;
+
+	// Model selection
+	interface ChatModel {
+		id: string;
+		displayName: string;
+	}
+	let availableModels: ChatModel[] = [];
+	let selectedModel = 'gpt-4o';
+	let isLoadingModels = false;
+	let showModelSelector = false;
 
 	// Use store-based messages
 	$: messages = $currentMessages.map((msg) => ({
@@ -34,6 +45,13 @@
 	let audioProcessor: ScriptProcessorNode | null = null;
 	let sessionConfigured = false;
 
+	// Voice session tracking
+	let currentVoiceModel = 'gpt-4o-realtime-preview-2024-12-17';
+	let voiceSessionUsage: {
+		inputTokens: number;
+		outputTokens: number;
+	} = { inputTokens: 0, outputTokens: 0 };
+
 	// Input state
 	const MAX_INPUT_LENGTH = 4000;
 	$: inputLength = input.length;
@@ -43,7 +61,25 @@
 	onMount(() => {
 		scrollToBottom();
 		autoResizeTextarea();
+		fetchAvailableModels();
 	});
+
+	async function fetchAvailableModels() {
+		isLoadingModels = true;
+		try {
+			const response = await fetch('/api/chat/models');
+			if (response.ok) {
+				const data = await response.json();
+				availableModels = data.models;
+				selectedModel = data.defaultModel || 'gpt-4o';
+				showModelSelector = availableModels.length > 1;
+			}
+		} catch (err) {
+			console.error('Failed to fetch models:', err);
+		} finally {
+			isLoadingModels = false;
+		}
+	}
 
 	onDestroy(() => {
 		if (realtimeWs) {
@@ -87,10 +123,18 @@
 			conversationId = conv.id;
 		}
 
-		// Add user message to store
+		// Add user message to store with the selected model
+		const userCost: MessageCost = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalCost: 0,
+			model: selectedModel,
+			displayName: getModelDisplayName(selectedModel)
+		};
 		chatHistoryStore.addMessage(conversationId, {
 			role: 'user',
-			content: input.trim()
+			content: input.trim(),
+			cost: userCost
 		});
 
 		input = '';
@@ -99,11 +143,11 @@
 		scrollToBottom();
 
 		try {
-			// Stream response from API
+			// Stream response from API with selected model
 			const response = await fetch('/api/chat/stream', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ messages: $currentMessages })
+				body: JSON.stringify({ messages: $currentMessages, model: selectedModel })
 			});
 
 			if (!response.ok) {
@@ -115,6 +159,7 @@
 
 			const decoder = new TextDecoder();
 			let assistantContent = '';
+			let usageData: MessageCost | undefined;
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -134,6 +179,15 @@
 								assistantContent += parsed.content;
 								streamingContent = assistantContent;
 							}
+							if (parsed.usage) {
+								usageData = {
+									inputTokens: parsed.usage.inputTokens,
+									outputTokens: parsed.usage.outputTokens,
+									totalCost: parsed.usage.totalCost,
+									model: parsed.usage.model,
+									displayName: parsed.usage.displayName
+								};
+							}
 						} catch (e) {
 							console.error('Failed to parse SSE:', e);
 						}
@@ -141,10 +195,11 @@
 				}
 			}
 
-			// Add complete assistant message to store
+			// Add complete assistant message to store with cost data
 			chatHistoryStore.addMessage(conversationId, {
 				role: 'assistant',
-				content: assistantContent
+				content: assistantContent,
+				cost: usageData
 			});
 			streamingContent = '';
 		} catch (err) {
@@ -198,6 +253,10 @@
 			}
 
 			const { token, model } = await response.json();
+
+			// Track the current voice model for cost calculation
+			currentVoiceModel = model || 'gpt-4o-realtime-preview-2024-12-17';
+			voiceSessionUsage = { inputTokens: 0, outputTokens: 0 };
 
 			// Get microphone access with specific constraints for OpenAI Realtime API
 			mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -424,6 +483,43 @@
 						console.log('Response done - full data:', JSON.stringify(data, null, 2));
 						console.log('Response status:', data.response?.status);
 						console.log('Response output:', data.response?.output);
+
+						// Extract usage data from response
+						const usage = data.response?.usage;
+						if (usage && currentAssistantId) {
+							const inputTokens = usage.input_tokens || 0;
+							const outputTokens = usage.output_tokens || 0;
+							const costResult = calculateCost(currentVoiceModel, inputTokens, outputTokens);
+
+							const messageCost: MessageCost = {
+								inputTokens,
+								outputTokens,
+								totalCost: costResult.totalCost,
+								model: currentVoiceModel,
+								displayName: getModelDisplayName(currentVoiceModel)
+							};
+
+							// Update the assistant message with cost info
+							messages = messages.map((msg) =>
+								msg.id === currentAssistantId ? { ...msg, cost: messageCost } : msg
+							);
+
+							// Also save to the store if we have a conversation
+							const conversationId = $chatHistoryStore.currentConversationId;
+							if (conversationId) {
+								// Find the assistant message and save it with cost
+								const assistantMsg = messages.find((m) => m.id === currentAssistantId);
+								if (assistantMsg) {
+									chatHistoryStore.addMessage(conversationId, {
+										role: 'assistant',
+										content: assistantMsg.content,
+										cost: messageCost
+									});
+								}
+							}
+
+							console.log('Voice message cost:', formatCost(costResult.totalCost));
+						}
 
 						// Check if response was cancelled or had no output
 						if (data.response?.status === 'cancelled') {
@@ -659,8 +755,23 @@
 				</div>
 				<div class="message-bubble">
 					<div class="message-content">{message.content}</div>
-					<div class="message-timestamp">
-						{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+					<div class="message-meta">
+						<span class="message-timestamp">
+							{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						</span>
+						{#if message.cost}
+							<span
+								class="message-cost"
+								title={message.role === 'user'
+									? `Sent using ${message.cost.displayName}`
+									: `${message.cost.displayName}\nInput: ${message.cost.inputTokens.toLocaleString()} tokens\nOutput: ${message.cost.outputTokens.toLocaleString()} tokens`}
+							>
+								<span class="cost-model">{message.cost.displayName}</span>
+								{#if message.role === 'assistant' && message.cost.totalCost > 0}
+									<span class="cost-amount">{formatCost(message.cost.totalCost)}</span>
+								{/if}
+							</span>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -743,6 +854,37 @@
 
 	<!-- Unified Input Area -->
 	<div class="unified-input-area">
+		<!-- Model selector (only if multiple models available) -->
+		{#if showModelSelector && !isVoiceActive}
+			<div class="model-selector" in:fade={{ duration: 200 }}>
+				<label for="model-select" class="model-label">
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path d="M12 2L2 7l10 5 10-5-10-5z" />
+						<path d="M2 17l10 5 10-5" />
+						<path d="M2 12l10 5 10-5" />
+					</svg>
+					Model:
+				</label>
+				<select
+					id="model-select"
+					bind:value={selectedModel}
+					class="model-select"
+					disabled={isLoading || isLoadingModels}
+				>
+					{#each availableModels as model}
+						<option value={model.id}>{model.displayName}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
+
 		<!-- Main input container -->
 		<div class="input-wrapper">
 			<div class="input-container" class:focused={isFocused}>
@@ -939,10 +1081,40 @@
 		}
 	}
 
+	.message-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: 0 var(--spacing-sm);
+		flex-wrap: wrap;
+	}
+
 	.message-timestamp {
 		font-size: 0.75rem;
 		color: var(--color-text-secondary);
-		padding: 0 var(--spacing-sm);
+	}
+
+	.message-cost {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 2px 6px;
+		cursor: help;
+	}
+
+	.cost-model {
+		color: var(--color-primary);
+		font-weight: 500;
+	}
+
+	.cost-amount {
+		color: var(--color-text-secondary);
+		font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
 	}
 
 	.typing-indicator {
@@ -986,6 +1158,51 @@
 		background: var(--color-surface);
 		backdrop-filter: blur(12px);
 		position: relative;
+	}
+
+	.model-selector {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		max-width: 1200px;
+		margin: 0 auto var(--spacing-sm);
+		padding: 0 var(--spacing-xs);
+	}
+
+	.model-label {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		white-space: nowrap;
+	}
+
+	.model-select {
+		padding: var(--spacing-xs) var(--spacing-sm);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-background);
+		color: var(--color-text);
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		min-width: 140px;
+	}
+
+	.model-select:hover:not(:disabled) {
+		border-color: var(--color-primary);
+	}
+
+	.model-select:focus {
+		outline: none;
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+	}
+
+	.model-select:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.input-wrapper {
