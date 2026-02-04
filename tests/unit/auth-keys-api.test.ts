@@ -89,6 +89,134 @@ describe('Auth Keys API', () => {
 			const result = await response.json();
 			expect(result.keys).toEqual([]);
 		});
+
+		it('should return Discord OAuth key from KV', async () => {
+			const discordConfig = {
+				id: 'discord-123',
+				provider: 'discord',
+				clientId: 'discord-client-123',
+				createdAt: '2024-01-02T00:00:00Z'
+			};
+
+			const mockPlatform = {
+				env: {
+					KV: {
+						get: vi.fn().mockImplementation((key: string) => {
+							if (key === 'auth_config:discord') {
+								return Promise.resolve(JSON.stringify(discordConfig));
+							}
+							return Promise.resolve(null);
+						})
+					}
+				}
+			};
+
+			const { GET } = await import('../../src/routes/api/admin/auth-keys/+server');
+			const response = await GET({
+				platform: mockPlatform
+			} as any);
+
+			const result = await response.json();
+			expect(result.keys).toHaveLength(1);
+			expect(result.keys[0].id).toBe('discord-123');
+			expect(result.keys[0].name).toBe('Discord OAuth (Setup)');
+			expect(result.keys[0].isSetupKey).toBe(true);
+		});
+
+		it('should return both GitHub and Discord OAuth keys from KV', async () => {
+			const githubConfig = {
+				id: 'github-123',
+				provider: 'github',
+				clientId: 'github-client-123',
+				createdAt: '2024-01-01T00:00:00Z'
+			};
+
+			const discordConfig = {
+				id: 'discord-123',
+				provider: 'discord',
+				clientId: 'discord-client-123',
+				createdAt: '2024-01-02T00:00:00Z'
+			};
+
+			const mockPlatform = {
+				env: {
+					KV: {
+						get: vi.fn().mockImplementation((key: string) => {
+							if (key === 'auth_config:github') {
+								return Promise.resolve(JSON.stringify(githubConfig));
+							}
+							if (key === 'auth_config:discord') {
+								return Promise.resolve(JSON.stringify(discordConfig));
+							}
+							return Promise.resolve(null);
+						})
+					}
+				}
+			};
+
+			const { GET } = await import('../../src/routes/api/admin/auth-keys/+server');
+			const response = await GET({
+				platform: mockPlatform
+			} as any);
+
+			const result = await response.json();
+			expect(result.keys).toHaveLength(2);
+			expect(result.keys[0].provider).toBe('github');
+			expect(result.keys[1].provider).toBe('discord');
+		});
+
+		it('should handle Discord KV parse errors gracefully', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+			const mockPlatform = {
+				env: {
+					KV: {
+						get: vi.fn().mockImplementation((key: string) => {
+							if (key === 'auth_config:discord') {
+								return Promise.resolve('invalid-json-for-discord');
+							}
+							return Promise.resolve(null);
+						})
+					}
+				}
+			};
+
+			const { GET } = await import('../../src/routes/api/admin/auth-keys/+server');
+			const response = await GET({
+				platform: mockPlatform
+			} as any);
+
+			const result = await response.json();
+			expect(result.keys).toEqual([]);
+			expect(consoleSpy).toHaveBeenCalled();
+
+			consoleSpy.mockRestore();
+		});
+
+		it('should handle KV.get errors gracefully and return empty keys', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+			const mockPlatform = {
+				env: {
+					KV: {
+						get: vi.fn().mockRejectedValue(new Error('KV failure'))
+					}
+				}
+			};
+
+			const { GET } = await import('../../src/routes/api/admin/auth-keys/+server');
+
+			// The GET function catches KV errors internally and returns empty keys
+			const response = await GET({
+				platform: mockPlatform
+			} as any);
+
+			const result = await response.json();
+			expect(result.keys).toEqual([]);
+			expect(consoleSpy).toHaveBeenCalled();
+
+			consoleSpy.mockRestore();
+		});
 	});
 
 	describe('POST /api/admin/auth-keys', () => {
@@ -129,6 +257,60 @@ describe('Auth Keys API', () => {
 					platform: {}
 				} as any)
 			).rejects.toThrow();
+		});
+
+		it('should save auth key to KV when provider is specified', async () => {
+			vi.stubGlobal('crypto', { randomUUID: () => 'kv-key-123' });
+			const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+			const mockPut = vi.fn().mockResolvedValue(undefined);
+
+			const mockPlatform = {
+				env: {
+					KV: {
+						put: mockPut
+					}
+				}
+			};
+
+			const { POST } = await import('../../src/routes/api/admin/auth-keys/+server');
+			const response = await POST({
+				request: {
+					json: vi.fn().mockResolvedValue({
+						name: 'GitHub OAuth Key',
+						provider: 'github',
+						type: 'oauth',
+						clientId: 'client-123',
+						clientSecret: 'secret-123'
+					})
+				},
+				platform: mockPlatform
+			} as any);
+
+			const result = await response.json();
+			expect(result.success).toBe(true);
+			expect(mockPut).toHaveBeenCalledWith('auth_config:github', expect.any(String));
+
+			consoleSpy.mockRestore();
+		});
+
+		it('should return 500 when POST fails unexpectedly', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+			const { POST } = await import('../../src/routes/api/admin/auth-keys/+server');
+
+			try {
+				await POST({
+					request: {
+						json: vi.fn().mockRejectedValue(new Error('Request parse failed'))
+					},
+					platform: {}
+				} as any);
+				expect.fail('Should have thrown');
+			} catch (err: any) {
+				expect(err.status).toBe(500);
+			}
+
+			consoleSpy.mockRestore();
 		});
 	});
 

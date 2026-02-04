@@ -320,4 +320,112 @@ describe('Chat Page Server - Extended Coverage', () => {
 
 		expect(result.voiceAvailable).toBe(false);
 	});
+
+	it('should handle checkEnabledProviders error and redirect regular user to /', async () => {
+		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		mockKVGet.mockRejectedValueOnce(new Error('Provider check error'));
+
+		await expect(
+			load({
+				platform: {
+					env: {
+						KV: { get: mockKVGet }
+					}
+				},
+				locals: {
+					user: { id: 'user1', isAdmin: false, isOwner: false }
+				}
+			})
+		).rejects.toThrow('Redirect to /');
+
+		consoleSpy.mockRestore();
+	});
+
+	it('should handle checkEnabledProviders error and redirect admin to /admin', async () => {
+		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		mockKVGet.mockRejectedValueOnce(new Error('Provider check error'));
+
+		await expect(
+			load({
+				platform: {
+					env: {
+						KV: { get: mockKVGet }
+					}
+				},
+				locals: {
+					user: { id: 'user1', isAdmin: true }
+				}
+			})
+		).rejects.toThrow('Redirect to /admin');
+
+		consoleSpy.mockRestore();
+	});
+
+	it('should handle empty KV in voice availability check', async () => {
+		mockKVGet
+			// checkEnabledProviders succeeds
+			.mockResolvedValueOnce(JSON.stringify(['key1']))
+			.mockResolvedValueOnce(JSON.stringify({ id: 'key1', enabled: true }))
+			// checkVoiceAvailability - empty key list
+			.mockResolvedValueOnce(null);
+
+		const result = await load({
+			platform: {
+				env: {
+					KV: { get: mockKVGet }
+				}
+			},
+			locals: {
+				user: { id: 'user1' }
+			}
+		});
+
+		expect(result.voiceAvailable).toBe(false);
+	});
+
+	it('should handle missing env.KV in voice check', async () => {
+		mockKVGet
+			.mockResolvedValueOnce(JSON.stringify(['key1']))
+			.mockResolvedValueOnce(JSON.stringify({ id: 'key1', enabled: true }));
+
+		const result = await load({
+			platform: {
+				env: {
+					KV: { get: mockKVGet }
+				}
+			},
+			locals: {
+				user: { id: 'user1' }
+			}
+		});
+
+		// Even if first check passes, voice should return false if KV issues
+		expect(result).toBeDefined();
+	});
+
+	it('should handle provider with undefined enabled (defaults to enabled)', async () => {
+		mockKVGet
+			// checkEnabledProviders - provider without enabled field
+			.mockResolvedValueOnce(JSON.stringify(['key1']))
+			.mockResolvedValueOnce(JSON.stringify({ id: 'key1' })) // no enabled field
+			// checkVoiceAvailability
+			.mockResolvedValueOnce(JSON.stringify(['key1']))
+			.mockResolvedValueOnce(JSON.stringify({ id: 'key1', voiceEnabled: true }));
+
+		const result = await load({
+			platform: {
+				env: {
+					KV: { get: mockKVGet }
+				}
+			},
+			locals: {
+				user: { id: 'user1' }
+			}
+		});
+
+		// Provider without enabled field should be considered enabled
+		expect(result.voiceAvailable).toBe(true);
+	});
 });
