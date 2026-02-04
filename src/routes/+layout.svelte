@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { page } from '$app/stores';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 	import Navigation from '$lib/components/Navigation.svelte';
 	import {
 		closeCommandPalette,
@@ -13,6 +15,12 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
+
+	// Pages where we don't show the footer (full-screen experiences)
+	$: hideFooter =
+		$page.url.pathname.startsWith('/chat') ||
+		$page.url.pathname.startsWith('/admin') ||
+		$page.url.pathname.startsWith('/setup');
 
 	// Subscribe to theme changes and apply to DOM
 	if (browser) {
@@ -48,6 +56,10 @@
 	<main>
 		<slot />
 	</main>
+
+	{#if !hideFooter}
+		<Footer />
+	{/if}
 
 	<CommandPalette bind:show={$showCommandPalette} hasAIProviders={data.hasAIProviders} />
 </div>

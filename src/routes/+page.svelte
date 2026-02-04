@@ -1012,41 +1012,6 @@
 			</p>
 		</div>
 	</div>
-
-	<!-- Additional Info Row -->
-	<div class="features-footer">
-		<div class="feature-badge">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<path
-					d="M10 2l2.5 5.5L18 8.5l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1L10 2z"
-					fill="var(--color-primary)"
-				/>
-			</svg>
-			<span>Production Ready</span>
-		</div>
-		<div class="feature-badge">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<path
-					d="M10 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm0-14c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6z"
-					fill="var(--color-primary)"
-				/>
-				<path d="M9 13l-3-3 1.4-1.4L9 10.2l4.6-4.6L15 7l-6 6z" fill="var(--color-primary)" />
-			</svg>
-			<span>Type Safe</span>
-		</div>
-		<div class="feature-badge">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<path
-					d="M3 10l7-7 7 7M5 12v6h10v-6"
-					stroke="var(--color-primary)"
-					stroke-width="2"
-					fill="none"
-				/>
-				<path d="M8 18v-4h4v4" stroke="var(--color-primary)" stroke-width="2" />
-			</svg>
-			<span>Open Source</span>
-		</div>
-	</div>
 </section>
 
 <!-- Toast Notification -->
@@ -2068,6 +2033,7 @@
 	.features {
 		position: relative;
 		padding: var(--spacing-6xl) 0;
+		padding-bottom: calc(var(--spacing-6xl) * 3);
 		background: linear-gradient(
 			180deg,
 			var(--color-background) 0%,
@@ -2279,58 +2245,6 @@
 		z-index: 1;
 	}
 
-	.features-footer {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		gap: var(--spacing-xl);
-		flex-wrap: wrap;
-		padding: var(--spacing-3xl) 0 0;
-		margin-top: var(--spacing-2xl);
-		border-top: 1px solid var(--color-border);
-		position: relative;
-		z-index: 1;
-	}
-
-	.feature-badge {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-sm);
-		padding: var(--spacing-md) var(--spacing-xl);
-		background: linear-gradient(
-			135deg,
-			color-mix(in srgb, var(--color-primary) 12%, transparent) 0%,
-			color-mix(in srgb, var(--color-secondary) 8%, transparent) 100%
-		);
-		border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
-		border-radius: var(--radius-full);
-		font-size: 0.938rem;
-		font-weight: 600;
-		color: var(--color-text);
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		cursor: default;
-	}
-
-	.feature-badge:hover {
-		transform: translateY(-2px) scale(1.05);
-		background: linear-gradient(
-			135deg,
-			color-mix(in srgb, var(--color-primary) 18%, transparent) 0%,
-			color-mix(in srgb, var(--color-secondary) 12%, transparent) 100%
-		);
-		border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-		box-shadow: 0 8px 16px color-mix(in srgb, var(--color-primary) 15%, transparent);
-	}
-
-	.feature-badge svg {
-		flex-shrink: 0;
-		transition: transform 0.3s ease;
-	}
-
-	.feature-badge:hover svg {
-		transform: rotate(10deg) scale(1.1);
-	}
-
 	/* Tablet: 2 columns */
 	@media (min-width: 769px) {
 		.features-grid {
@@ -2393,16 +2307,6 @@
 		.feature-description {
 			font-size: 0.938rem;
 		}
-
-		.features-footer {
-			gap: var(--spacing-md);
-			padding-top: var(--spacing-2xl);
-		}
-
-		.feature-badge {
-			font-size: 0.875rem;
-			padding: var(--spacing-sm) var(--spacing-lg);
-		}
 	}
 
 	@media (max-width: 480px) {
@@ -2436,11 +2340,6 @@
 		.feature-description {
 			font-size: 0.875rem;
 			line-height: 1.6;
-		}
-
-		.feature-badge {
-			font-size: 0.813rem;
-			padding: var(--spacing-xs) var(--spacing-sm);
 		}
 	}
 
