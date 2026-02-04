@@ -79,11 +79,11 @@ describe('Chat Stream API - Extended Coverage', () => {
 	it('should return streaming response when key is available', async () => {
 		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
 		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
-			yield { type: 'content', content: 'Hello' };
-			yield { type: 'content', content: ' world' };
+			yield { type: 'content' as const, content: 'Hello' };
+			yield { type: 'content' as const, content: ' world' };
 			yield {
-				type: 'usage',
-				usage: { prompt_tokens: 10, completion_tokens: 5 },
+				type: 'usage' as const,
+				usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
 				model: 'gpt-4o-mini'
 			};
 		});

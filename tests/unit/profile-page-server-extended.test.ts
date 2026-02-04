@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock console to avoid noise
 const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -34,7 +34,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.configuredProviders.github).toBe(true);
 		});
@@ -53,7 +53,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.configuredProviders.discord).toBe(true);
 		});
@@ -81,7 +81,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.configuredProviders.github).toBe(true);
 		});
@@ -109,7 +109,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.configuredProviders.discord).toBe(true);
 		});
@@ -136,7 +136,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.configuredProviders.github).toBe(false);
 		});
@@ -161,7 +161,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should return false, not throw
 			expect(result.configuredProviders.github).toBe(false);
@@ -187,7 +187,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should return false, not throw
 			expect(result.configuredProviders.discord).toBe(false);
@@ -219,7 +219,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			expect(result.connectedAccounts).toEqual(mockAccounts);
 		});
@@ -262,7 +262,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should have created the github account
 			expect(result.connectedAccounts).toHaveLength(1);
@@ -299,7 +299,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should still have just one account
 			expect(result.connectedAccounts).toHaveLength(1);
@@ -325,7 +325,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should return empty array, not throw
 			expect(result.connectedAccounts).toEqual([]);
@@ -363,7 +363,7 @@ describe('Profile Page Server - Extended Coverage', () => {
 			};
 
 			const { load } = await import('../../src/routes/profile/+page.server');
-			const result = await load(mockEvent as any);
+			const result = (await load(mockEvent as any)) as any;
 
 			// Should not have created any accounts
 			expect(result.connectedAccounts).toHaveLength(0);

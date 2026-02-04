@@ -1,8 +1,8 @@
+import { writable } from 'svelte/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock SvelteKit modules
 vi.mock('$app/stores', () => {
-	const { writable } = require('svelte/store');
 	return {
 		page: writable({
 			status: 404,
@@ -160,7 +160,7 @@ describe('Error Page', () => {
 		});
 
 		it('should hide technical details when no error message', () => {
-			const error = null;
+			const error = null as { message?: string } | null;
 			const shouldShowDetails = error?.message && error.message !== 'Some message';
 			expect(shouldShowDetails).toBeFalsy();
 		});

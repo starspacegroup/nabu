@@ -117,7 +117,8 @@ describe('Profile Page', () => {
 					isAdmin: false
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { container, getByText } = render(ProfilePage.default, {
@@ -146,7 +147,8 @@ describe('Profile Page', () => {
 					isOwner: false
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { container } = render(ProfilePage.default, {
@@ -170,7 +172,8 @@ describe('Profile Page', () => {
 					isOwner: false
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { container } = render(ProfilePage.default, {
@@ -196,7 +199,8 @@ describe('Profile Page', () => {
 					isAdmin: true
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { getByText } = render(ProfilePage.default, {
@@ -219,7 +223,8 @@ describe('Profile Page', () => {
 					isOwner: true
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { getByText } = render(ProfilePage.default, {
@@ -241,7 +246,8 @@ describe('Profile Page', () => {
 					isOwner: false
 				},
 				hasAIProviders: false,
-				connectedAccounts: []
+				connectedAccounts: [],
+			configuredProviders: { github: false, discord: false }
 			};
 
 			const { container } = render(ProfilePage.default, {
@@ -253,4 +259,5 @@ describe('Profile Page', () => {
 		});
 	});
 });
+
 
