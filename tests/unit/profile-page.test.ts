@@ -66,7 +66,11 @@ describe('Profile Page', () => {
 			// Connected accounts only come from DB - empty when DB not available
 			expect(result).toEqual({
 				user: mockUser,
-				connectedAccounts: []
+				connectedAccounts: [],
+				configuredProviders: {
+					github: false,
+					discord: false
+				}
 			});
 		});
 

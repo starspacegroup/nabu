@@ -1,3 +1,4 @@
+import { mergeAccounts } from '$lib/services/account-merge';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -139,8 +140,12 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 						.first<{ user_id: string }>();
 
 					if (existingOAuth && existingOAuth.user_id !== existingUser.id) {
-						// Discord account already linked to a different user
-						throw redirect(302, '/profile?error=account_already_linked');
+						// Discord account is linked to a different user - merge the accounts
+						console.log(
+							`[Auth] Merging accounts: ${existingOAuth.user_id} into ${existingUser.id}`
+						);
+						await mergeAccounts(platform.env.DB, existingOAuth.user_id, existingUser.id);
+						// After merge, the oauth_account now belongs to existingUser, so we can continue
 					}
 
 					// Link the account if not already linked

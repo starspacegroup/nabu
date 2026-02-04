@@ -1,3 +1,4 @@
+import { mergeAccounts } from '$lib/services/account-merge';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -106,6 +107,14 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 		// Check if user is the OAuth app owner
 		// First try environment variable, then fall back to KV
 		let appOwnerId = platform?.env?.GITHUB_OWNER_ID;
+		let appOwnerUsername: string | null = null;
+
+		// If env var is not a valid numeric ID, clear it to fall back to KV
+		if (appOwnerId && isNaN(parseInt(appOwnerId))) {
+			// It might be a username, store it for comparison
+			appOwnerUsername = appOwnerId;
+			appOwnerId = undefined;
+		}
 
 		// Try to fetch from KV if environment variable not set
 		if (!appOwnerId && platform?.env?.KV) {
@@ -114,12 +123,35 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 				if (storedOwnerId) {
 					appOwnerId = storedOwnerId;
 				}
+				// Also get username for fallback comparison
+				if (!appOwnerUsername) {
+					const storedUsername = await platform.env.KV.get('github_owner_username');
+					if (storedUsername) {
+						appOwnerUsername = storedUsername;
+					}
+				}
 			} catch (err) {
 				console.error('Failed to fetch owner ID from KV:', err);
 			}
 		}
 
-		const isOwner = appOwnerId ? githubUser.id === parseInt(appOwnerId) : false;
+		// Check if user is owner by ID or username
+		let isOwner = false;
+		if (appOwnerId) {
+			isOwner = githubUser.id === parseInt(appOwnerId);
+			console.log(
+				`[Auth] Owner check by ID: githubUser.id=${githubUser.id}, appOwnerId=${appOwnerId}, match=${isOwner}`
+			);
+		}
+		if (!isOwner && appOwnerUsername) {
+			isOwner = githubUser.login.toLowerCase() === appOwnerUsername.toLowerCase();
+			console.log(
+				`[Auth] Owner check by username: githubUser.login=${githubUser.login}, appOwnerUsername=${appOwnerUsername}, match=${isOwner}`
+			);
+		}
+		if (!appOwnerId && !appOwnerUsername) {
+			console.warn('[Auth] No owner ID or username configured - isOwner will be false');
+		}
 
 		// Store or update user in database
 		let isAdmin = false;
@@ -135,8 +167,12 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 						.first<{ user_id: string }>();
 
 					if (existingOAuth && existingOAuth.user_id !== existingUser.id) {
-						// GitHub account already linked to a different user
-						throw redirect(302, '/profile?error=account_already_linked');
+						// GitHub account is linked to a different user - merge the accounts
+						console.log(
+							`[Auth] Merging accounts: ${existingOAuth.user_id} into ${existingUser.id}`
+						);
+						await mergeAccounts(platform.env.DB, existingOAuth.user_id, existingUser.id);
+						// After merge, the oauth_account now belongs to existingUser, so we can continue
 					}
 
 					// Link the account if not already linked

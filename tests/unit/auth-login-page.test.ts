@@ -53,7 +53,7 @@ describe('Auth Login Page Server', () => {
 			).rejects.toMatchObject({ status: 302, location: '/?error=forbidden' });
 		});
 
-		it('should return empty object for non-logged-in user', async () => {
+		it('should return configuredProviders for non-logged-in user', async () => {
 			const { load } = await import('../../src/routes/auth/login/+page.server');
 
 			const mockUrl = new URL('http://localhost/auth/login');
@@ -63,10 +63,15 @@ describe('Auth Login Page Server', () => {
 				url: mockUrl
 			} as any);
 
-			expect(result).toEqual({});
+			expect(result).toEqual({
+				configuredProviders: {
+					github: false,
+					discord: false
+				}
+			});
 		});
 
-		it('should return empty object for non-logged-in user even with error param', async () => {
+		it('should return configuredProviders for non-logged-in user even with error param', async () => {
 			const { load } = await import('../../src/routes/auth/login/+page.server');
 
 			const mockUrl = new URL('http://localhost/auth/login?error=unauthorized');
@@ -76,7 +81,12 @@ describe('Auth Login Page Server', () => {
 				url: mockUrl
 			} as any);
 
-			expect(result).toEqual({});
+			expect(result).toEqual({
+				configuredProviders: {
+					github: false,
+					discord: false
+				}
+			});
 		});
 
 		it('should handle logged-in owner user', async () => {

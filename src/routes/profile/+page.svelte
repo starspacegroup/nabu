@@ -16,8 +16,11 @@
 	// Can only disconnect if there's more than one connected account (need at least one login method)
 	$: canDisconnect = connectedAccounts.length > 1;
 
-	// Available providers
-	const providers = [
+	// Filter providers to only show configured ones
+	$: configuredProviders = data.configuredProviders || { github: false, discord: false };
+
+	// Available providers (all defined, filtered in template based on configuration)
+	const allProviders = [
 		{
 			id: 'github',
 			name: 'GitHub',
@@ -30,6 +33,11 @@
 		}
 	];
 
+	// Only show providers that are configured
+	$: providers = allProviders.filter(
+		(p) => configuredProviders[p.id as keyof typeof configuredProviders]
+	);
+
 	onMount(() => {
 		// Check for success message in URL
 		const linked = $page.url.searchParams.get('linked');
@@ -41,13 +49,7 @@
 			window.history.replaceState({}, '', url);
 		}
 
-		const errorParam = $page.url.searchParams.get('error');
-		if (errorParam === 'account_already_linked') {
-			linkError = 'This account is already linked to another user';
-			const url = new URL(window.location.href);
-			url.searchParams.delete('error');
-			window.history.replaceState({}, '', url);
-		}
+		// Note: account_already_linked error is no longer possible as accounts are now merged automatically
 	});
 
 	function connectAccount(providerId: string) {

@@ -7,8 +7,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		throw redirect(302, '/auth/login?error=unauthorized');
 	}
 
-	// Check if user is the OAuth app owner
-	if (!locals.user.isOwner) {
+	// Check if user is the OAuth app owner or an admin
+	if (!locals.user.isOwner && !locals.user.isAdmin) {
 		throw redirect(302, '/?error=forbidden');
 	}
 

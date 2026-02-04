@@ -1,15 +1,46 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { openCommandPalette } from '$lib/stores/commandPalette';
 	import { onMount } from 'svelte';
 
 	let mounted = false;
 	let searchInput = '';
 	let focusedOption = -1;
+	let toastMessage = '';
+	let showToast = false;
+
+	// Error message mapping
+	const errorMessages: Record<string, string> = {
+		forbidden: 'You do not have permission to access that page.',
+		unauthorized: 'Please log in to access that page.',
+		oauth_failed: 'Authentication failed. Please try again.'
+	};
 
 	onMount(() => {
 		mounted = true;
+
+		// Check for error in URL and show toast
+		const errorCode = $page.url.searchParams.get('error');
+		if (errorCode && errorMessages[errorCode]) {
+			toastMessage = errorMessages[errorCode];
+			showToast = true;
+
+			// Clear the error from URL
+			const url = new URL(window.location.href);
+			url.searchParams.delete('error');
+			window.history.replaceState({}, '', url);
+
+			// Auto-hide toast after 5 seconds
+			setTimeout(() => {
+				showToast = false;
+			}, 5000);
+		}
 	});
+
+	function dismissToast() {
+		showToast = false;
+	}
 
 	function handleAction(action: string) {
 		if (action === 'login') goto('/auth/login');
@@ -1017,6 +1048,23 @@
 		</div>
 	</div>
 </section>
+
+<!-- Toast Notification -->
+{#if showToast}
+	<div class="toast toast-error" role="alert" aria-live="polite">
+		<span class="toast-message">{toastMessage}</span>
+		<button class="toast-dismiss" on:click={dismissToast} aria-label="Dismiss notification">
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<path
+					d="M4 4l8 8M12 4l-8 8"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+				/>
+			</svg>
+		</button>
+	</div>
+{/if}
 
 <style>
 	.hero {
@@ -2393,6 +2441,59 @@
 		.feature-badge {
 			font-size: 0.813rem;
 			padding: var(--spacing-xs) var(--spacing-sm);
+		}
+	}
+
+	/* Toast Notification */
+	.toast {
+		position: fixed;
+		top: var(--spacing-lg);
+		right: var(--spacing-lg);
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-md) var(--spacing-lg);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-lg);
+		z-index: 1000;
+		animation: slideIn 0.3s ease-out;
+	}
+
+	.toast-error {
+		background-color: var(--color-error);
+		color: var(--color-background);
+	}
+
+	.toast-message {
+		font-size: 0.875rem;
+		font-weight: 500;
+	}
+
+	.toast-dismiss {
+		background: none;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+		padding: var(--spacing-xs);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		opacity: 0.8;
+		transition: opacity var(--transition-fast);
+	}
+
+	.toast-dismiss:hover {
+		opacity: 1;
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateX(100%);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
 		}
 	}
 </style>

@@ -118,7 +118,7 @@
 
 			<div class="nav-links" class:open={mobileMenuOpen}>
 				{#if user}
-					{#if user.isOwner}
+					{#if user.isOwner || user.isAdmin}
 						<a
 							href="/admin"
 							class:active={$page.url.pathname.startsWith('/admin')}
