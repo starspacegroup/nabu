@@ -253,6 +253,29 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 							githubUser.id.toString()
 						)
 						.run();
+
+					// Ensure oauth_accounts record exists for existing users
+					// (handles users created before oauth_accounts was implemented)
+					const existingOAuthRecord = await platform.env.DB.prepare(
+						'SELECT id FROM oauth_accounts WHERE user_id = ? AND provider = ?'
+					)
+						.bind(githubUser.id.toString(), 'github')
+						.first<{ id: string }>();
+
+					if (!existingOAuthRecord) {
+						await platform.env.DB.prepare(
+							`INSERT INTO oauth_accounts (id, user_id, provider, provider_account_id, access_token, created_at)
+							VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+						)
+							.bind(
+								crypto.randomUUID(),
+								githubUser.id.toString(),
+								'github',
+								githubUser.id.toString(),
+								accessToken
+							)
+							.run();
+					}
 				} else {
 					// Create new user (owner is automatically admin)
 					isAdmin = isOwner;

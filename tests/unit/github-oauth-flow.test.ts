@@ -221,7 +221,8 @@ describe('GitHub Auth API', () => {
 		it('should complete OAuth flow and set session cookie', async () => {
 			const mockCookies = {
 				set: vi.fn(),
-				delete: vi.fn()
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(null)
 			};
 
 			const mockPlatform = {
@@ -268,7 +269,8 @@ describe('GitHub Auth API', () => {
 		it('should redirect non-owner to home', async () => {
 			const mockCookies = {
 				set: vi.fn(),
-				delete: vi.fn()
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(null)
 			};
 
 			const mockPlatform = {
@@ -313,7 +315,8 @@ describe('GitHub Auth API', () => {
 			const mockDbRun = vi.fn().mockResolvedValue({});
 			const mockCookies = {
 				set: vi.fn(),
-				delete: vi.fn()
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(null)
 			};
 
 			const mockPlatform = {
@@ -350,16 +353,13 @@ describe('GitHub Auth API', () => {
 
 			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
 
-			try {
-				await GET({
-					url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
-					cookies: mockCookies,
-					platform: mockPlatform
-				} as any);
-			} catch (err: any) {
-				expect(err.status).toBe(302);
-			}
+			const response = await GET({
+				url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
 
+			expect(response.status).toBe(302);
 			expect(mockPlatform.env.DB.prepare).toHaveBeenCalled();
 		});
 
@@ -367,20 +367,32 @@ describe('GitHub Auth API', () => {
 			const mockDbRun = vi.fn().mockResolvedValue({});
 			const mockCookies = {
 				set: vi.fn(),
-				delete: vi.fn()
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(null)
 			};
 
+			// Track call order to return different results for different queries
+			let callCount = 0;
 			const mockPlatform = {
 				env: {
 					GITHUB_CLIENT_ID: 'test-client',
 					GITHUB_CLIENT_SECRET: 'test-secret',
 					DB: {
-						prepare: vi.fn().mockReturnValue({
-							bind: vi.fn().mockReturnValue({
-								first: vi.fn().mockResolvedValue({ id: '12345', is_admin: 1 }), // Existing user
+						prepare: vi.fn().mockImplementation(() => ({
+							bind: vi.fn().mockImplementation(() => ({
+								first: vi.fn().mockImplementation(() => {
+									callCount++;
+									// Call 1: Check for linked oauth account - not linked
+									if (callCount === 1) return Promise.resolve(null);
+									// Call 2: Check if user exists - exists
+									if (callCount === 2) return Promise.resolve({ id: '12345', is_admin: 1 });
+									// Call 3: Check if oauth_accounts record exists - not exists
+									if (callCount === 3) return Promise.resolve(null);
+									return Promise.resolve(null);
+								}),
 								run: mockDbRun
-							})
-						})
+							}))
+						}))
 					}
 				}
 			};
@@ -404,17 +416,14 @@ describe('GitHub Auth API', () => {
 
 			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
 
-			try {
-				await GET({
-					url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
-					cookies: mockCookies,
-					platform: mockPlatform
-				} as any);
-			} catch (err: any) {
-				expect(err.status).toBe(302);
-			}
+			const response = await GET({
+				url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
 
-			// Should have called UPDATE query
+			expect(response.status).toBe(302);
+			// Should have called prepare for various DB operations
 			expect(mockPlatform.env.DB.prepare).toHaveBeenCalled();
 		});
 
@@ -422,7 +431,8 @@ describe('GitHub Auth API', () => {
 			const mockKVPut = vi.fn().mockResolvedValue(undefined);
 			const mockCookies = {
 				set: vi.fn(),
-				delete: vi.fn()
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(null)
 			};
 
 			const mockPlatform = {
@@ -456,16 +466,13 @@ describe('GitHub Auth API', () => {
 
 			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
 
-			try {
-				await GET({
-					url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
-					cookies: mockCookies,
-					platform: mockPlatform
-				} as any);
-			} catch (err: any) {
-				expect(err.status).toBe(302);
-			}
+			const response = await GET({
+				url: new URL('http://localhost:5173/api/auth/github/callback?code=test-code'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
 
+			expect(response.status).toBe(302);
 			expect(mockKVPut).toHaveBeenCalledWith('admin_first_login_completed', 'true');
 		});
 	});

@@ -13,6 +13,8 @@
 	$: connectedAccounts = data.connectedAccounts || [];
 	// Reactive Set for O(1) lookup in template - triggers re-render when connectedAccounts changes
 	$: connectedProviderIds = new Set(connectedAccounts.map((acc) => acc.provider));
+	// Can only disconnect if there's more than one connected account (need at least one login method)
+	$: canDisconnect = connectedAccounts.length > 1;
 
 	// Available providers
 	const providers = [
@@ -216,7 +218,8 @@
 								<button
 									class="btn btn-outline btn-sm"
 									on:click={() => unlinkAccount(provider.id)}
-									disabled={unlinkingProvider === provider.id}
+									disabled={unlinkingProvider === provider.id || !canDisconnect}
+									title={!canDisconnect ? 'You need at least one connected account to log in' : ''}
 								>
 									{#if unlinkingProvider === provider.id}
 										Unlinking...
