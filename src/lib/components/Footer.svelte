@@ -106,7 +106,6 @@
 		background-color: var(--color-surface);
 		border-top: 1px solid var(--color-border);
 		padding: var(--spacing-2xl) var(--spacing-md);
-		margin-top: var(--spacing-2xl);
 	}
 
 	.footer-container {
