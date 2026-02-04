@@ -23,6 +23,12 @@ NebulaKit is a production-ready SvelteKit template with everything you need to b
 
 ## 🚀 Quick Start
 
+### Use the Template
+
+Click the **"Use this template"** button above to create your own repository, or **"Open in a codespace"** to start coding instantly in the cloud.
+
+### Local Development
+
 ```bash
 # Install dependencies
 npm install
@@ -220,4 +226,3 @@ See [.github/copilot-instructions.md](.github/copilot-instructions.md) for detai
 ## ⭐ Show Your Support
 
 If you find NebulaKit useful, please consider giving it a star on GitHub!
-

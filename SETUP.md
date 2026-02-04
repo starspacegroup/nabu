@@ -9,18 +9,40 @@
 
 ## Installation
 
-1. Clone the repository:
+### Option 1: Use the GitHub Template (Recommended)
+
+The easiest way to get started is to use the **"Use this template"** button on GitHub:
+
+1. Go to the [NebulaKit repository](https://github.com/starspacegroup/NebulaKit)
+2. Click the green **"Use this template"** button
+3. Choose one of:
+   - **Create a new repository** - Creates your own copy of NebulaKit in your GitHub account
+   - **Open in a codespace** - Instantly spin up a cloud development environment
+4. If you created a new repository, clone it:
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+cd YOUR_REPO_NAME
+```
+
+### Option 2: Clone the Repository
+
+Alternatively, clone the repository directly:
+
+```bash
+git clone https://github.com/starspacegroup/NebulaKit.git
 cd NebulaKit
 ```
 
-2. Install dependencies:
+## Next Steps
+
+1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-3. Configure Cloudflare bindings:
+2. Configure Cloudflare bindings:
    - Copy `wrangler.toml` and update with your Cloudflare resource IDs
    - Create D1 database: `wrangler d1 create nebulakit-db`
    - Create KV namespace: `wrangler kv:namespace create "KV"`
@@ -30,6 +52,7 @@ npm install
 ## Development
 
 Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -39,11 +62,13 @@ The app will be available at `http://localhost:4277`
 ## Building
 
 Build for production:
+
 ```bash
 npm run build
 ```
 
 Preview the production build:
+
 ```bash
 npm run preview
 ```
@@ -51,11 +76,13 @@ npm run preview
 ## Deployment to Cloudflare Pages
 
 1. Authenticate with Wrangler:
+
 ```bash
 wrangler login
 ```
 
 2. Deploy to Cloudflare Pages:
+
 ```bash
 npm run deploy
 ```
@@ -67,6 +94,7 @@ Or connect your GitHub repository to Cloudflare Pages for automatic deployments.
 ### D1 Database
 
 Create tables for your application:
+
 ```sql
 -- Users table
 CREATE TABLE users (
@@ -86,6 +114,7 @@ CREATE TABLE sessions (
 ```
 
 Run migrations:
+
 ```bash
 wrangler d1 execute nebulakit-db --file=./migrations/schema.sql
 ```
@@ -97,13 +126,14 @@ Used for caching and session storage. No additional setup required.
 ### R2 Bucket
 
 Used for file uploads. Configure CORS if needed:
+
 ```json
 [
-  {
-    "AllowedOrigins": ["*"],
-    "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-    "AllowedHeaders": ["*"]
-  }
+	{
+		"AllowedOrigins": ["*"],
+		"AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
+		"AllowedHeaders": ["*"]
+	}
 ]
 ```
 
@@ -120,6 +150,7 @@ Configure background job processing. Messages are automatically processed by the
 ## Environment Variables
 
 Create a `.env` file for local development:
+
 ```
 TURNSTILE_SECRET_KEY=your-secret-key
 ```
@@ -156,4 +187,3 @@ NebulaKit/
 - Customize the theme system
 - Add your database schema and migrations
 - Set up CI/CD with GitHub Actions
-
