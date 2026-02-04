@@ -1,173 +1,384 @@
 <script lang="ts">
-	const currentYear = new Date().getFullYear();
+	// No runtime state needed
 </script>
 
 <svelte:head>
 	<title>Documentation - NebulaKit</title>
 	<meta
 		name="description"
-		content="NebulaKit documentation - Learn how to build with the cosmic-grade SvelteKit starter"
+		content="NebulaKit documentation - Learn how to build with the cosmic-grade SvelteKit starter powered by Cloudflare"
 	/>
 </svelte:head>
 
 <main class="docs-page">
 	<div class="docs-container">
 		<header class="docs-header">
-			<h1>Documentation</h1>
+			<h1>✨ NebulaKit Documentation</h1>
 			<p class="docs-intro">
-				Everything you need to know about building with NebulaKit, the cosmic-grade SvelteKit
-				starter powered by Cloudflare.
+				A cosmic-grade SvelteKit starter template powered by Cloudflare's full stack.
+				Production-ready with Cloudflare Workers integration (D1, KV, R2, Queues, Turnstile), a
+				complete theme system, command palette, LLM chat UI, full authentication, and polished
+				drag-and-drop.
 			</p>
 		</header>
 
 		<nav class="docs-nav" aria-label="Documentation navigation">
-			<a href="#getting-started">Getting Started</a>
 			<a href="#features">Features</a>
-			<a href="#architecture">Architecture</a>
-			<a href="#development">Development</a>
+			<a href="#quick-start">Quick Start</a>
+			<a href="#testing">Testing</a>
+			<a href="#project-structure">Structure</a>
+			<a href="#theming">Theming</a>
+			<a href="#authentication">Auth</a>
+			<a href="#cloudflare">Cloudflare</a>
 			<a href="#deployment">Deployment</a>
+			<a href="#contributing">Contributing</a>
 		</nav>
 
-		<section id="getting-started" class="docs-section">
-			<h2>Getting Started</h2>
-			<p>
-				NebulaKit is a full-stack SvelteKit starter template optimized for Cloudflare Workers. It
-				comes with authentication, database integration, AI capabilities, and a beautiful UI out of
-				the box.
-			</p>
-
-			<h3>Prerequisites</h3>
-			<ul>
-				<li>Node.js 18+ installed</li>
-				<li>A Cloudflare account</li>
-				<li>Wrangler CLI installed globally</li>
-			</ul>
-
-			<h3>Quick Setup</h3>
-			<ol>
-				<li>
-					Clone the repository from <a
-						href="https://github.com/starspacegroup/NebulaKit"
-						target="_blank"
-						rel="noopener noreferrer">GitHub</a
-					>
-				</li>
-				<li>Run <code>npm install</code> to install dependencies</li>
-				<li>
-					Copy <code>.dev.vars.example</code> to <code>.dev.vars</code> and configure your environment
-				</li>
-				<li>Run <code>npm run dev</code> to start the development server</li>
-			</ol>
-		</section>
-
 		<section id="features" class="docs-section">
-			<h2>Features</h2>
+			<h2>🌟 Features</h2>
 			<div class="feature-grid">
 				<div class="feature-card">
-					<h3>🔐 Authentication</h3>
-					<p>
-						Built-in authentication with OAuth providers (GitHub, Google) and email/password support
-						via Auth.js.
-					</p>
-				</div>
-				<div class="feature-card">
-					<h3>💾 Database</h3>
-					<p>Cloudflare D1 SQLite database with migrations and type-safe queries.</p>
-				</div>
-				<div class="feature-card">
-					<h3>🤖 AI Chat</h3>
-					<p>
-						Integrated AI chat interface with multiple provider support (OpenAI, Anthropic,
-						Cloudflare Workers AI).
-					</p>
+					<h3>🚀 Cloudflare Full Stack</h3>
+					<p>D1 database, KV storage, R2 buckets, Queues, and Turnstile built-in.</p>
 				</div>
 				<div class="feature-card">
 					<h3>🎨 Theme System</h3>
-					<p>
-						Light and dark mode with CSS custom properties and WCAG AA compliant contrast ratios.
-					</p>
+					<p>Light/dark modes with extensible CSS variables and WCAG AA compliance.</p>
 				</div>
 				<div class="feature-card">
 					<h3>⌨️ Command Palette</h3>
-					<p>Keyboard-first navigation with a powerful command palette (Ctrl/Cmd + K).</p>
+					<p>Keyboard-first navigation with Cmd/Ctrl + K.</p>
 				</div>
 				<div class="feature-card">
-					<h3>🔧 Admin Dashboard</h3>
-					<p>Full admin interface for managing users, API keys, and system configuration.</p>
+					<h3>💬 LLM Chat UI</h3>
+					<p>Ready-to-use chat interface for AI integration with multiple providers.</p>
+				</div>
+				<div class="feature-card">
+					<h3>🔐 Full Authentication</h3>
+					<p>Email/password + SSO (Google, GitHub) with account linking.</p>
+				</div>
+				<div class="feature-card">
+					<h3>📱 Mobile-First</h3>
+					<p>Responsive layouts optimized for all devices.</p>
+				</div>
+				<div class="feature-card">
+					<h3>🎯 Drag & Drop</h3>
+					<p>Polished DnD with cross-column and mobile support.</p>
+				</div>
+				<div class="feature-card">
+					<h3>⚡ TypeScript</h3>
+					<p>Full type safety with Cloudflare Workers types.</p>
+				</div>
+				<div class="feature-card">
+					<h3>🎨 UI Components</h3>
+					<p>Beautiful, accessible components out of the box.</p>
 				</div>
 			</div>
 		</section>
 
-		<section id="architecture" class="docs-section">
-			<h2>Architecture</h2>
-			<p>
-				NebulaKit follows a Cloudflare-first architecture, leveraging edge computing for optimal
-				performance.
-			</p>
-
-			<h3>Tech Stack</h3>
-			<ul>
-				<li><strong>Framework:</strong> SvelteKit with TypeScript</li>
-				<li><strong>Runtime:</strong> Cloudflare Workers</li>
-				<li><strong>Database:</strong> Cloudflare D1 (SQLite)</li>
-				<li><strong>Storage:</strong> Cloudflare R2 (optional)</li>
-				<li><strong>Auth:</strong> Auth.js (NextAuth)</li>
-				<li><strong>Testing:</strong> Vitest + Playwright</li>
-			</ul>
-
-			<h3>Project Structure</h3>
+		<section id="quick-start" class="docs-section">
+			<h2>🚀 Quick Start</h2>
 			<pre><code
-					>src/
-├── lib/
-│   ├── components/    # Svelte components
-│   ├── services/      # Business logic
-│   ├── stores/        # Svelte stores
-│   ├── types/         # TypeScript types
-│   └── utils/         # Utility functions
-├── routes/            # SvelteKit routes
-└── app.css           # Global styles</code
+					># Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to Cloudflare Pages
+npm run deploy</code
+				></pre>
+			<p>
+				Visit <code>http://localhost:5173</code> to see your app!
+			</p>
+		</section>
+
+		<section id="testing" class="docs-section">
+			<h2>🧪 Testing (TDD Required!)</h2>
+			<p>
+				NebulaKit follows <strong>Test-Driven Development</strong> with 90%+ code coverage requirements.
+			</p>
+			<pre><code
+					># Run all tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Check coverage (must be ≥90%)
+npm run test:coverage
+
+# Run E2E tests
+npm run test:e2e
+
+# Run all tests (unit + E2E)
+npm run test:all</code
+				></pre>
+			<p>
+				<strong>Important:</strong> All features and bug fixes require tests written FIRST.
+			</p>
+		</section>
+
+		<section id="project-structure" class="docs-section">
+			<h2>🏗️ Project Structure</h2>
+			<pre><code
+					>NebulaKit/
+├── src/
+│   ├── lib/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── stores/         # Svelte stores (theme, etc.)
+│   │   ├── server/         # Server-side utilities
+│   │   └── utils/          # Helper functions
+│   ├── routes/             # SvelteKit routes
+│   │   ├── auth/          # Authentication pages
+│   │   ├── chat/          # LLM chat interface
+│   │   └── demo/          # Feature demonstrations
+│   ├── app.css            # Global styles & theme
+│   └── app.html           # HTML template
+├── static/                 # Static assets
+└── wrangler.toml          # Cloudflare configuration</code
 				></pre>
 		</section>
 
-		<section id="development" class="docs-section">
-			<h2>Development</h2>
-			<p>
-				NebulaKit follows Test-Driven Development (TDD) practices with a minimum 90% code coverage
-				requirement.
-			</p>
-
-			<h3>Commands</h3>
+		<section id="theming" class="docs-section">
+			<h2>🎨 Theming</h2>
+			<p>NebulaKit includes a comprehensive theme system with:</p>
 			<ul>
-				<li><code>npm run dev</code> - Start development server</li>
-				<li><code>npm run test</code> - Run unit tests</li>
-				<li><code>npm run test:coverage</code> - Run tests with coverage</li>
-				<li><code>npm run check</code> - Type-check the project</li>
-				<li><code>npm run build</code> - Build for production</li>
+				<li><strong>WCAG AA compliant</strong> colors (4.5:1 contrast minimum)</li>
+				<li>Light and dark modes with automatic system detection</li>
+				<li>CSS custom properties for all design tokens</li>
+				<li>Accessibility-first design approach</li>
+				<li>Automated contrast validation</li>
 			</ul>
+			<pre><code
+					>/* All colors use CSS variables - never hardcode! */
+.button &#123;
+  background-color: var(--color-primary);
+  color: var(--color-background);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+&#125;</code
+				></pre>
+			<h3>Validate Theme Contrast</h3>
+			<pre><code>npm run validate:contrast</code></pre>
+		</section>
+
+		<section id="authentication" class="docs-section">
+			<h2>🔐 Authentication</h2>
+			<p>Built-in auth pages with support for:</p>
+			<ul>
+				<li>Email/password authentication</li>
+				<li>OAuth providers (Google, GitHub)</li>
+				<li>Session management</li>
+				<li>Account linking</li>
+			</ul>
+			<p>
+				Easily extend with <a href="https://authjs.dev/" target="_blank" rel="noopener noreferrer"
+					>@auth/sveltekit</a
+				> for more providers.
+			</p>
+		</section>
+
+		<section id="cloudflare" class="docs-section">
+			<h2>☁️ Cloudflare Integration</h2>
+
+			<h3>D1 Database</h3>
+			<pre><code
+					>const result = await platform.env.DB
+  .prepare('SELECT * FROM users WHERE email = ?')
+  .bind(email)
+  .first();</code
+				></pre>
+
+			<h3>KV Storage</h3>
+			<pre><code
+					>await platform.env.KV.put('key', 'value');
+const value = await platform.env.KV.get('key');</code
+				></pre>
+
+			<h3>R2 Storage</h3>
+			<pre><code
+					>await platform.env.BUCKET.put('file.jpg', fileData);
+const file = await platform.env.BUCKET.get('file.jpg');</code
+				></pre>
+
+			<h3>Queues</h3>
+			<pre><code>await platform.env.QUEUE.send(&#123; data: 'message' &#125;);</code></pre>
 		</section>
 
 		<section id="deployment" class="docs-section">
-			<h2>Deployment</h2>
-			<p>Deploy to Cloudflare Workers with a single command:</p>
-			<pre><code>npm run deploy</code></pre>
+			<h2>🚀 Deployment</h2>
 			<p>
-				For detailed deployment instructions, including setting up D1 databases and environment
-				variables, visit the <a
+				NebulaKit is designed to be deployed via <strong>Cloudflare Pages</strong> connected to your
+				GitHub repository for automatic deployments.
+			</p>
+
+			<h3>Step 1: Fork or Clone the Repository</h3>
+			<p>
+				Fork <a
 					href="https://github.com/starspacegroup/NebulaKit"
 					target="_blank"
-					rel="noopener noreferrer">GitHub repository</a
-				>.
+					rel="noopener noreferrer">NebulaKit on GitHub</a
+				> to your own account, or create a new repository from the template.
 			</p>
+
+			<h3>Step 2: Create a Pages Application</h3>
+			<ol>
+				<li>
+					Log in to the <a
+						href="https://dash.cloudflare.com/"
+						target="_blank"
+						rel="noopener noreferrer">Cloudflare Dashboard</a
+					>
+				</li>
+				<li>Navigate to <strong>Workers & Pages</strong> in the sidebar</li>
+				<li>
+					Click <strong>Create</strong> → <strong>Pages</strong> → <strong>Connect to Git</strong>
+				</li>
+				<li>Authorize Cloudflare to access your GitHub account</li>
+				<li>Select your NebulaKit repository</li>
+			</ol>
+
+			<h3>Step 3: Configure Build Settings</h3>
+			<ul>
+				<li><strong>Framework preset:</strong> SvelteKit</li>
+				<li><strong>Build command:</strong> <code>npm run build</code></li>
+				<li><strong>Build output directory:</strong> <code>.svelte-kit/cloudflare</code></li>
+			</ul>
+
+			<h3>Step 4: Set Up D1 Database</h3>
+			<ol>
+				<li>
+					In the Cloudflare Dashboard, go to <strong>Workers & Pages</strong> → <strong>D1</strong>
+				</li>
+				<li>
+					Click <strong>Create database</strong> and name it (e.g., <code>nebulakit-db</code>)
+				</li>
+				<li>Run the schema migration from the <code>migrations/schema.sql</code> file</li>
+				<li>
+					In your Pages project settings, go to <strong>Settings</strong> →
+					<strong>Functions</strong> → <strong>D1 database bindings</strong>
+				</li>
+				<li>Add a binding with variable name <code>DB</code> pointing to your database</li>
+			</ol>
+
+			<h3>Step 5: Configure Environment Variables</h3>
+			<p>
+				In your Pages project, go to <strong>Settings</strong> →
+				<strong>Environment variables</strong> and add:
+			</p>
+			<ul>
+				<li><code>AUTH_SECRET</code> - A random secret for session encryption</li>
+				<li><code>AUTH_TRUST_HOST</code> - Set to <code>true</code></li>
+				<li><code>GITHUB_ID</code> / <code>GITHUB_SECRET</code> - For GitHub OAuth (optional)</li>
+				<li><code>GOOGLE_ID</code> / <code>GOOGLE_SECRET</code> - For Google OAuth (optional)</li>
+				<li><code>OPENAI_API_KEY</code> - For AI chat features (optional)</li>
+			</ul>
+
+			<h3>Step 6: Deploy</h3>
+			<p>
+				Click <strong>Save and Deploy</strong>. Cloudflare will build and deploy your app. Future
+				pushes to your main branch will trigger automatic deployments, and pull requests will get
+				preview deployments.
+			</p>
+
+			<h3>Custom Domain (Optional)</h3>
+			<p>
+				In your Pages project, go to <strong>Custom domains</strong> to add your own domain. Cloudflare
+				will automatically provision SSL certificates.
+			</p>
+		</section>
+
+		<section id="tech-stack" class="docs-section">
+			<h2>🛠️ Tech Stack</h2>
+			<ul>
+				<li>
+					<a href="https://kit.svelte.dev/" target="_blank" rel="noopener noreferrer">SvelteKit</a> -
+					Web framework
+				</li>
+				<li>
+					<a href="https://workers.cloudflare.com/" target="_blank" rel="noopener noreferrer"
+						>Cloudflare Workers</a
+					> - Edge runtime
+				</li>
+				<li>
+					<a href="https://www.typescriptlang.org/" target="_blank" rel="noopener noreferrer"
+						>TypeScript</a
+					> - Type safety
+				</li>
+				<li>
+					<a href="https://vitejs.dev/" target="_blank" rel="noopener noreferrer">Vite</a> - Build tool
+				</li>
+				<li>
+					<a href="https://vitest.dev/" target="_blank" rel="noopener noreferrer">Vitest</a> - Unit testing
+				</li>
+				<li>
+					<a href="https://playwright.dev/" target="_blank" rel="noopener noreferrer">Playwright</a>
+					- E2E testing
+				</li>
+			</ul>
+		</section>
+
+		<section id="contributing" class="docs-section">
+			<h2>🤝 Contributing</h2>
+			<p>We welcome contributions! Key requirements:</p>
+			<ul>
+				<li>✅ Test-Driven Development (TDD) - write tests first</li>
+				<li>✅ 90%+ code coverage on all changes</li>
+				<li>✅ Cloudflare-first architecture</li>
+				<li>✅ Minimal external dependencies</li>
+				<li>✅ All tests passing before PR</li>
+			</ul>
+		</section>
+
+		<section id="resources" class="docs-section">
+			<h2>📚 Additional Resources</h2>
+			<ul>
+				<li>
+					<a
+						href="https://github.com/starspacegroup/NebulaKit"
+						target="_blank"
+						rel="noopener noreferrer">GitHub Repository</a
+					>
+				</li>
+				<li>
+					<a
+						href="https://developers.cloudflare.com/workers/"
+						target="_blank"
+						rel="noopener noreferrer">Cloudflare Workers Docs</a
+					>
+				</li>
+				<li>
+					<a href="https://developers.cloudflare.com/d1/" target="_blank" rel="noopener noreferrer"
+						>Cloudflare D1 Docs</a
+					>
+				</li>
+				<li>
+					<a href="https://kit.svelte.dev/docs" target="_blank" rel="noopener noreferrer"
+						>SvelteKit Docs</a
+					>
+				</li>
+				<li>
+					<a href="https://vitest.dev/" target="_blank" rel="noopener noreferrer">Vitest Docs</a>
+				</li>
+				<li>
+					<a href="https://playwright.dev/" target="_blank" rel="noopener noreferrer"
+						>Playwright Docs</a
+					>
+				</li>
+			</ul>
 		</section>
 
 		<footer class="docs-footer">
 			<p>
-				Need more help? Check out our <a
+				⭐ If you find NebulaKit useful, please consider giving it a star on <a
 					href="https://github.com/starspacegroup/NebulaKit"
 					target="_blank"
 					rel="noopener noreferrer">GitHub</a
-				>
-				or reach out to the community.
+				>!
 			</p>
 		</footer>
 	</div>
@@ -234,6 +445,7 @@
 		margin-bottom: var(--spacing-2xl);
 		padding-bottom: var(--spacing-xl);
 		border-bottom: 1px solid var(--color-border);
+		scroll-margin-top: 5rem;
 	}
 
 	.docs-section:last-of-type {
