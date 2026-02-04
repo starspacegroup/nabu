@@ -6,6 +6,14 @@
 
 ---
 
+## Getting Started
+
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-238636?style=for-the-badge&logo=github&logoColor=white)](https://github.com/new?template_name=NebulaKit&template_owner=starspacegroup)
+
+Click the button above to create your own repository from the NebulaKit template, then follow the setup instructions below.
+
+---
+
 NebulaKit can work **without any pre-configured environment variables**. Instead of relying on `.env` files or manually set secrets, all configuration is done through a web-based setup flow and stored securely in Cloudflare KV.
 
 ## When to Use Zero-Config
