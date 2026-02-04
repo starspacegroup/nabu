@@ -37,7 +37,7 @@ npm run build
 npm run deploy
 ```
 
-Visit `http://localhost:5173` to see your app!
+Visit `http://localhost:4277` to see your app!
 
 ## 🧪 Testing (TDD Required!)
 
@@ -220,3 +220,4 @@ See [.github/copilot-instructions.md](.github/copilot-instructions.md) for detai
 ## ⭐ Show Your Support
 
 If you find NebulaKit useful, please consider giving it a star on GitHub!
+

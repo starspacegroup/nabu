@@ -25,7 +25,7 @@ describe('Profile Page', () => {
 		it('should redirect to login if user is not authenticated', async () => {
 			const mockEvent = {
 				locals: {},
-				url: new URL('http://localhost:5173/profile'),
+				url: new URL('http://localhost:4277/profile'),
 				platform: {}
 			};
 
@@ -56,7 +56,7 @@ describe('Profile Page', () => {
 				locals: {
 					user: mockUser
 				},
-				url: new URL('http://localhost:5173/profile'),
+				url: new URL('http://localhost:4277/profile'),
 				platform: {}
 			};
 
@@ -86,7 +86,7 @@ describe('Profile Page', () => {
 				locals: {
 					user: mockUser
 				},
-				url: new URL('http://localhost:5173/profile'),
+				url: new URL('http://localhost:4277/profile'),
 				platform: {}
 			};
 
@@ -253,3 +253,4 @@ describe('Profile Page', () => {
 		});
 	});
 });
+

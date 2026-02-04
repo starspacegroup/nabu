@@ -93,7 +93,7 @@ npm run build
 npm run deploy</code
 				></pre>
 			<p>
-				Visit <code>http://localhost:5173</code> to see your app!
+				Visit <code>http://localhost:4277</code> to see your app!
 			</p>
 		</section>
 
@@ -725,3 +725,4 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 		}
 	}
 </style>
+

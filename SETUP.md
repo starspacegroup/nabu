@@ -34,7 +34,7 @@ Start the development server:
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:4277`
 
 ## Building
 
@@ -156,3 +156,4 @@ NebulaKit/
 - Customize the theme system
 - Add your database schema and migrations
 - Set up CI/CD with GitHub Actions
+

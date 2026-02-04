@@ -35,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:5173` to verify everything works.
+Visit `http://localhost:4277` to verify everything works.
 
 ## 🧪 Testing Requirements
 
@@ -341,3 +341,4 @@ By contributing, you agree that your contributions will be licensed under the sa
 ---
 
 **Remember**: Quality over speed. Write tests first. Build instead of importing. Optimize for Cloudflare. 🚀
+

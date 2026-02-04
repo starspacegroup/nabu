@@ -4,7 +4,7 @@
 
 ```bash
 # Development
-npm run dev              # Start dev server (port 5173)
+npm run dev              # Start dev server (port 4277)
 npm run build            # Build for production
 npm run preview          # Preview production build
 npm run check            # TypeScript type checking
@@ -243,3 +243,4 @@ npm run test:e2e:ui
 5. ✅ Type safety everywhere
 
 *Happy coding! 🚀*
+
