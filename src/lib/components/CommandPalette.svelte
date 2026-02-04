@@ -82,11 +82,11 @@
 				]
 			: []),
 		{
-			id: 'demo',
-			label: 'Demo',
-			description: 'View drag and drop demo',
-			action: () => goto('/demo'),
-			icon: '🎯'
+			id: 'documentation',
+			label: 'Documentation',
+			description: 'View NebulaKit documentation',
+			action: () => goto('/documentation'),
+			icon: '📚'
 		},
 		{
 			id: 'login',

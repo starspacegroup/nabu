@@ -31,6 +31,7 @@
 			<a href="#authentication">Auth</a>
 			<a href="#cloudflare">Cloudflare</a>
 			<a href="#deployment">Deployment</a>
+			<a href="#zero-config">Zero-Config (Optional)</a>
 			<a href="#contributing">Contributing</a>
 		</nav>
 
@@ -135,7 +136,7 @@ npm run test:all</code
 │   ├── routes/             # SvelteKit routes
 │   │   ├── auth/          # Authentication pages
 │   │   ├── chat/          # LLM chat interface
-│   │   └── demo/          # Feature demonstrations
+│   │   └── documentation/ # Project documentation
 │   ├── app.css            # Global styles & theme
 │   └── app.html           # HTML template
 ├── static/                 # Static assets
@@ -320,6 +321,80 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 					- E2E testing
 				</li>
 			</ul>
+		</section>
+
+		<section id="zero-config" class="docs-section">
+			<h2>🔧 Zero-Config Setup (Optional)</h2>
+			<div class="recommended-box">
+				<strong>💡 Recommended:</strong> For production deployments, we recommend using
+				<strong>secure environment variables</strong> in Cloudflare Pages (see Deployment section
+				above). The zero-config setup below is an <em>alternative approach</em> for scenarios where you
+				want to configure credentials via a web UI instead.
+			</div>
+
+			<p>
+				NebulaKit can also work <strong>without any pre-configured environment variables</strong>.
+				All configuration is done through a web-based setup flow and stored in Cloudflare KV.
+			</p>
+
+			<h3>When to Use Zero-Config</h3>
+			<ul>
+				<li>👥 Non-technical users deploying their own instance</li>
+				<li>🧪 Quick prototyping and demos</li>
+				<li>🔄 Scenarios requiring runtime credential changes without redeployment</li>
+				<li>🎓 Learning and educational environments</li>
+			</ul>
+
+			<h3>The Setup Flow</h3>
+			<div class="setup-flow">
+				<div class="flow-step">
+					<span class="step-number">1</span>
+					<div class="step-content">
+						<strong>Fresh Deploy</strong>
+						<p>Deploy your app without any secrets or environment variables.</p>
+					</div>
+				</div>
+				<div class="flow-arrow">→</div>
+				<div class="flow-step">
+					<span class="step-number">2</span>
+					<div class="step-content">
+						<strong>/setup Page</strong>
+						<p>Navigate to <code>/setup</code> and enter your GitHub OAuth credentials.</p>
+					</div>
+				</div>
+				<div class="flow-arrow">→</div>
+				<div class="flow-step">
+					<span class="step-number">3</span>
+					<div class="step-content">
+						<strong>Admin Login</strong>
+						<p>Log in as the admin user. This permanently locks the setup page.</p>
+					</div>
+				</div>
+			</div>
+
+			<h3>The /reset Page</h3>
+			<p>
+				If you need to change OAuth credentials or the admin user, visit <code>/reset</code> to clear
+				all setup configuration. This will:
+			</p>
+			<ul>
+				<li>✅ Clear OAuth credentials</li>
+				<li>✅ Clear admin owner settings</li>
+				<li>✅ Unlock the setup page</li>
+				<li>❌ NOT delete user accounts or app data</li>
+			</ul>
+			<div class="warning-box">
+				<strong>⚠️ Security:</strong> After initial setup, disable the <code>/reset</code> route from
+				the Admin Panel to prevent unauthorized resets.
+			</div>
+
+			<p>
+				For detailed documentation, see <a
+					href="https://github.com/starspacegroup/NebulaKit/blob/main/docs/ZERO_ENV_SETUP.md"
+					target="_blank"
+					rel="noopener noreferrer">ZERO_ENV_SETUP.md</a
+				>.
+			</p>
 		</section>
 
 		<section id="contributing" class="docs-section">
@@ -539,6 +614,90 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 	.feature-card p {
 		margin-bottom: 0;
 		font-size: 0.9375rem;
+	}
+
+	/* Zero-Config Setup Section */
+	.setup-flow {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-md);
+		margin: var(--spacing-xl) 0;
+	}
+
+	.flow-step {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-md);
+		padding: var(--spacing-lg);
+		background-color: var(--color-surface);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border);
+		max-width: 220px;
+	}
+
+	.step-number {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		border-radius: 50%;
+		font-weight: bold;
+		flex-shrink: 0;
+	}
+
+	.step-content strong {
+		display: block;
+		margin-bottom: var(--spacing-xs);
+	}
+
+	.step-content p {
+		margin: 0;
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+	}
+
+	.flow-arrow {
+		font-size: 1.5rem;
+		color: var(--color-text-secondary);
+	}
+
+	.warning-box {
+		padding: var(--spacing-md);
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-warning, #f59e0b);
+		border-radius: var(--radius-md);
+		margin-top: var(--spacing-md);
+	}
+
+	.recommended-box {
+		padding: var(--spacing-md);
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-primary);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--spacing-lg);
+	}
+
+	.recommended-box em {
+		color: var(--color-text-secondary);
+	}
+
+	@media (max-width: 768px) {
+		.setup-flow {
+			flex-direction: column;
+		}
+
+		.flow-arrow {
+			transform: rotate(90deg);
+		}
+
+		.flow-step {
+			max-width: 100%;
+		}
 	}
 
 	.docs-footer {

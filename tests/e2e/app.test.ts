@@ -6,10 +6,22 @@ test.describe('Homepage', () => {
 		await expect(page).toHaveTitle(/NebulaKit/);
 	});
 
-	test('should navigate to demo page', async ({ page }) => {
+	test('should navigate to documentation page via command palette', async ({ page }) => {
 		await page.goto('/');
-		await page.click('a[href="/demo"]');
-		await expect(page).toHaveURL('/demo');
+
+		// Open command palette
+		const commandPaletteBtn = page.locator('button[aria-label="Open command palette"]');
+		await commandPaletteBtn.click();
+
+		// Search for documentation
+		const searchInput = page.locator('input[placeholder*="Search"]');
+		await searchInput.fill('documentation');
+
+		// Click on the documentation command
+		const docCommand = page.locator('button:has-text("Documentation")');
+		await docCommand.click();
+
+		await expect(page).toHaveURL('/documentation');
 	});
 
 	test('should open command palette with keyboard shortcut', async ({ page }) => {
