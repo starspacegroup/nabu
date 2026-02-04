@@ -204,4 +204,37 @@ describe('Admin Auth Keys Page', () => {
 		const visibleValue = screen.getByText('client_123');
 		expect(visibleValue).toBeTruthy();
 	});
+
+	it('should include Discord in provider options', async () => {
+		render(AuthKeysPage, { props: { data: { user: mockUser, hasAIProviders: false, keys: [] } } });
+		const addButton = screen.getByText(/Add Key/i);
+		await fireEvent.click(addButton);
+
+		const providerSelect = screen.getByLabelText(/Provider/i);
+		expect(providerSelect).toBeTruthy();
+
+		// Check that Discord option exists
+		const discordOption = screen.getByRole('option', { name: 'Discord' });
+		expect(discordOption).toBeTruthy();
+	});
+
+	it('should render Discord OAuth keys in the list', () => {
+		const mockKeys = [
+			{ id: '1', name: 'GitHub OAuth', provider: 'github', type: 'oauth', createdAt: '2024-01-01' },
+			{
+				id: '2',
+				name: 'Discord OAuth',
+				provider: 'discord',
+				type: 'oauth',
+				createdAt: '2024-01-02'
+			}
+		];
+
+		render(AuthKeysPage, {
+			props: { data: { user: mockUser, hasAIProviders: false, keys: mockKeys } }
+		});
+
+		expect(screen.getByText('GitHub OAuth')).toBeTruthy();
+		expect(screen.getByText('Discord OAuth')).toBeTruthy();
+	});
 });

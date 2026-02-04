@@ -44,14 +44,28 @@ export const PUT: RequestHandler = async ({ params, request, platform }) => {
 			updatedAt: new Date().toISOString()
 		};
 
-		// In production, update in KV:
-		// const existing = await platform.env.KV.get(`auth_key:${id}`);
-		// if (!existing) throw error(404, 'Key not found');
-		// await platform.env.KV.put(`auth_key:${id}`, JSON.stringify({
-		//   ...JSON.parse(existing),
-		//   ...updatedKey,
-		//   ...(data.clientSecret && { clientSecret: data.clientSecret })
-		// }));
+		// Update auth config in KV for OAuth providers
+		if (platform?.env?.KV && data.provider) {
+			try {
+				// Get existing config to preserve createdAt and potentially clientSecret
+				const existingStr = await platform.env.KV.get(`auth_config:${data.provider}`);
+				const existing = existingStr ? JSON.parse(existingStr) : {};
+
+				const authConfig = {
+					...existing,
+					id,
+					provider: data.provider,
+					clientId: data.clientId,
+					// Only update clientSecret if provided
+					...(data.clientSecret && { clientSecret: data.clientSecret }),
+					updatedAt: new Date().toISOString()
+				};
+				await platform.env.KV.put(`auth_config:${data.provider}`, JSON.stringify(authConfig));
+				console.log(`✓ Updated ${data.provider} OAuth config in KV`);
+			} catch (kvErr) {
+				console.error('Failed to update auth config in KV:', kvErr);
+			}
+		}
 
 		return json({ success: true, key: updatedKey });
 	} catch (err: unknown) {
@@ -91,8 +105,25 @@ export const DELETE: RequestHandler = async ({ params, platform }) => {
 			}
 		}
 
-		// In production, delete from KV:
-		// await platform.env.KV.delete(`auth_key:${id}`);
+		// Delete auth config from KV
+		// Find which provider this key belongs to and delete it
+		if (platform?.env?.KV) {
+			for (const provider of ['github', 'discord', 'google', 'microsoft']) {
+				try {
+					const configStr = await platform.env.KV.get(`auth_config:${provider}`);
+					if (configStr) {
+						const config = JSON.parse(configStr);
+						if (config.id === id) {
+							await platform.env.KV.delete(`auth_config:${provider}`);
+							console.log(`✓ Deleted ${provider} OAuth config from KV`);
+							break;
+						}
+					}
+				} catch (kvErr) {
+					console.error(`Failed to check/delete ${provider} config:`, kvErr);
+				}
+			}
+		}
 
 		return json({ success: true });
 	} catch (err: unknown) {

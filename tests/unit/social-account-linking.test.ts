@@ -288,7 +288,7 @@ describe('Profile Connected Accounts Display', () => {
 		expect((result as any).connectedAccounts).toHaveLength(2);
 	});
 
-	it('should infer GitHub connection from user ID if DB not available', async () => {
+	it('should return empty connected accounts when DB not available', async () => {
 		const { load } = await import('../../src/routes/profile/+page.server');
 
 		const result = await load({
@@ -298,13 +298,11 @@ describe('Profile Connected Accounts Display', () => {
 
 		expect(result).toBeDefined();
 		expect((result as any).user).toBeDefined();
-		// GitHub connection inferred from non-discord user ID
-		expect((result as any).connectedAccounts).toEqual([
-			{ provider: 'github', provider_account_id: 'user-123', created_at: '' }
-		]);
+		// No inference - DB is the source of truth
+		expect((result as any).connectedAccounts).toEqual([]);
 	});
 
-	it('should infer Discord connection from discord_ prefixed user ID if DB not available', async () => {
+	it('should return empty connected accounts for Discord user when DB not available', async () => {
 		const { load } = await import('../../src/routes/profile/+page.server');
 
 		const result = await load({
@@ -316,9 +314,7 @@ describe('Profile Connected Accounts Display', () => {
 
 		expect(result).toBeDefined();
 		expect((result as any).user).toBeDefined();
-		// Discord connection inferred from discord_ prefixed user ID
-		expect((result as any).connectedAccounts).toEqual([
-			{ provider: 'discord', provider_account_id: '987654321', created_at: '' }
-		]);
+		// No inference - DB is the source of truth
+		expect((result as any).connectedAccounts).toEqual([]);
 	});
 });

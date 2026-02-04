@@ -20,6 +20,7 @@
 
 	const providers = [
 		{ value: 'github', label: 'GitHub' },
+		{ value: 'discord', label: 'Discord' },
 		{ value: 'google', label: 'Google' },
 		{ value: 'microsoft', label: 'Microsoft' },
 		{ value: 'custom', label: 'Custom' }

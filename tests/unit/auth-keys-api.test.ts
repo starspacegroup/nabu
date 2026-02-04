@@ -41,7 +41,12 @@ describe('Auth Keys API', () => {
 			const mockPlatform = {
 				env: {
 					KV: {
-						get: vi.fn().mockResolvedValue(JSON.stringify(authConfig))
+						get: vi.fn().mockImplementation((key: string) => {
+							if (key === 'auth_config:github') {
+								return Promise.resolve(JSON.stringify(authConfig));
+							}
+							return Promise.resolve(null);
+						})
 					}
 				}
 			};

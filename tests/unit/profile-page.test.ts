@@ -63,12 +63,10 @@ describe('Profile Page', () => {
 			const { load } = await import('../../src/routes/profile/+page.server');
 			const result = await load(mockEvent as any);
 
-			// The server now infers GitHub connection from non-discord user ID
+			// Connected accounts only come from DB - empty when DB not available
 			expect(result).toEqual({
 				user: mockUser,
-				connectedAccounts: [
-					{ provider: 'github', provider_account_id: 'test-user-id', created_at: '' }
-				]
+				connectedAccounts: []
 			});
 		});
 
@@ -95,10 +93,8 @@ describe('Profile Page', () => {
 			expect(result.user).toBeDefined();
 			expect(result.user.name).toBeUndefined();
 			expect(result.user.avatarUrl).toBeUndefined();
-			// GitHub connection inferred from non-discord user ID
-			expect(result.connectedAccounts).toEqual([
-				{ provider: 'github', provider_account_id: 'test-user-id', created_at: '' }
-			]);
+			// Connected accounts only come from DB - empty when DB not available
+			expect(result.connectedAccounts).toEqual([]);
 		});
 	});
 

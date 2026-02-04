@@ -26,10 +26,26 @@ export const GET: RequestHandler = async ({ platform }) => {
 			} catch (err) {
 				console.error('Failed to parse GitHub OAuth config:', err);
 			}
-		}
 
-		// In the future, additional auth keys could be fetched from KV here
-		// e.g., await platform.env.KV.list({ prefix: 'auth_key:' })
+			// Fetch Discord OAuth configuration from KV
+			try {
+				const discordConfigStr = await platform.env.KV.get('auth_config:discord');
+				if (discordConfigStr) {
+					const discordConfig = JSON.parse(discordConfigStr);
+					keys.push({
+						id: discordConfig.id,
+						name: 'Discord OAuth (Setup)',
+						provider: discordConfig.provider,
+						type: 'oauth',
+						clientId: discordConfig.clientId,
+						createdAt: discordConfig.createdAt,
+						isSetupKey: true
+					});
+				}
+			} catch (err) {
+				console.error('Failed to parse Discord OAuth config:', err);
+			}
+		}
 
 		return json({ keys });
 	} catch (err) {
@@ -61,11 +77,19 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			createdAt
 		};
 
-		// In production, store in KV:
-		// await platform.env.KV.put(`auth_key:${id}`, JSON.stringify({
-		//   ...newKey,
-		//   clientSecret: data.clientSecret // Store encrypted
-		// }));
+		// Store in KV for OAuth providers (github, discord, etc.)
+		if (platform?.env?.KV && data.provider) {
+			const authConfig = {
+				id,
+				provider: data.provider,
+				clientId: data.clientId,
+				clientSecret: data.clientSecret,
+				createdAt,
+				updatedAt: new Date().toISOString()
+			};
+			await platform.env.KV.put(`auth_config:${data.provider}`, JSON.stringify(authConfig));
+			console.log(`✓ Saved ${data.provider} OAuth config to KV`);
+		}
 
 		return json({ success: true, key: newKey });
 	} catch (err) {

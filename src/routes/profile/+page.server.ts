@@ -28,56 +28,16 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				connectedAccounts = result.results;
 			}
 
-			// Check if user has github_login set but no GitHub oauth_account record
-			// This handles users who logged in via GitHub before the oauth_accounts feature
-			const hasGitHubOAuth = connectedAccounts.some((acc) => acc.provider === 'github');
-			if (!hasGitHubOAuth) {
-				const userRecord = await platform.env.DB.prepare(
-					'SELECT github_login FROM users WHERE id = ?'
-				)
-					.bind(locals.user.id)
-					.first<{ github_login: string | null }>();
-
-				if (userRecord?.github_login) {
-					// User logged in via GitHub - add a virtual connection
-					connectedAccounts.push({
-						provider: 'github',
-						provider_account_id: locals.user.id,
-						created_at: ''
-					});
-				}
-			}
-
-			// Check if user ID indicates Discord login (discord_xxxxx format)
-			const hasDiscordOAuth = connectedAccounts.some((acc) => acc.provider === 'discord');
-			if (!hasDiscordOAuth && locals.user.id.startsWith('discord_')) {
-				connectedAccounts.push({
-					provider: 'discord',
-					provider_account_id: locals.user.id.replace('discord_', ''),
-					created_at: ''
-				});
-			}
+			// Note: We no longer infer connections from user ID or github_login
+			// The oauth_accounts table is the source of truth for connected accounts.
+			// When users log in via OAuth, an oauth_accounts record is created.
 		} catch (err) {
 			console.error('Failed to fetch connected accounts:', err);
 		}
 	} else {
-		// No DB available - infer from user ID and session data
-		// Check for GitHub (numeric ID or has github_login in session)
-		if (locals.user.login && !locals.user.id.startsWith('discord_')) {
-			connectedAccounts.push({
-				provider: 'github',
-				provider_account_id: locals.user.id,
-				created_at: ''
-			});
-		}
-		// Check for Discord (ID starts with discord_)
-		if (locals.user.id.startsWith('discord_')) {
-			connectedAccounts.push({
-				provider: 'discord',
-				provider_account_id: locals.user.id.replace('discord_', ''),
-				created_at: ''
-			});
-		}
+		// No DB available - cannot determine connected accounts without database
+		// In production, DB should always be available
+		console.warn('Database not available for fetching connected accounts');
 	}
 
 	return {

@@ -9,6 +9,11 @@
 	let linkError = '';
 	let linkSuccess = '';
 
+	// Reactive connected accounts - needed for UI to update after disconnect
+	$: connectedAccounts = data.connectedAccounts || [];
+	// Reactive Set for O(1) lookup in template - triggers re-render when connectedAccounts changes
+	$: connectedProviderIds = new Set(connectedAccounts.map((acc) => acc.provider));
+
 	// Available providers
 	const providers = [
 		{
@@ -43,10 +48,6 @@
 		}
 	});
 
-	function isConnected(providerId: string): boolean {
-		return data.connectedAccounts?.some((acc) => acc.provider === providerId) ?? false;
-	}
-
 	function connectAccount(providerId: string) {
 		// Redirect to OAuth flow - the callback will detect we're logged in and link the account
 		window.location.href = `/api/auth/${providerId}`;
@@ -68,8 +69,8 @@
 				throw new Error(errorData.message || 'Failed to unlink account');
 			}
 
-			// Remove from local data
-			data.connectedAccounts = data.connectedAccounts.filter((acc) => acc.provider !== providerId);
+			// Update the reactive array to trigger UI update
+			connectedAccounts = connectedAccounts.filter((acc) => acc.provider !== providerId);
 			linkSuccess = `Successfully disconnected ${providerId.charAt(0).toUpperCase() + providerId.slice(1)} account`;
 		} catch (err) {
 			linkError = err instanceof Error ? err.message : 'Failed to unlink account';
@@ -206,12 +207,12 @@
 						<div class="account-info">
 							<span class="account-icon">{@html provider.icon}</span>
 							<span class="account-name">{provider.name}</span>
-							{#if isConnected(provider.id)}
+							{#if connectedProviderIds.has(provider.id)}
 								<span class="connected-badge">Connected</span>
 							{/if}
 						</div>
 						<div class="account-actions">
-							{#if isConnected(provider.id)}
+							{#if connectedProviderIds.has(provider.id)}
 								<button
 									class="btn btn-outline btn-sm"
 									on:click={() => unlinkAccount(provider.id)}

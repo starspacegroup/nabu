@@ -88,6 +88,22 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 		// Generate unique user ID with discord prefix
 		const userId = `discord_${discordUser.id}`;
 
+		// Check if user is the OAuth app owner
+		// First try environment variable, then fall back to KV
+		let appOwnerId = platform?.env?.GITHUB_OWNER_ID;
+
+		// Try to fetch from KV if environment variable not set
+		if (!appOwnerId && platform?.env?.KV) {
+			try {
+				const storedOwnerId = await platform.env.KV.get('github_owner_id');
+				if (storedOwnerId) {
+					appOwnerId = storedOwnerId;
+				}
+			} catch (err) {
+				console.error('Failed to fetch owner ID from KV:', err);
+			}
+		}
+
 		// Check for linking mode - if user is already logged in
 		const existingSessionCookie = cookies.get('session');
 		let existingUser = null;
@@ -167,14 +183,31 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 						}>();
 
 					if (linkedUser) {
+						// Check if the linked user is the owner
+						// First check if user ID directly matches (for users who signed up with GitHub)
+						let isOwner = appOwnerId ? linkedUser.id === appOwnerId : false;
+
+						// If not, check if user has a linked GitHub account that matches the owner ID
+						if (!isOwner && appOwnerId) {
+							const githubLink = await platform.env.DB.prepare(
+								'SELECT provider_account_id FROM oauth_accounts WHERE user_id = ? AND provider = ?'
+							)
+								.bind(linkedUser.id, 'github')
+								.first<{ provider_account_id: string }>();
+
+							if (githubLink && githubLink.provider_account_id === appOwnerId) {
+								isOwner = true;
+							}
+						}
+
 						const sessionData = {
 							id: linkedUser.id,
 							login: linkedUser.github_login || discordUser.username,
 							name: linkedUser.name,
 							email: linkedUser.email,
 							avatarUrl: linkedUser.github_avatar_url || avatarUrl,
-							isOwner: false,
-							isAdmin: linkedUser.is_admin === 1
+							isOwner,
+							isAdmin: linkedUser.is_admin === 1 || isOwner
 						};
 
 						const sessionCookie = btoa(JSON.stringify(sessionData))
@@ -221,6 +254,22 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					)
 						.bind(discordUser.global_name || discordUser.username, userId)
 						.run();
+
+					// Ensure Discord oauth_account record exists for existing users
+					const existingDiscordOAuth = await platform.env.DB.prepare(
+						'SELECT id FROM oauth_accounts WHERE user_id = ? AND provider = ?'
+					)
+						.bind(userId, 'discord')
+						.first();
+
+					if (!existingDiscordOAuth) {
+						await platform.env.DB.prepare(
+							`INSERT INTO oauth_accounts (id, user_id, provider, provider_account_id, access_token, created_at)
+							VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+						)
+							.bind(crypto.randomUUID(), userId, 'discord', discordUser.id, accessToken)
+							.run();
+					}
 				} else {
 					// Create new user
 					await platform.env.DB.prepare(
@@ -259,7 +308,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			name: discordUser.global_name || discordUser.username,
 			email: discordUser.email,
 			avatarUrl,
-			isOwner: false,
+			isOwner: false, // Discord-only users can't be owner (owner is GitHub ID based)
 			isAdmin
 		};
 
