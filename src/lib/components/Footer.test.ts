@@ -58,10 +58,10 @@ describe('Footer', () => {
 		expect(signupLink).toHaveAttribute('href', '/auth/signup');
 	});
 
-	it('should contain documentation link', () => {
+	it('should contain documentation link pointing to /documentation', () => {
 		render(Footer);
 		const docsLink = screen.getByRole('link', { name: /documentation/i });
-		expect(docsLink).toHaveAttribute('href', 'https://github.com/starspacegroup/NebulaKit');
+		expect(docsLink).toHaveAttribute('href', '/documentation');
 	});
 
 	it('should contain GitHub link in resources', () => {
@@ -92,6 +92,14 @@ describe('Footer', () => {
 		expect(screen.getByText(new RegExp(`© ${currentYear}`, 'i'))).toBeInTheDocument();
 	});
 
+	it('should display created by *Space link', () => {
+		render(Footer);
+		const spaceLink = screen.getByRole('link', { name: /\*space/i });
+		expect(spaceLink).toHaveAttribute('href', 'https://starspace.group');
+		expect(spaceLink).toHaveAttribute('target', '_blank');
+		expect(spaceLink).toHaveAttribute('rel', 'noopener noreferrer');
+	});
+
 	it('should have proper accessibility structure with navigation landmark', () => {
 		render(Footer);
 		const nav = document.querySelector('footer nav');
@@ -99,11 +107,14 @@ describe('Footer', () => {
 		expect(nav).toHaveAttribute('aria-label', 'Footer navigation');
 	});
 
-	it('should have external links open in new tab', () => {
+	it('should have GitHub external link open in new tab', () => {
 		render(Footer);
-		const docsLink = screen.getByRole('link', { name: /documentation/i });
-		expect(docsLink).toHaveAttribute('target', '_blank');
-		expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');
+		const githubLinks = screen.getAllByRole('link', { name: /github/i });
+		const resourcesLink = githubLinks.find((link) =>
+			link.textContent?.toLowerCase().includes('github')
+		);
+		expect(resourcesLink).toHaveAttribute('target', '_blank');
+		expect(resourcesLink).toHaveAttribute('rel', 'noopener noreferrer');
 	});
 
 	it('should render Cloudflare badge', () => {

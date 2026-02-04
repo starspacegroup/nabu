@@ -47,13 +47,7 @@
 					<h3 class="footer-heading">Resources</h3>
 					<ul class="footer-links">
 						<li>
-							<a
-								href="https://github.com/starspacegroup/NebulaKit"
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								Documentation
-							</a>
+							<a href="/documentation">Documentation</a>
 						</li>
 						<li>
 							<a
@@ -79,7 +73,15 @@
 
 		<!-- Bottom Bar -->
 		<div class="footer-bottom">
-			<p class="footer-copyright">© {currentYear} NebulaKit. All rights reserved.</p>
+			<p class="footer-copyright">
+				© {currentYear} NebulaKit. Created by
+				<a
+					href="https://starspace.group"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="starspace-link">*Space</a
+				>.
+			</p>
 			<div class="footer-social">
 				<a
 					href="https://github.com/starspacegroup/NebulaKit"
@@ -222,6 +224,17 @@
 		color: var(--color-text-secondary);
 		font-size: 0.813rem;
 		text-align: center;
+	}
+
+	.starspace-link {
+		color: var(--color-primary);
+		text-decoration: none;
+		font-weight: 500;
+		transition: color var(--transition-fast);
+	}
+
+	.starspace-link:hover {
+		color: var(--color-secondary);
 	}
 
 	.footer-social {
