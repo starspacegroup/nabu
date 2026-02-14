@@ -7,7 +7,6 @@
 	let userDropdownOpen = false;
 
 	export let onCommandPaletteClick: () => void = () => {};
-	export let hasAIProviders = false;
 	export let user: {
 		id: string;
 		login: string;

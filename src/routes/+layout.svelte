@@ -47,11 +47,7 @@
 </script>
 
 <div class="app">
-	<Navigation
-		user={data.user}
-		hasAIProviders={data.hasAIProviders}
-		onCommandPaletteClick={toggleCommandPalette}
-	/>
+	<Navigation user={data.user} onCommandPaletteClick={toggleCommandPalette} />
 
 	<main>
 		<slot />
