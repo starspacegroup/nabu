@@ -16,8 +16,10 @@ import type {
 	ContentType,
 	ContentTypeParsed,
 	CreateContentItemInput,
+	CreateContentTypeInput,
 	PaginatedResult,
-	UpdateContentItemInput
+	UpdateContentItemInput,
+	UpdateContentTypeInput
 } from '$lib/cms/types';
 import { generateSlug, parseContentItem, parseContentTag, parseContentType } from '$lib/cms/utils';
 import type { D1Database } from '@cloudflare/workers-types';
@@ -51,18 +53,18 @@ export async function syncContentTypes(db: D1Database): Promise<void> {
 		const existingType = existingBySlug.get(def.slug);
 
 		if (!existingType) {
-			// Insert new type
+			// Insert new type (mark as system)
 			const id = crypto.randomUUID();
 			statements.push(
 				db
 					.prepare(
-						`INSERT INTO content_types (id, slug, name, description, fields, settings, icon, sort_order)
-						 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+						`INSERT INTO content_types (id, slug, name, description, fields, settings, icon, sort_order, is_system)
+						 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
 					)
 					.bind(id, def.slug, def.name, def.description, fieldsJson, settingsJson, def.icon, i)
 			);
 		} else {
-			// Update if changed
+			// Update if changed (also ensure is_system = 1)
 			const hasChanged =
 				existingType.name !== def.name ||
 				existingType.description !== def.description ||
@@ -75,7 +77,7 @@ export async function syncContentTypes(db: D1Database): Promise<void> {
 					db
 						.prepare(
 							`UPDATE content_types
-							 SET name = ?, description = ?, fields = ?, settings = ?, icon = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+							 SET name = ?, description = ?, fields = ?, settings = ?, icon = ?, sort_order = ?, is_system = 1, updated_at = CURRENT_TIMESTAMP
 							 WHERE slug = ?`
 						)
 						.bind(def.name, def.description, fieldsJson, settingsJson, def.icon, i, def.slug)
@@ -449,4 +451,175 @@ export async function getItemTags(db: D1Database, itemId: string): Promise<Conte
 		.all<ContentTag>();
 
 	return (result.results || []).map(parseContentTag);
+}
+
+// ─── Content Type Management (CRUD) ───────────────────────────────────────────
+
+/**
+ * Get a content type by ID (parsed).
+ */
+export async function getContentTypeById(
+	db: D1Database,
+	id: string
+): Promise<ContentTypeParsed | null> {
+	const row = await db
+		.prepare('SELECT * FROM content_types WHERE id = ?')
+		.bind(id)
+		.first<ContentType>();
+
+	return row ? parseContentType(row) : null;
+}
+
+/**
+ * Get all content type slugs from DB (includes both system and user-created).
+ */
+export async function getAllContentTypeSlugs(db: D1Database): Promise<string[]> {
+	const result = await db
+		.prepare('SELECT slug FROM content_types ORDER BY sort_order ASC')
+		.all<{ slug: string }>();
+
+	return (result.results || []).map((row) => row.slug);
+}
+
+/**
+ * Check if a slug exists in the DB content types.
+ */
+export async function isContentTypeSlug(db: D1Database, slug: string): Promise<boolean> {
+	const row = await db
+		.prepare('SELECT id FROM content_types WHERE slug = ?')
+		.bind(slug)
+		.first<{ id: string }>();
+
+	return row !== null;
+}
+
+/**
+ * Create a new content type (user-created, not system).
+ */
+export async function createContentTypeInDB(
+	db: D1Database,
+	input: CreateContentTypeInput
+): Promise<ContentTypeParsed | null> {
+	const slug = input.slug || generateSlug(input.name);
+
+	// Check if slug already exists
+	const existing = await db
+		.prepare('SELECT id FROM content_types WHERE slug = ?')
+		.bind(slug)
+		.first<{ id: string }>();
+
+	if (existing) {
+		return null; // Slug already taken
+	}
+
+	const id = crypto.randomUUID();
+	const fieldsJson = JSON.stringify(input.fields || []);
+	const settingsJson = JSON.stringify(input.settings || {});
+	const icon = input.icon || 'document';
+
+	// Get next sort_order
+	const maxOrder = await db
+		.prepare('SELECT MAX(sort_order) as max_order FROM content_types')
+		.first<{ max_order: number | null }>();
+	const sortOrder = (maxOrder?.max_order ?? -1) + 1;
+
+	const row = await db
+		.prepare(
+			`INSERT INTO content_types (id, slug, name, description, fields, settings, icon, sort_order, is_system)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+			 RETURNING *`
+		)
+		.bind(
+			id,
+			slug,
+			input.name,
+			input.description || null,
+			fieldsJson,
+			settingsJson,
+			icon,
+			sortOrder
+		)
+		.first<ContentType>();
+
+	return row ? parseContentType(row) : null;
+}
+
+/**
+ * Update a content type.
+ */
+export async function updateContentTypeInDB(
+	db: D1Database,
+	id: string,
+	input: UpdateContentTypeInput
+): Promise<ContentTypeParsed | null> {
+	// Build SET clause dynamically based on provided fields
+	const setClauses: string[] = [];
+	const params: unknown[] = [];
+
+	if (input.name !== undefined) {
+		setClauses.push('name = ?');
+		params.push(input.name);
+	}
+	if (input.slug !== undefined) {
+		setClauses.push('slug = ?');
+		params.push(input.slug);
+	}
+	if (input.description !== undefined) {
+		setClauses.push('description = ?');
+		params.push(input.description);
+	}
+	if (input.icon !== undefined) {
+		setClauses.push('icon = ?');
+		params.push(input.icon);
+	}
+	if (input.fields !== undefined) {
+		setClauses.push('fields = ?');
+		params.push(JSON.stringify(input.fields));
+	}
+	if (input.settings !== undefined) {
+		setClauses.push('settings = ?');
+		params.push(JSON.stringify(input.settings));
+	}
+
+	if (setClauses.length === 0) {
+		// Nothing to update, just return current
+		return getContentTypeById(db, id);
+	}
+
+	setClauses.push('updated_at = CURRENT_TIMESTAMP');
+	params.push(id);
+
+	const row = await db
+		.prepare(`UPDATE content_types SET ${setClauses.join(', ')} WHERE id = ? RETURNING *`)
+		.bind(...params)
+		.first<ContentType>();
+
+	return row ? parseContentType(row) : null;
+}
+
+/**
+ * Delete a content type (only non-system types).
+ */
+export async function deleteContentTypeFromDB(
+	db: D1Database,
+	id: string
+): Promise<{ success: boolean; reason?: string }> {
+	// Check if the type exists and whether it's a system type
+	const existing = await db
+		.prepare('SELECT id, is_system FROM content_types WHERE id = ?')
+		.bind(id)
+		.first<{ id: string; is_system: number }>();
+
+	if (!existing) {
+		return { success: false, reason: 'Content type not found' };
+	}
+
+	if (existing.is_system === 1) {
+		return { success: false, reason: 'Cannot delete system content type' };
+	}
+
+	// Delete the type (cascade will handle items and tags)
+	await db.prepare('DELETE FROM content_types WHERE id = ?').bind(id).run();
+
+	return { success: true };
 }

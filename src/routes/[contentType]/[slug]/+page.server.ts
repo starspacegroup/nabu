@@ -2,12 +2,13 @@
  * Dynamic CMS Content Item Page - Server Load
  *
  * Handles /{contentType}/{slug} routes (e.g., /blog/my-first-post).
+ * Matches both system (registry) and user-created content types from the DB.
  */
-import { isRegisteredContentType } from '$lib/cms/registry';
 import {
 	getContentItemBySlug,
 	getContentTypeBySlug,
 	getItemTags,
+	isContentTypeSlug,
 	syncContentTypes
 } from '$lib/services/cms';
 import { error } from '@sveltejs/kit';
@@ -17,11 +18,6 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 	const typeSlug = params.contentType;
 	const itemSlug = params.slug;
 
-	// Only handle registered content types
-	if (!isRegisteredContentType(typeSlug)) {
-		throw error(404, 'Not found');
-	}
-
 	const db = platform?.env?.DB;
 	if (!db) {
 		throw error(500, 'Database not available');
@@ -29,6 +25,12 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 
 	// Ensure content types are synced
 	await syncContentTypes(db);
+
+	// Check if this slug exists in DB (covers both system and user-created types)
+	const exists = await isContentTypeSlug(db, typeSlug);
+	if (!exists) {
+		throw error(404, 'Not found');
+	}
 
 	const contentType = await getContentTypeBySlug(db, typeSlug);
 	if (!contentType) {

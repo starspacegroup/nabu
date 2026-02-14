@@ -19,8 +19,10 @@ export type {
 	ContentTypeParsed,
 	ContentTypeSettings,
 	CreateContentItemInput,
+	CreateContentTypeInput,
 	PaginatedResult,
-	UpdateContentItemInput
+	UpdateContentItemInput,
+	UpdateContentTypeInput
 } from './types';
 export {
 	generateSlug,
@@ -28,5 +30,6 @@ export {
 	parseContentItem,
 	parseContentTag,
 	parseContentType,
+	validateContentTypeInput,
 	validateFields
 } from './utils';

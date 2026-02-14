@@ -41,6 +41,7 @@ export function parseContentType(row: ContentType): ContentTypeParsed {
 		settings: JSON.parse(row.settings) as ContentTypeSettings,
 		icon: row.icon,
 		sortOrder: row.sort_order,
+		isSystem: row.is_system === 1,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at
 	};
@@ -191,4 +192,66 @@ export function getDefaultFieldValues(
 		}
 	}
 	return defaults;
+}
+
+/**
+ * Validate content type input for creation or update.
+ * Returns an array of error messages (empty = valid).
+ */
+export function validateContentTypeInput(input: {
+	name: string;
+	slug?: string;
+	fields?: ContentFieldDefinition[];
+	settings?: ContentTypeSettings;
+}): string[] {
+	const errors: string[] = [];
+
+	// Validate name
+	if (!input.name || !input.name.trim()) {
+		errors.push('Content type name is required');
+	}
+
+	// Validate slug format if provided
+	if (input.slug !== undefined && input.slug !== '') {
+		const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+		if (!slugRegex.test(input.slug)) {
+			errors.push(
+				'Content type slug must be lowercase alphanumeric with hyphens only (e.g., "my-type")'
+			);
+		}
+	}
+
+	// Validate fields if provided
+	if (input.fields && Array.isArray(input.fields)) {
+		const fieldNames = new Set<string>();
+		for (let i = 0; i < input.fields.length; i++) {
+			const field = input.fields[i];
+
+			if (!field.name || !field.name.trim()) {
+				errors.push(`Field ${i + 1}: name is required`);
+			}
+
+			if (!field.label || !field.label.trim()) {
+				errors.push(`Field ${i + 1}: label is required`);
+			}
+
+			if (!field.type || !field.type.trim()) {
+				errors.push(`Field ${i + 1}: type is required`);
+			}
+
+			if (field.name && fieldNames.has(field.name)) {
+				errors.push(`Field names must be unique - duplicate field name: "${field.name}"`);
+			}
+			if (field.name) {
+				fieldNames.add(field.name);
+			}
+		}
+	}
+
+	// Validate route prefix
+	if (input.settings?.routePrefix && !input.settings.routePrefix.startsWith('/')) {
+		errors.push('Route prefix must start with / (e.g., "/blog")');
+	}
+
+	return errors;
 }

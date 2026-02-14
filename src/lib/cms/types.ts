@@ -115,6 +115,7 @@ export interface ContentType {
 	settings: string; // JSON string of ContentTypeSettings
 	icon: string;
 	sort_order: number;
+	is_system: number; // 1 = code-defined (from registry), 0 = user-created
 	created_at: string;
 	updated_at: string;
 }
@@ -129,6 +130,7 @@ export interface ContentTypeParsed {
 	settings: ContentTypeSettings;
 	icon: string;
 	sortOrder: number;
+	isSystem: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -233,4 +235,24 @@ export interface ContentItemFilters {
 	pageSize?: number;
 	sortBy?: string;
 	sortDirection?: 'asc' | 'desc';
+}
+
+/** Input for creating a content type via admin UI */
+export interface CreateContentTypeInput {
+	name: string;
+	slug?: string;
+	description?: string;
+	icon?: string;
+	fields: ContentFieldDefinition[];
+	settings: ContentTypeSettings;
+}
+
+/** Input for updating a content type via admin UI */
+export interface UpdateContentTypeInput {
+	name?: string;
+	slug?: string;
+	description?: string;
+	icon?: string;
+	fields?: ContentFieldDefinition[];
+	settings?: ContentTypeSettings;
 }
