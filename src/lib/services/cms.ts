@@ -1,0 +1,452 @@
+/**
+ * CMS Service
+ *
+ * Database operations for the content management system.
+ * All functions take a D1Database instance as the first parameter,
+ * following the existing service pattern.
+ */
+
+import { contentTypeRegistry } from '$lib/cms/registry';
+import type {
+	ContentItem,
+	ContentItemFilters,
+	ContentItemParsed,
+	ContentTag,
+	ContentTagParsed,
+	ContentType,
+	ContentTypeParsed,
+	CreateContentItemInput,
+	PaginatedResult,
+	UpdateContentItemInput
+} from '$lib/cms/types';
+import { generateSlug, parseContentItem, parseContentTag, parseContentType } from '$lib/cms/utils';
+import type { D1Database } from '@cloudflare/workers-types';
+
+/**
+ * Sync content type definitions from the code registry to D1.
+ * Inserts new types and updates changed ones. Safe to call on every request.
+ */
+export async function syncContentTypes(db: D1Database): Promise<void> {
+	// Get existing types from DB
+	const existing = await db
+		.prepare('SELECT id, slug, name, description, fields, settings, icon FROM content_types')
+		.all<{
+			id: string;
+			slug: string;
+			name: string;
+			description: string | null;
+			fields: string;
+			settings: string;
+			icon: string;
+		}>();
+
+	const existingBySlug = new Map((existing.results || []).map((row) => [row.slug, row]));
+
+	const statements: any[] = [];
+
+	for (let i = 0; i < contentTypeRegistry.length; i++) {
+		const def = contentTypeRegistry[i];
+		const fieldsJson = JSON.stringify(def.fields);
+		const settingsJson = JSON.stringify(def.settings);
+		const existingType = existingBySlug.get(def.slug);
+
+		if (!existingType) {
+			// Insert new type
+			const id = crypto.randomUUID();
+			statements.push(
+				db
+					.prepare(
+						`INSERT INTO content_types (id, slug, name, description, fields, settings, icon, sort_order)
+						 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+					)
+					.bind(id, def.slug, def.name, def.description, fieldsJson, settingsJson, def.icon, i)
+			);
+		} else {
+			// Update if changed
+			const hasChanged =
+				existingType.name !== def.name ||
+				existingType.description !== def.description ||
+				existingType.fields !== fieldsJson ||
+				existingType.settings !== settingsJson ||
+				existingType.icon !== def.icon;
+
+			if (hasChanged) {
+				statements.push(
+					db
+						.prepare(
+							`UPDATE content_types
+							 SET name = ?, description = ?, fields = ?, settings = ?, icon = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+							 WHERE slug = ?`
+						)
+						.bind(def.name, def.description, fieldsJson, settingsJson, def.icon, i, def.slug)
+				);
+			}
+		}
+	}
+
+	if (statements.length > 0) {
+		await db.batch(statements);
+	}
+}
+
+/**
+ * Get all content types (parsed).
+ */
+export async function getContentTypes(db: D1Database): Promise<ContentTypeParsed[]> {
+	const result = await db
+		.prepare('SELECT * FROM content_types ORDER BY sort_order ASC')
+		.all<ContentType>();
+
+	return (result.results || []).map(parseContentType);
+}
+
+/**
+ * Get a content type by slug (parsed).
+ */
+export async function getContentTypeBySlug(
+	db: D1Database,
+	slug: string
+): Promise<ContentTypeParsed | null> {
+	const row = await db
+		.prepare('SELECT * FROM content_types WHERE slug = ?')
+		.bind(slug)
+		.first<ContentType>();
+
+	return row ? parseContentType(row) : null;
+}
+
+/**
+ * Create a new content item.
+ */
+export async function createContentItem(
+	db: D1Database,
+	input: CreateContentItemInput
+): Promise<ContentItemParsed | null> {
+	// Resolve content type
+	const contentType = await db
+		.prepare('SELECT * FROM content_types WHERE slug = ?')
+		.bind(input.contentTypeSlug)
+		.first<ContentType>();
+
+	if (!contentType) {
+		return null;
+	}
+
+	const id = crypto.randomUUID();
+	const slug = input.slug || generateSlug(input.title);
+	const status = input.status || 'draft';
+	const fieldsJson = JSON.stringify(input.fields);
+	const publishedAt = status === 'published' ? new Date().toISOString() : null;
+
+	// Check slug uniqueness within this content type
+	const existingSlug = await db
+		.prepare('SELECT id FROM content_items WHERE content_type_id = ? AND slug = ?')
+		.bind(contentType.id, slug)
+		.first();
+
+	if (existingSlug) {
+		// Append a random suffix to make it unique
+		const uniqueSlug = `${slug}-${crypto.randomUUID().slice(0, 8)}`;
+		const row = await db
+			.prepare(
+				`INSERT INTO content_items (id, content_type_id, slug, title, status, fields, seo_title, seo_description, seo_image, author_id, published_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 RETURNING *`
+			)
+			.bind(
+				id,
+				contentType.id,
+				uniqueSlug,
+				input.title,
+				status,
+				fieldsJson,
+				input.seoTitle || null,
+				input.seoDescription || null,
+				input.seoImage || null,
+				input.authorId || null,
+				publishedAt
+			)
+			.first<ContentItem>();
+
+		return row ? parseContentItem(row) : null;
+	}
+
+	const row = await db
+		.prepare(
+			`INSERT INTO content_items (id, content_type_id, slug, title, status, fields, seo_title, seo_description, seo_image, author_id, published_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 RETURNING *`
+		)
+		.bind(
+			id,
+			contentType.id,
+			slug,
+			input.title,
+			status,
+			fieldsJson,
+			input.seoTitle || null,
+			input.seoDescription || null,
+			input.seoImage || null,
+			input.authorId || null,
+			publishedAt
+		)
+		.first<ContentItem>();
+
+	if (row && input.tagIds && input.tagIds.length > 0) {
+		await setItemTags(db, row.id, input.tagIds);
+	}
+
+	return row ? parseContentItem(row) : null;
+}
+
+/**
+ * Get a content item by ID (parsed).
+ */
+export async function getContentItem(
+	db: D1Database,
+	id: string
+): Promise<ContentItemParsed | null> {
+	const row = await db
+		.prepare('SELECT * FROM content_items WHERE id = ?')
+		.bind(id)
+		.first<ContentItem>();
+
+	return row ? parseContentItem(row) : null;
+}
+
+/**
+ * Get a content item by content type ID and slug (parsed).
+ */
+export async function getContentItemBySlug(
+	db: D1Database,
+	contentTypeId: string,
+	slug: string
+): Promise<ContentItemParsed | null> {
+	const row = await db
+		.prepare('SELECT * FROM content_items WHERE content_type_id = ? AND slug = ?')
+		.bind(contentTypeId, slug)
+		.first<ContentItem>();
+
+	return row ? parseContentItem(row) : null;
+}
+
+/**
+ * List content items for a type with pagination and filtering.
+ */
+export async function listContentItems(
+	db: D1Database,
+	contentTypeId: string,
+	filters: ContentItemFilters = {}
+): Promise<PaginatedResult<ContentItemParsed>> {
+	const page = filters.page || 1;
+	const pageSize = filters.pageSize || 12;
+	const offset = (page - 1) * pageSize;
+	const sortBy = filters.sortBy || 'created_at';
+	const sortDirection = filters.sortDirection || 'desc';
+
+	// Build WHERE clause
+	const conditions: string[] = ['content_type_id = ?'];
+	const params: unknown[] = [contentTypeId];
+
+	if (filters.status) {
+		conditions.push('status = ?');
+		params.push(filters.status);
+	}
+
+	if (filters.authorId) {
+		conditions.push('author_id = ?');
+		params.push(filters.authorId);
+	}
+
+	if (filters.search) {
+		conditions.push('(title LIKE ? OR slug LIKE ?)');
+		const searchTerm = `%${filters.search}%`;
+		params.push(searchTerm, searchTerm);
+	}
+
+	const whereClause = conditions.join(' AND ');
+
+	// Get total count
+	const countResult = await db
+		.prepare(`SELECT COUNT(*) as count FROM content_items WHERE ${whereClause}`)
+		.bind(...params)
+		.first<{ count: number }>();
+
+	const total = countResult?.count || 0;
+
+	// Get items
+	// Allowlist the sort column to prevent SQL injection
+	const allowedSortColumns = [
+		'created_at',
+		'updated_at',
+		'published_at',
+		'title',
+		'slug',
+		'status'
+	];
+	const safeSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'created_at';
+	const safeSortDir = sortDirection === 'asc' ? 'ASC' : 'DESC';
+
+	const result = await db
+		.prepare(
+			`SELECT * FROM content_items WHERE ${whereClause}
+			 ORDER BY ${safeSortBy} ${safeSortDir}
+			 LIMIT ? OFFSET ?`
+		)
+		.bind(...params, pageSize, offset)
+		.all<ContentItem>();
+
+	const items = (result.results || []).map(parseContentItem);
+
+	return {
+		items,
+		total,
+		page,
+		pageSize,
+		totalPages: Math.ceil(total / pageSize)
+	};
+}
+
+/**
+ * Update a content item.
+ */
+export async function updateContentItem(
+	db: D1Database,
+	id: string,
+	input: UpdateContentItemInput
+): Promise<ContentItemParsed | null> {
+	// Get existing item
+	const existing = await db
+		.prepare('SELECT * FROM content_items WHERE id = ?')
+		.bind(id)
+		.first<ContentItem>();
+
+	if (!existing) {
+		return null;
+	}
+
+	const title = input.title ?? existing.title;
+	const slug = input.slug ?? existing.slug;
+	const status = input.status ?? existing.status;
+	const fields = input.fields ? JSON.stringify(input.fields) : existing.fields;
+	const seoTitle = input.seoTitle !== undefined ? input.seoTitle : existing.seo_title;
+	const seoDescription =
+		input.seoDescription !== undefined ? input.seoDescription : existing.seo_description;
+	const seoImage = input.seoImage !== undefined ? input.seoImage : existing.seo_image;
+
+	// Set published_at when first publishing
+	let publishedAt = existing.published_at;
+	if (status === 'published' && existing.status !== 'published') {
+		publishedAt = new Date().toISOString();
+	}
+
+	const row = await db
+		.prepare(
+			`UPDATE content_items
+			 SET title = ?, slug = ?, status = ?, fields = ?,
+			     seo_title = ?, seo_description = ?, seo_image = ?,
+			     published_at = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ?
+			 RETURNING *`
+		)
+		.bind(title, slug, status, fields, seoTitle, seoDescription, seoImage, publishedAt, id)
+		.first<ContentItem>();
+
+	if (row && input.tagIds) {
+		await setItemTags(db, id, input.tagIds);
+	}
+
+	return row ? parseContentItem(row) : null;
+}
+
+/**
+ * Delete a content item.
+ */
+export async function deleteContentItem(db: D1Database, id: string): Promise<boolean> {
+	const result = await db.prepare('DELETE FROM content_items WHERE id = ?').bind(id).run();
+
+	return (result.meta?.changes || 0) > 0;
+}
+
+/**
+ * Create a content tag for a content type.
+ */
+export async function createContentTag(
+	db: D1Database,
+	contentTypeId: string,
+	name: string
+): Promise<ContentTagParsed | null> {
+	const id = crypto.randomUUID();
+	const slug = generateSlug(name);
+
+	const row = await db
+		.prepare(
+			`INSERT INTO content_tags (id, content_type_id, name, slug)
+			 VALUES (?, ?, ?, ?)
+			 RETURNING *`
+		)
+		.bind(id, contentTypeId, name, slug)
+		.first<ContentTag>();
+
+	return row ? parseContentTag(row) : null;
+}
+
+/**
+ * Get all tags for a content type.
+ */
+export async function getTagsForType(
+	db: D1Database,
+	contentTypeId: string
+): Promise<ContentTagParsed[]> {
+	const result = await db
+		.prepare('SELECT * FROM content_tags WHERE content_type_id = ? ORDER BY name ASC')
+		.bind(contentTypeId)
+		.all<ContentTag>();
+
+	return (result.results || []).map(parseContentTag);
+}
+
+/**
+ * Delete a content tag.
+ */
+export async function deleteContentTag(db: D1Database, tagId: string): Promise<boolean> {
+	const result = await db.prepare('DELETE FROM content_tags WHERE id = ?').bind(tagId).run();
+
+	return (result.meta?.changes || 0) > 0;
+}
+
+/**
+ * Set tags for a content item (replaces existing).
+ */
+export async function setItemTags(db: D1Database, itemId: string, tagIds: string[]): Promise<void> {
+	const statements: any[] = [
+		db.prepare('DELETE FROM content_item_tags WHERE content_item_id = ?').bind(itemId)
+	];
+
+	for (const tagId of tagIds) {
+		statements.push(
+			db
+				.prepare('INSERT INTO content_item_tags (content_item_id, content_tag_id) VALUES (?, ?)')
+				.bind(itemId, tagId)
+		);
+	}
+
+	await db.batch(statements);
+}
+
+/**
+ * Get tags for a content item.
+ */
+export async function getItemTags(db: D1Database, itemId: string): Promise<ContentTagParsed[]> {
+	const result = await db
+		.prepare(
+			`SELECT ct.* FROM content_tags ct
+			 INNER JOIN content_item_tags cit ON ct.id = cit.content_tag_id
+			 WHERE cit.content_item_id = ?
+			 ORDER BY ct.name ASC`
+		)
+		.bind(itemId)
+		.all<ContentTag>();
+
+	return (result.results || []).map(parseContentTag);
+}

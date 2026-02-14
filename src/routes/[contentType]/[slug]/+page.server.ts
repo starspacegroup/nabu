@@ -1,0 +1,59 @@
+/**
+ * Dynamic CMS Content Item Page - Server Load
+ *
+ * Handles /{contentType}/{slug} routes (e.g., /blog/my-first-post).
+ */
+import { isRegisteredContentType } from '$lib/cms/registry';
+import {
+	getContentItemBySlug,
+	getContentTypeBySlug,
+	getItemTags,
+	syncContentTypes
+} from '$lib/services/cms';
+import { error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ params, platform }) => {
+	const typeSlug = params.contentType;
+	const itemSlug = params.slug;
+
+	// Only handle registered content types
+	if (!isRegisteredContentType(typeSlug)) {
+		throw error(404, 'Not found');
+	}
+
+	const db = platform?.env?.DB;
+	if (!db) {
+		throw error(500, 'Database not available');
+	}
+
+	// Ensure content types are synced
+	await syncContentTypes(db);
+
+	const contentType = await getContentTypeBySlug(db, typeSlug);
+	if (!contentType) {
+		throw error(404, 'Content type not found');
+	}
+
+	const item = await getContentItemBySlug(db, contentType.id, itemSlug);
+	if (!item) {
+		throw error(404, 'Content not found');
+	}
+
+	// Only show published items on public routes
+	if (item.status !== 'published') {
+		throw error(404, 'Content not found');
+	}
+
+	// Get tags if the type supports them
+	let tags: any[] = [];
+	if (contentType.settings.hasTags) {
+		tags = await getItemTags(db, item.id);
+	}
+
+	return {
+		contentType,
+		item,
+		tags
+	};
+};

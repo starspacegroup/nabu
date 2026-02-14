@@ -5,7 +5,8 @@
 		{ path: '/admin', label: 'Dashboard', icon: 'home' },
 		{ path: '/admin/users', label: 'Users', icon: 'users' },
 		{ path: '/admin/auth-keys', label: 'Auth Keys', icon: 'key' },
-		{ path: '/admin/ai-keys', label: 'AI Keys', icon: 'sparkles' }
+		{ path: '/admin/ai-keys', label: 'AI Keys', icon: 'sparkles' },
+		{ path: '/admin/cms', label: 'CMS', icon: 'document' }
 	];
 </script>
 
@@ -73,6 +74,22 @@
 							stroke-width="2"
 						>
 							<path d="M12 3v18m0-18l-3 3m3-3l3 3M3 12h18M3 12l3-3m-3 3l3 3m12-3l-3-3m3 3l-3 3" />
+						</svg>
+					{:else if item.icon === 'document'}
+						<svg
+							class="nav-icon"
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+							<polyline points="14 2 14 8 20 8" />
+							<line x1="16" y1="13" x2="8" y2="13" />
+							<line x1="16" y1="17" x2="8" y2="17" />
+							<polyline points="10 9 9 9 8 9" />
 						</svg>
 					{/if}
 					<span>{item.label}</span>
