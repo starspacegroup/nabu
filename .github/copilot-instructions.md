@@ -402,6 +402,42 @@ input:-webkit-autofill {
 4. Run contrast validation for new color combinations
 5. Always use variables in component styles
 
+## 🗄️ Database Migrations (CRITICAL)
+
+**Migrations are immutable once committed to `main`.**
+
+This project uses Cloudflare D1's built-in migration tracking. Applied migrations are recorded in a `d1_migrations` table and are never re-run. See `migrations/README.md` for full details.
+
+### Rules
+
+1. **NEVER edit or delete an existing migration file** - They are immutable once committed
+2. **Always create a new migration file** with the next sequence number (`NNNN_description.sql`)
+3. **Use `ALTER TABLE`** to modify existing tables, not `CREATE TABLE` with changes
+4. **Test locally first**: `npm run db:migrate:local`
+5. **Check status**: `npm run db:migrate:list`
+
+### Creating a Migration
+
+```bash
+# 1. Create a new file with the next number
+#    migrations/0002_add_user_preferences.sql
+
+# 2. Write your SQL
+#    ALTER TABLE users ADD COLUMN preferences TEXT;
+
+# 3. Test locally
+npm run db:migrate:local
+
+# 4. Apply to production
+npm run db:migrate
+```
+
+### Migration Commands
+
+- `npm run db:migrate` - Apply pending migrations to remote D1
+- `npm run db:migrate:local` - Apply pending migrations to local D1
+- `npm run db:migrate:list` - Show migration status (applied/pending)
+
 ## 🔒 Security Practices
 
 - Validate all user input

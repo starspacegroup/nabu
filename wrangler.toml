@@ -9,6 +9,7 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 binding = "DB"
 database_name = "nebulakit-db"
 database_id = "bd776be3-9823-4763-abb1-c18b40931456"
+migrations_dir = "./migrations"
 
 # KV Namespace
 # Create with: wrangler kv:namespace create "KV"

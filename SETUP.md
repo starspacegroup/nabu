@@ -93,31 +93,20 @@ Or connect your GitHub repository to Cloudflare Pages for automatic deployments.
 
 ### D1 Database
 
-Create tables for your application:
-
-```sql
--- Users table
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Sessions table
-CREATE TABLE sessions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  expires_at DATETIME NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-```
-
-Run migrations:
+Apply database migrations:
 
 ```bash
-wrangler d1 execute nebulakit-db --file=./migrations/schema.sql
+# Apply migrations to remote D1
+npm run db:migrate
+
+# Apply migrations to local D1 (for development)
+npm run db:migrate:local
+
+# Check which migrations have been applied
+npm run db:migrate:list
 ```
+
+D1 automatically tracks which migrations have been applied and skips them on subsequent runs. See `migrations/README.md` for details on creating new migrations.
 
 ### KV Namespace
 
