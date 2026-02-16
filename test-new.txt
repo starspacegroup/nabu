@@ -1,0 +1,180 @@
+﻿node.exe : npm warn Unknown user config "msvs_version". This will stop working 
+in the next major version of npm.
+At C:\nvm4w\nodejs\npx.ps1:16 char:5
++     & "$basedir/node$exe"  "$basedir/node_modules/npm/bin/npx-cli.js" ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...version of npm. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm warn Unknown user config "msvsVersion". This will stop working in the next 
+major version of npm.
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/monag/_Projects/starspace/nabu[39m
+
+[90mstdout[2m | tests/unit/branch-coverage-gaps.test.ts[2m > [22m[2mAdmin Auth Keys [id] - DELETE KV cleanup and catch blocks[2m > [22m[2mshould handle KV errors during provider cleanup in DELETE[22m[39m
+Γ£ô Deleted google OAuth config from KV
+
+[90mstderr[2m | tests/unit/branch-coverage-gaps.test.ts[2m > [22m[2mAdmin 
+Users [id] - setup owner protection[2m > [22m[2mPATCH: should prevent 
+demoting setup owner[22m[39m
+Failed to update user: Error: Cannot demote the setup owner
+    at Proxy.error [90m(C:\Users\monag\_Projects\starspace\nabu\[39mtests\uni
+t\branch-coverage-gaps.test.ts:432:17[90m)[39m
+    at PATCH [90m(C:\Users\monag\_Projects\starspace\nabu\[39msrc\routes\api\
+admin\users\[id]\+server.ts:51:11[90m)[39m
+    at [90mC:\Users\monag\_Projects\starspace\nabu\[39mtests\unit\branch-cove
+rage-gaps.test.ts:464:4
+    at runTest [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4m@vitest/runner[24m/dist/index.js:781:11[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runFiles [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:958:5[90m)[39m
+    at startTests [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mno
+de_modules/[4m@vitest/runner[24m/dist/index.js:967:3[90m)[39m
+    at [90mfile:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_modules/
+[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5[90m)
+[39m {
+  status: [33m400[39m,
+  body: { message: [32m'Cannot demote the setup owner'[39m }
+}
+
+[90mstderr[2m | tests/unit/branch-coverage-gaps.test.ts[2m > [22m[2mAdmin 
+Users [id] - setup owner protection[2m > [22m[2mDELETE: should prevent 
+deleting setup owner[22m[39m
+Failed to delete user: Error: Cannot delete the setup owner
+    at Proxy.error [90m(C:\Users\monag\_Projects\starspace\nabu\[39mtests\uni
+t\branch-coverage-gaps.test.ts:525:17[90m)[39m
+    at DELETE [90m(C:\Users\monag\_Projects\starspace\nabu\[39msrc\routes\api
+\admin\users\[id]\+server.ts:115:11[90m)[39m
+    at [90mC:\Users\monag\_Projects\starspace\nabu\[39mtests\unit\branch-cove
+rage-gaps.test.ts:550:4
+    at runTest [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4m@vitest/runner[24m/dist/index.js:781:11[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runFiles [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:958:5[90m)[39m
+    at startTests [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mno
+de_modules/[4m@vitest/runner[24m/dist/index.js:967:3[90m)[39m
+    at [90mfile:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_modules/
+[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5[90m)
+[39m {
+  status: [33m400[39m,
+  body: { message: [32m'Cannot delete the setup owner'[39m }
+}
+
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin CMS [type] Page - sortBy and sortDirection query params[2m > [22mshould pass sortBy and sortDirection as query params
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin CMS [type] Page - sortBy and sortDirection query params[2m > [22mshould handle items fetch returning non-ok without data
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin CMS [type] Page - sortBy and sortDirection query params[2m > [22mshould handle tags fetch returning non-ok response
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mChat Models API - generic error handling[2m > [22mshould throw 500 for non-HttpError exceptions in GET handler
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys API - uncovered catch branches[2m > [22mshould handle Discord config parse error in GET
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys API - uncovered catch branches[2m > [22mshould handle POST generic error (non-HttpError)
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys API - uncovered catch branches[2m > [22mshould handle GET outer catch for unexpected error
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys [id] - DELETE KV cleanup and catch blocks[2m > [22mshould handle KV errors during provider cleanup in DELETE
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys [id] - DELETE KV cleanup and catch blocks[2m > [22mshould throw 500 for non-HttpError in DELETE
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Auth Keys [id] - DELETE KV cleanup and catch blocks[2m > [22mshould throw 500 for non-HttpError in PUT
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Users [id] - setup owner protection[2m > [22mPATCH: should prevent demoting setup owner
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Users [id] - setup owner protection[2m > [22mPATCH: should handle generic DB error
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Users [id] - setup owner protection[2m > [22mDELETE: should prevent deleting setup owner
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin Users [id] - setup owner protection[2m > [22mDELETE: should handle generic DB error
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAI Keys toggle - generic error catch[2m > [22mshould throw 500 for non-HttpError in PATCH
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAI Keys [id] - generic error catches[2m > [22mshould throw 500 for non-HttpError in PUT
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAI Keys [id] - generic error catches[2m > [22mshould throw 500 for non-HttpError in PATCH (toggle)
+ [31m├ù[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAI Keys models - generic error catch[2m > [22mshould throw 500 for non-HttpError in GET[33m 364[2mms[22m[39m
+[31m   ΓåÆ expected 401 to be 500 // Object.is equality[39m
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mAdmin AI Keys - generic error catch[2m > [22mshould throw 500 for non-HttpError in POST
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mSetup API - error re-throw branches[2m > [22mshould re-throw HttpError in POST outer catch
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mSetup API - error re-throw branches[2m > [22mshould throw 500 for non-HttpError in POST outer catch
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mSetup API - error re-throw branches[2m > [22mshould handle GitHub API fetch error re-throw when error is Response-like
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mChat History Store - SSR and localStorage error branches[2m > [22mshould handle localStorage.getItem throwing an error
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mChat History Store - SSR and localStorage error branches[2m > [22mshould handle localStorage.setItem throwing an error
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mChat History Store - SSR and localStorage error branches[2m > [22mshould not save to storage when userId is null
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Types API - generic error catches[2m > [22mshould throw 500 for non-HttpError in POST /api/cms/types
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Types API - generic error catches[2m > [22mshould throw 500 for non-HttpError in PUT /api/cms/types/[id]
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Types API - generic error catches[2m > [22mshould throw 500 for non-HttpError in DELETE /api/cms/types/[id]
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Service - remaining branch coverage[2m > [22mcreateContentTypeInDB should handle null maxOrder result
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Service - remaining branch coverage[2m > [22mcreateContentTypeInDB should use provided description and icon
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mCMS Service - remaining branch coverage[2m > [22mcreateContentTypeInDB should return null when INSERT returns null
+ [32mΓ£ô[39m tests/unit/branch-coverage-gaps.test.ts[2m > [22mChat Page Server - voice enabled key branch[2m > [22mshould detect voice availability when key has voiceEnabled=true and enabled is undefined
+[90mstdout[2m | tests/unit/auth-callback-redirect.test.ts[2m > [22m[2mGitHub OAuth Callback - redirect re-throw branches[2m > [22m[2mshould re-throw redirect errors from DB operations[22m[39m
+[Auth] Owner check by ID: githubUser.id=12345, appOwnerId=99999, match=false
+
+[90mstderr[2m | tests/unit/auth-callback-redirect.test.ts[2m > 
+[22m[2mGitHub OAuth Callback - redirect re-throw branches[2m > 
+[22m[2mshould re-throw redirect errors from DB operations[22m[39m
+Database error: Error: Redirect
+    at [90mC:\Users\monag\_Projects\starspace\nabu\[39mtests\unit\auth-callba
+ck-redirect.test.ts:24:23
+    at [90mfile:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_modules/
+[4m@vitest/runner[24m/dist/index.js:135:14
+    at [90mfile:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_modules/
+[4m@vitest/runner[24m/dist/index.js:60:26
+    at runTest [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4m@vitest/runner[24m/dist/index.js:781:17[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runSuite [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:909:15[90m)[39m
+    at runFiles [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode
+_modules/[4m@vitest/runner[24m/dist/index.js:958:5[90m)[39m
+    at startTests [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mno
+de_modules/[4m@vitest/runner[24m/dist/index.js:967:3[90m)[39m
+    at [90mfile:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_modules/
+[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv [90m(file:///C:/Users/monag/_Projects/starspace/nabu/[39mnode_
+modules/[4mvitest[24m/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5[90m)
+[39m {
+  status: [33m302[39m,
+  location: [32m'/somewhere'[39m
+}
+
+ [32mΓ£ô[39m tests/unit/auth-callback-redirect.test.ts[2m > [22mGitHub OAuth Callback - redirect re-throw branches[2m > [22mshould re-throw redirect errors from DB operations
+ [32mΓ£ô[39m tests/unit/auth-callback-redirect.test.ts[2m > [22mGitHub OAuth Callback - redirect re-throw branches[2m > [22mshould re-throw redirect errors from outer catch block
+ [32mΓ£ô[39m tests/unit/auth-callback-redirect.test.ts[2m > [22mDiscord OAuth Callback - redirect re-throw branches[2m > [22mshould re-throw redirect errors from DB operations
+ [32mΓ£ô[39m tests/unit/auth-callback-redirect.test.ts[2m > [22mDiscord OAuth Callback - redirect re-throw branches[2m > [22mshould re-throw redirect errors from outer catch
+
+[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1m[7m Failed Tests 1 
+[27m[22mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/unit/branch-coverage-gaps.test.ts[2m 
+> [22mAI Keys models - generic error catch[2m > [22mshould throw 500 for 
+non-HttpError in GET
+[31m[1mAssertionError[22m: expected 401 to be 500 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 500[39m
+[31m+ 401[39m
+
+[36m [2mΓ¥»[22m tests/unit/branch-coverage-gaps.test.ts:[2m769:23[22m[39m
+    [90m767| [39m   } [35mas[39m any)[33m;[39m
+    [90m768| [39m  } [35mcatch[39m (err[33m:[39m any) {
+    [90m769| [39m   [34mexpect[39m(err[33m.[39mstatus)[33m.[39m[34mtoB
+e[39m([34m500[39m)[33m;[39m
+    [90m   | [39m                      [31m^[39m
+    [90m770| [39m  }
+    [90m771| [39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»Γ
+Ä»[1/1]ΓÄ»[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m35 passed[39m[22m[90m (36)[39m
+[2m   Start at [22m 04:59:49
+[2m   Duration [22m 4.57s[2m (transform 983ms, setup 2.94s, collect 114ms, tests 923ms, environment 253ms, prepare 160ms)[22m
+
+close timed out after 5000ms
+Tests closed successfully but something prevents Vite server from exiting
+You can try to identify the cause by enabling "hanging-process" reporter. See 
+https://vitest.dev/config/#reporters
