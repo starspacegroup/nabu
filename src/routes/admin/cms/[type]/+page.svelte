@@ -42,6 +42,14 @@
 	// SEO section visibility
 	let showSeoFields = false;
 
+	function sortByOrder(a: any, b: any) {
+		return (a.sortOrder || 0) - (b.sortOrder || 0);
+	}
+
+	function removeFromArray(arr: any[], value: any): any[] {
+		return arr.filter((v) => v !== value);
+	}
+
 	function getDefaultFields(): Record<string, any> {
 		const defaults: Record<string, any> = {};
 		if (contentType?.fields) {
@@ -582,7 +590,7 @@
 				{#if contentType.fields?.length}
 					<div class="form-section">
 						<h3>Content Fields</h3>
-						{#each contentType.fields.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)) as field}
+						{#each contentType.fields.sort(sortByOrder) as field}
 							<div class="form-group">
 								<label for="field-{field.name}">
 									{field.label}
@@ -663,7 +671,7 @@
 													on:change={() => {
 														const current = formFields[field.name] || [];
 														if (current.includes(opt.value)) {
-															formFields[field.name] = current.filter((v) => v !== opt.value);
+															formFields[field.name] = removeFromArray(current, opt.value);
 														} else {
 															formFields[field.name] = [...current, opt.value];
 														}
