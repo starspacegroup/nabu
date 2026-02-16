@@ -149,9 +149,11 @@ describe('Content Type List Page Server', () => {
       url: new URL('http://localhost/blog')
     } as any);
 
-    expect(result.contentType).toBeTruthy();
-    expect(result.contentType.slug).toBe('blog');
-    expect(result.items).toHaveLength(1);
+    expect(result).toBeDefined();
+    const data = result as Record<string, any>;
+    expect(data.contentType).toBeTruthy();
+    expect(data.contentType.slug).toBe('blog');
+    expect(data.items).toHaveLength(1);
   });
 
   it('should parse query params for filtering', async () => {
@@ -184,8 +186,9 @@ describe('Content Type List Page Server', () => {
       url: new URL('http://localhost/blog?search=test&tag=js&page=2')
     } as any);
 
-    expect(result.items).toHaveLength(0);
-    expect(result.total).toBe(0);
+    const data = result as Record<string, any>;
+    expect(data.items).toHaveLength(0);
+    expect(data.total).toBe(0);
   });
 });
 
@@ -374,9 +377,10 @@ describe('Content Type Item Page Server', () => {
       platform: { env: { DB: mockDB } }
     } as any);
 
-    expect(result.contentType.slug).toBe('blog');
-    expect(result.item.title).toBe('Hello');
-    expect(result.tags).toHaveLength(0);
+    const data = result as Record<string, any>;
+    expect(data.contentType.slug).toBe('blog');
+    expect(data.item.title).toBe('Hello');
+    expect(data.tags).toHaveLength(0);
   });
 
   it('should load published item with tags when hasTags is true', async () => {
@@ -432,7 +436,8 @@ describe('Content Type Item Page Server', () => {
       platform: { env: { DB: mockDB } }
     } as any);
 
-    expect(result.tags).toHaveLength(1);
-    expect(result.tags[0].name).toBe('JavaScript');
+    const data = result as Record<string, any>;
+    expect(data.tags).toHaveLength(1);
+    expect(data.tags[0].name).toBe('JavaScript');
   });
 });

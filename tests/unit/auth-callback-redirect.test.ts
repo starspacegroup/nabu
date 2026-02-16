@@ -6,16 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ─── GitHub Callback - redirect re-throw in DB catch (lines 349-350) ─────────
 describe('GitHub OAuth Callback - redirect re-throw branches', () => {
-  let originalFetch: typeof global.fetch;
+  let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    originalFetch = global.fetch;
+    originalFetch = globalThis.fetch;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.unstubAllGlobals();
   });
 
@@ -65,7 +65,7 @@ describe('GitHub OAuth Callback - redirect re-throw branches', () => {
     };
 
     // Mock fetch for token exchange and user fetch
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValue({ access_token: 'valid-token' })
@@ -118,7 +118,7 @@ describe('GitHub OAuth Callback - redirect re-throw branches', () => {
 
     // Make the token exchange throw a redirect-like error
     // This simulates a redirect being thrown somewhere in the main try block
-    global.fetch = vi.fn().mockRejectedValue((() => {
+    globalThis.fetch = vi.fn().mockRejectedValue((() => {
       const err = new Error('Redirect to /auth/login') as any;
       err.status = 302;
       err.location = '/auth/login';
@@ -148,16 +148,16 @@ describe('GitHub OAuth Callback - redirect re-throw branches', () => {
 
 // ─── Discord Callback - redirect re-throw in DB catch (lines 302-303) ────────
 describe('Discord OAuth Callback - redirect re-throw branches', () => {
-  let originalFetch: typeof global.fetch;
+  let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    originalFetch = global.fetch;
+    originalFetch = globalThis.fetch;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.unstubAllGlobals();
   });
 
@@ -210,7 +210,7 @@ describe('Discord OAuth Callback - redirect re-throw branches', () => {
       }
     };
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValue({ access_token: 'discord-token' })
@@ -260,7 +260,7 @@ describe('Discord OAuth Callback - redirect re-throw branches', () => {
     };
 
     // Make the token exchange throw a redirect-like error
-    global.fetch = vi.fn().mockRejectedValue((() => {
+    globalThis.fetch = vi.fn().mockRejectedValue((() => {
       const err = new Error('Redirect to /auth/login') as any;
       err.status = 302;
       err.location = '/auth/login';

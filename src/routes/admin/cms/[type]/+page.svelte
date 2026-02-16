@@ -533,9 +533,11 @@
 		on:keydown={(e) => e.key === 'Escape' && closeModals()}
 		role="presentation"
 	>
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 		<div
 			class="modal"
 			on:click|stopPropagation
+			on:keydown|stopPropagation
 			role="dialog"
 			aria-modal="true"
 			aria-label="{showCreateModal ? 'Create' : 'Edit'} {contentType.name.replace(/s$/, '')}"
@@ -821,9 +823,11 @@
 		on:keydown={(e) => e.key === 'Escape' && closeModals()}
 		role="presentation"
 	>
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 		<div
 			class="modal modal-sm"
 			on:click|stopPropagation
+			on:keydown|stopPropagation
 			role="dialog"
 			aria-modal="true"
 			aria-label="Confirm deletion"
@@ -1333,8 +1337,7 @@
 		outline: none;
 	}
 
-	.form-group input.error,
-	.form-group textarea.error {
+	.form-group input.error {
 		border-color: var(--color-danger, #dc3545);
 	}
 

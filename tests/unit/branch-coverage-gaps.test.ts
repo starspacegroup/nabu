@@ -746,8 +746,8 @@ describe('AI Keys models - generic error catch', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     // Mock global fetch to throw a non-status error that will hit the generic catch
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockRejectedValue(new TypeError('network error'));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('network error'));
 
     try {
       await GET({
@@ -768,7 +768,7 @@ describe('AI Keys models - generic error catch', () => {
       expect(err.status).toBe(500);
     }
 
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     consoleSpy.mockRestore();
   });
 });
@@ -905,8 +905,8 @@ describe('Setup API - error re-throw branches', () => {
     const mockKVGet = vi.fn().mockResolvedValue(null);
 
     // Use global fetch mock to simulate GitHub API failure
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
       statusText: 'Internal Server Error'
@@ -929,7 +929,7 @@ describe('Setup API - error re-throw branches', () => {
       expect(err.status).toBe(500);
     }
 
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     consoleSpy.mockRestore();
   });
 });
@@ -1170,7 +1170,9 @@ describe('CMS Service - remaining branch coverage', () => {
 
     const result = await module.createContentTypeInDB(mockDB as any, {
       name: 'Test',
-      slug: 'test'
+      slug: 'test',
+      fields: [],
+      settings: {}
     });
 
     expect(result).toBeDefined();
@@ -1247,7 +1249,9 @@ describe('CMS Service - remaining branch coverage', () => {
 
     const result = await module.createContentTypeInDB(mockDB as any, {
       name: 'Test',
-      slug: 'test'
+      slug: 'test',
+      fields: [],
+      settings: {}
     });
 
     expect(result).toBeNull();

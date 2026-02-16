@@ -618,7 +618,7 @@ describe('CMS Service - Extended Branch Coverage', () => {
         slug: 'blog-updated',
         description: 'New desc',
         icon: 'pen',
-        fields: [{ name: 'body', type: 'richtext' }],
+        fields: [{ name: 'body', type: 'richtext', label: 'Body' }],
         settings: { hasTags: true }
       });
 
