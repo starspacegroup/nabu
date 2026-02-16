@@ -3,17 +3,17 @@
 </script>
 
 <svelte:head>
-	<title>Documentation - NebulaKit</title>
+	<title>Documentation - Nabu</title>
 	<meta
 		name="description"
-		content="NebulaKit documentation - Learn how to build with the cosmic-grade SvelteKit starter powered by Cloudflare"
+		content="Nabu documentation - Learn how to build with the cosmic-grade SvelteKit starter powered by Cloudflare"
 	/>
 </svelte:head>
 
 <main class="docs-page">
 	<div class="docs-container">
 		<header class="docs-header">
-			<h1>✨ NebulaKit Documentation</h1>
+			<h1>✨ Nabu Documentation</h1>
 			<p class="docs-intro">
 				A cosmic-grade SvelteKit starter template powered by Cloudflare's full stack.
 				Production-ready with Cloudflare Workers integration (D1, KV, R2, Queues, Turnstile), a
@@ -82,7 +82,7 @@
 
 			<div class="template-button-container">
 				<a
-					href="https://github.com/new?template_name=NebulaKit&template_owner=starspacegroup"
+					href="https://github.com/new?template_name=nabu&template_owner=starspacegroup"
 					class="template-button"
 					target="_blank"
 					rel="noopener noreferrer"
@@ -97,7 +97,7 @@
 			</div>
 
 			<p class="template-hint">
-				Click the button above to create your own repository from the NebulaKit template on GitHub.
+				Click the button above to create your own repository from the Nabu template on GitHub.
 			</p>
 
 			<pre><code
@@ -121,7 +121,7 @@ npm run deploy</code
 		<section id="testing" class="docs-section">
 			<h2>🧪 Testing (TDD Required!)</h2>
 			<p>
-				NebulaKit follows <strong>Test-Driven Development</strong> with 90%+ code coverage requirements.
+				Nabu follows <strong>Test-Driven Development</strong> with 90%+ code coverage requirements.
 			</p>
 			<pre><code
 					># Run all tests
@@ -147,7 +147,7 @@ npm run test:all</code
 		<section id="project-structure" class="docs-section">
 			<h2>🏗️ Project Structure</h2>
 			<pre><code
-					>NebulaKit/
+					>Nabu/
 ├── src/
 │   ├── lib/
 │   │   ├── components/     # Reusable UI components
@@ -167,7 +167,7 @@ npm run test:all</code
 
 		<section id="theming" class="docs-section">
 			<h2>🎨 Theming</h2>
-			<p>NebulaKit includes a comprehensive theme system with:</p>
+			<p>Nabu includes a comprehensive theme system with:</p>
 			<ul>
 				<li><strong>WCAG AA compliant</strong> colors (4.5:1 contrast minimum)</li>
 				<li>Light and dark modes with automatic system detection</li>
@@ -234,16 +234,16 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 		<section id="deployment" class="docs-section">
 			<h2>🚀 Deployment</h2>
 			<p>
-				NebulaKit is designed to be deployed via <strong>Cloudflare Pages</strong> connected to your
+				Nabu is designed to be deployed via <strong>Cloudflare Pages</strong> connected to your
 				GitHub repository for automatic deployments.
 			</p>
 
 			<h3>Step 1: Fork or Clone the Repository</h3>
 			<p>
 				Fork <a
-					href="https://github.com/starspacegroup/NebulaKit"
+					href="https://github.com/starspacegroup/nabu"
 					target="_blank"
-					rel="noopener noreferrer">NebulaKit on GitHub</a
+					rel="noopener noreferrer">Nabu on GitHub</a
 				> to your own account, or create a new repository from the template.
 			</p>
 
@@ -261,7 +261,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 					Click <strong>Create</strong> → <strong>Pages</strong> → <strong>Connect to Git</strong>
 				</li>
 				<li>Authorize Cloudflare to access your GitHub account</li>
-				<li>Select your NebulaKit repository</li>
+				<li>Select your Nabu repository</li>
 			</ol>
 
 			<h3>Step 3: Configure Build Settings</h3>
@@ -277,7 +277,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 					In the Cloudflare Dashboard, go to <strong>Workers & Pages</strong> → <strong>D1</strong>
 				</li>
 				<li>
-					Click <strong>Create database</strong> and name it (e.g., <code>nebulakit-db</code>)
+					Click <strong>Create database</strong> and name it (e.g., <code>nabu-db</code>)
 				</li>
 				<li>Run the schema migration from the <code>migrations/schema.sql</code> file</li>
 				<li>
@@ -354,7 +354,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 			</div>
 
 			<p>
-				NebulaKit can also work <strong>without any pre-configured environment variables</strong>.
+				Nabu can also work <strong>without any pre-configured environment variables</strong>.
 				All configuration is done through a web-based setup flow and stored in Cloudflare KV.
 			</p>
 
@@ -427,7 +427,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 			<ul>
 				<li>
 					<a
-						href="https://github.com/starspacegroup/NebulaKit"
+						href="https://github.com/starspacegroup/nabu"
 						target="_blank"
 						rel="noopener noreferrer">GitHub Repository</a
 					>
@@ -462,8 +462,8 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 
 		<footer class="docs-footer">
 			<p>
-				⭐ If you find NebulaKit useful, please consider giving it a star on <a
-					href="https://github.com/starspacegroup/NebulaKit"
+				⭐ If you find Nabu useful, please consider giving it a star on <a
+					href="https://github.com/starspacegroup/nabu"
 					target="_blank"
 					rel="noopener noreferrer">GitHub</a
 				>!

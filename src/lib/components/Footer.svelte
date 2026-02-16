@@ -9,7 +9,7 @@
 			<div class="footer-brand">
 				<a href="/" class="footer-logo">
 					<span class="logo-icon">✨</span>
-					<span class="logo-text">NebulaKit</span>
+					<span class="logo-text">Nabu</span>
 				</a>
 				<p class="footer-tagline">
 					A cosmic-grade SvelteKit starter powered by Cloudflare Workers.
@@ -51,7 +51,7 @@
 						</li>
 						<li>
 							<a
-								href="https://github.com/starspacegroup/NebulaKit"
+								href="https://github.com/starspacegroup/nabu"
 								target="_blank"
 								rel="noopener noreferrer"
 							>
@@ -74,7 +74,7 @@
 		<!-- Bottom Bar -->
 		<div class="footer-bottom">
 			<p class="footer-copyright">
-				© {currentYear} NebulaKit. Created by
+				© {currentYear} Nabu. Created by
 				<a
 					href="https://starspace.group"
 					target="_blank"
@@ -84,7 +84,7 @@
 			</p>
 			<div class="footer-social">
 				<a
-					href="https://github.com/starspacegroup/NebulaKit"
+					href="https://github.com/starspacegroup/nabu"
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="GitHub Repository"

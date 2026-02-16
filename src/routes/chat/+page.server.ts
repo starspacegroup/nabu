@@ -23,9 +23,13 @@ export const load: ServerLoad = async ({ platform, locals }) => {
 	// Check if voice chat is available from any provider
 	const voiceAvailable = await checkVoiceAvailability(platform);
 
+	// Check if video generation is available from any provider
+	const videoAvailable = await checkVideoAvailability(platform);
+
 	// Return user info along with voice availability
 	return {
 		voiceAvailable,
+		videoAvailable,
 		userId: locals.user.id
 	};
 };
@@ -100,6 +104,39 @@ async function checkVoiceAvailability(platform: App.Platform | undefined): Promi
 	} catch (err) {
 		console.error('Failed to check voice availability:', err);
 		// Default to false on error to be safe
+		return false;
+	}
+}
+
+/**
+ * Check if at least one enabled AI provider has video generation enabled
+ */
+async function checkVideoAvailability(platform: App.Platform | undefined): Promise<boolean> {
+	try {
+		if (!platform?.env?.KV) {
+			return false;
+		}
+
+		const keysList = await platform.env.KV.get('ai_keys_list');
+		if (!keysList) {
+			return false;
+		}
+
+		const keyIds = JSON.parse(keysList);
+
+		for (const keyId of keyIds) {
+			const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
+			if (keyData) {
+				const key = JSON.parse(keyData);
+				if (key.enabled !== false && key.videoEnabled === true) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	} catch (err) {
+		console.error('Failed to check video availability:', err);
 		return false;
 	}
 }

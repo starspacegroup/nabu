@@ -1,6 +1,6 @@
 /**
  * Cost Calculation Utility
- * Calculates costs for OpenAI API usage (text and voice)
+ * Calculates costs for OpenAI API usage (text, voice, and video)
  */
 
 // OpenAI pricing per 1M tokens (as of Dec 2024)
@@ -10,7 +10,7 @@ export const MODEL_PRICING: Record<
 	{
 		inputPer1M: number;
 		outputPer1M: number;
-		type: 'text' | 'voice';
+		type: 'text' | 'voice' | 'video';
 		displayName: string;
 	}
 > = {
@@ -202,6 +202,53 @@ export function getModelDisplayName(model: string): string {
  */
 export function isVoiceModel(model: string): boolean {
 	return MODEL_PRICING[model]?.type === 'voice';
+}
+
+/**
+ * Check if a model is a video generation model
+ */
+export function isVideoModel(model: string): boolean {
+	return MODEL_PRICING[model]?.type === 'video';
+}
+
+// Video pricing (flat per-generation pricing, varies by resolution and duration)
+export const VIDEO_PRICING: Record<
+	string,
+	{
+		perSecond: number;
+		displayName: string;
+	}
+> = {
+	sora: {
+		perSecond: 0.5,
+		displayName: 'Sora'
+	}
+};
+
+/**
+ * Calculate cost for a video generation
+ */
+export function calculateVideoCost(
+	model: string,
+	durationSeconds: number
+): { cost: number; displayName: string; } {
+	const pricing = VIDEO_PRICING[model];
+	if (!pricing) {
+		return { cost: 0, displayName: model };
+	}
+
+	return {
+		cost: durationSeconds * pricing.perSecond,
+		displayName: pricing.displayName
+	};
+}
+
+/**
+ * Format a video generation cost
+ */
+export function formatVideoCost(model: string, durationSeconds: number): string {
+	const { cost, displayName } = calculateVideoCost(model, durationSeconds);
+	return `${displayName}: ${formatCost(cost)} (${durationSeconds}s)`;
 }
 
 /**

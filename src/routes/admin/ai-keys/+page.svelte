@@ -29,7 +29,9 @@
 		models: [] as string[],
 		enabled: true,
 		voiceEnabled: false,
-		voiceModels: [] as string[]
+		voiceModels: [] as string[],
+		videoEnabled: false,
+		videoModels: [] as string[]
 	};
 	let errors: Record<string, string> = {};
 	let visibleKeys: Record<string, boolean> = {};
@@ -155,6 +157,11 @@
 		formData.voiceModels.includes(m.id)
 	);
 
+	// Video models (static list from registry)
+	const videoModelOptions = [
+		{ id: 'sora', displayName: 'Sora', description: 'OpenAI video generation' }
+	];
+
 	onMount(() => {
 		loadOpenAIModels();
 	});
@@ -175,6 +182,14 @@
 		}
 	}
 
+	function toggleVideoModel(modelId: string) {
+		if (formData.videoModels.includes(modelId)) {
+			formData.videoModels = formData.videoModels.filter((m) => m !== modelId);
+		} else {
+			formData.videoModels = [...formData.videoModels, modelId];
+		}
+	}
+
 	function openAddForm() {
 		showForm = true;
 		editingKey = null;
@@ -185,7 +200,9 @@
 			models: [],
 			enabled: true,
 			voiceEnabled: false,
-			voiceModels: []
+			voiceModels: [],
+			videoEnabled: false,
+			videoModels: []
 		};
 		errors = {};
 	}
@@ -196,6 +213,7 @@
 		// Support both old single model format and new multiple models format
 		const existingModels = key.models || (key.model ? [key.model] : []);
 		const existingVoiceModels = key.voiceModels || (key.voiceModel ? [key.voiceModel] : []);
+		const existingVideoModels = key.videoModels || [];
 		formData = {
 			name: key.name,
 			provider: key.provider,
@@ -203,7 +221,9 @@
 			models: existingModels,
 			enabled: key.enabled !== undefined ? key.enabled : true,
 			voiceEnabled: key.voiceEnabled ?? false,
-			voiceModels: existingVoiceModels
+			voiceModels: existingVoiceModels,
+			videoEnabled: key.videoEnabled ?? false,
+			videoModels: existingVideoModels
 		};
 		errors = {};
 	}
@@ -218,7 +238,9 @@
 			models: [],
 			enabled: true,
 			voiceEnabled: false,
-			voiceModels: []
+			voiceModels: [],
+			videoEnabled: false,
+			videoModels: []
 		};
 		errors = {};
 	}
@@ -334,7 +356,7 @@
 </script>
 
 <svelte:head>
-	<title>AI Provider Keys - Admin - NebulaKit</title>
+	<title>AI Provider Keys - Admin - Nabu</title>
 </svelte:head>
 
 <div class="ai-keys-page">
@@ -418,6 +440,22 @@
 											<line x1="8" y1="23" x2="16" y2="23" />
 										</svg>
 										{keyVoiceModels.length} voice model{keyVoiceModels.length > 1 ? 's' : ''}
+									</span>
+								{/if}
+								{#if key.videoEnabled && (key.videoModels?.length ?? 0) > 0}
+									<span class="key-voice-badge video-badge">
+										<svg
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+										>
+											<rect x="2" y="4" width="20" height="16" rx="2" />
+											<polygon points="10,9 16,12 10,15" />
+										</svg>
+										{key.videoModels.length} video model{key.videoModels.length > 1 ? 's' : ''}
 									</span>
 								{/if}
 							</div>
@@ -780,6 +818,68 @@
 						{:else}
 							<p class="help-text-inline disabled">
 								Toggle voice models on to enable real-time voice conversations.
+							</p>
+						{/if}
+					</div>
+
+					<!-- Video Models Section -->
+					<div class="form-section">
+						<div class="section-header">
+							<h3>
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<rect x="2" y="4" width="20" height="16" rx="2" />
+									<polygon points="10,9 16,12 10,15" />
+								</svg>
+								Video Generation
+							</h3>
+							<div class="section-header-actions">
+								<span class="selection-count">{formData.videoModels.length} selected</span>
+								<label class="toggle-switch">
+									<input type="checkbox" bind:checked={formData.videoEnabled} />
+									<span class="slider"></span>
+								</label>
+							</div>
+						</div>
+						{#if formData.videoEnabled}
+							<p class="help-text-inline">
+								Enable video generation to allow users to create AI-generated videos from text
+								prompts.
+							</p>
+							<div class="model-grid">
+								{#each videoModelOptions as model}
+									<button
+										type="button"
+										class="model-card video-card"
+										class:selected={formData.videoModels.includes(model.id)}
+										on:click={() => toggleVideoModel(model.id)}
+									>
+										<div class="model-card-header">
+											<span class="model-name">{model.displayName}</span>
+											<label class="toggle-switch-sm">
+												<input
+													type="checkbox"
+													checked={formData.videoModels.includes(model.id)}
+													on:click|stopPropagation={() => toggleVideoModel(model.id)}
+												/>
+												<span class="slider-sm"></span>
+											</label>
+										</div>
+										<div class="model-description">
+											{model.description}
+										</div>
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<p class="help-text-inline disabled">
+								Toggle video generation on to enable AI video creation from prompts.
 							</p>
 						{/if}
 					</div>

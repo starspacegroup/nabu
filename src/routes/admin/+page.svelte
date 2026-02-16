@@ -41,7 +41,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin - NebulaKit</title>
+	<title>Admin - Nabu</title>
 </svelte:head>
 
 <div class="admin-home">

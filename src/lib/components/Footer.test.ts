@@ -9,9 +9,9 @@ describe('Footer', () => {
 		expect(footer).toBeInTheDocument();
 	});
 
-	it('should display the NebulaKit brand', () => {
+	it('should display the Nabu brand', () => {
 		render(Footer);
-		expect(screen.getByText('NebulaKit')).toBeInTheDocument();
+		expect(screen.getByText('Nabu')).toBeInTheDocument();
 	});
 
 	it('should display the tagline', () => {
@@ -71,7 +71,7 @@ describe('Footer', () => {
 		const resourcesLink = githubLinks.find((link) =>
 			link.textContent?.toLowerCase().includes('github')
 		);
-		expect(resourcesLink).toHaveAttribute('href', 'https://github.com/starspacegroup/NebulaKit');
+		expect(resourcesLink).toHaveAttribute('href', 'https://github.com/starspacegroup/nabu');
 	});
 
 	it('should contain privacy policy link', () => {

@@ -32,7 +32,8 @@ describe('Chat Stream API - Extended Coverage', () => {
 		const mockRequest = {
 			json: vi.fn().mockResolvedValue(
 				overrides.body || {
-					messages: [{ role: 'user', content: 'Hello' }]
+					messages: [{ role: 'user', content: 'Hello' }],
+					conversationId: 'conv-test-123'
 				}
 			)
 		};
@@ -95,7 +96,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should handle streaming errors gracefully', async () => {
-		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
 		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
 			throw new Error('Stream failed');
@@ -131,7 +132,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should throw 500 for unknown errors', async () => {
-		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 		vi.mocked(getEnabledOpenAIKey).mockRejectedValue(new Error('Unknown error'));
 
 		await expect(
@@ -151,7 +152,8 @@ describe('Chat Stream API - Extended Coverage', () => {
 			createMockEvent({
 				body: {
 					messages: [{ role: 'user', content: 'Hello' }],
-					model: 'gpt-4o-mini'
+					model: 'gpt-4o-mini',
+					conversationId: 'conv-test-123'
 				}
 			}) as unknown as Parameters<typeof POST>[0]
 		);

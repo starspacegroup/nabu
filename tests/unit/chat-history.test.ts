@@ -8,13 +8,78 @@ import {
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Helper to create a mock fetch that handles conversation API calls
+function mockFetch() {
+	const mock = vi.fn(async (url: string, options?: RequestInit) => {
+		const method = options?.method || 'GET';
+		const urlStr = typeof url === 'string' ? url : '';
+
+		// POST /api/chat/conversations — create conversation
+		if (urlStr === '/api/chat/conversations' && method === 'POST') {
+			const body = JSON.parse(options?.body as string || '{}');
+			return new Response(
+				JSON.stringify({
+					id: crypto.randomUUID(),
+					title: body.title || 'New conversation',
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString()
+				}),
+				{ status: 200 }
+			);
+		}
+
+		// GET /api/chat/conversations — list conversations
+		if (urlStr === '/api/chat/conversations' && method === 'GET') {
+			return new Response(JSON.stringify({ conversations: [] }), { status: 200 });
+		}
+
+		// GET /api/chat/conversations/:id — get conversation
+		if (urlStr.match(/\/api\/chat\/conversations\/[^/]+$/) && method === 'GET') {
+			return new Response(
+				JSON.stringify({
+					id: urlStr.split('/').pop(),
+					title: 'Test',
+					messages: [],
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString()
+				}),
+				{ status: 200 }
+			);
+		}
+
+		// PATCH /api/chat/conversations/:id — rename
+		if (urlStr.match(/\/api\/chat\/conversations\/[^/]+$/) && method === 'PATCH') {
+			return new Response(JSON.stringify({ success: true }), { status: 200 });
+		}
+
+		// DELETE /api/chat/conversations/:id — delete
+		if (urlStr.match(/\/api\/chat\/conversations\/[^/]+$/) && method === 'DELETE') {
+			return new Response(JSON.stringify({ success: true }), { status: 200 });
+		}
+
+		// POST /api/chat/conversations/:id/messages — add message
+		if (urlStr.match(/\/api\/chat\/conversations\/[^/]+\/messages$/) && method === 'POST') {
+			return new Response(JSON.stringify({ success: true }), { status: 200 });
+		}
+
+		return new Response('Not found', { status: 404 });
+	});
+
+	globalThis.fetch = mock as typeof globalThis.fetch;
+	return mock;
+}
+
 describe('Chat History Store', () => {
+	let fetchMock: ReturnType<typeof mockFetch>;
+	const originalFetch = globalThis.fetch;
+
 	beforeEach(() => {
-		// Reset store state before each test
 		chatHistoryStore.reset();
+		fetchMock = mockFetch();
 	});
 
 	afterEach(() => {
+		globalThis.fetch = originalFetch;
 		vi.restoreAllMocks();
 	});
 
@@ -36,8 +101,8 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Creating conversations', () => {
-		it('should create a new conversation', () => {
-			const conversation = chatHistoryStore.createConversation();
+		it('should create a new conversation', async () => {
+			const conversation = await chatHistoryStore.createConversation();
 
 			expect(conversation).toBeDefined();
 			expect(conversation.id).toBeDefined();
@@ -47,47 +112,47 @@ describe('Chat History Store', () => {
 			expect(conversation.updatedAt).toBeInstanceOf(Date);
 		});
 
-		it('should add the new conversation to the list', () => {
-			const conversation = chatHistoryStore.createConversation();
+		it('should add the new conversation to the list', async () => {
+			const conversation = await chatHistoryStore.createConversation();
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.conversations).toHaveLength(1);
 			expect(state.conversations[0].id).toBe(conversation.id);
 		});
 
-		it('should set the new conversation as current', () => {
-			const conversation = chatHistoryStore.createConversation();
+		it('should set the new conversation as current', async () => {
+			const conversation = await chatHistoryStore.createConversation();
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.currentConversationId).toBe(conversation.id);
 		});
 
-		it('should create conversation with custom title', () => {
-			const conversation = chatHistoryStore.createConversation('My Custom Chat');
+		it('should create conversation with custom title', async () => {
+			const conversation = await chatHistoryStore.createConversation('My Custom Chat');
 
 			expect(conversation.title).toBe('My Custom Chat');
 		});
 	});
 
 	describe('Selecting conversations', () => {
-		it('should select an existing conversation', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			const conv2 = chatHistoryStore.createConversation('Second');
+		it('should select an existing conversation', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			await chatHistoryStore.createConversation('Second');
 
-			chatHistoryStore.selectConversation(conv1.id);
+			await chatHistoryStore.selectConversation(conv1.id);
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.currentConversationId).toBe(conv1.id);
 		});
 
-		it('should return the selected conversation messages', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should return the selected conversation messages', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
 				content: 'Hello'
 			});
 
-			chatHistoryStore.selectConversation(conv.id);
+			await chatHistoryStore.selectConversation(conv.id);
 			const messages = chatHistoryStore.getCurrentMessages();
 
 			expect(messages).toHaveLength(1);
@@ -96,8 +161,8 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Managing messages', () => {
-		it('should add a message to a conversation', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should add a message to a conversation', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
@@ -114,8 +179,8 @@ describe('Chat History Store', () => {
 			expect(conversation?.messages[0].timestamp).toBeInstanceOf(Date);
 		});
 
-		it('should update conversation title based on first user message', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should update conversation title based on first user message', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
@@ -128,8 +193,8 @@ describe('Chat History Store', () => {
 			expect(conversation?.title).toBe('How do I bake a chocolate cake?');
 		});
 
-		it('should truncate long titles', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should truncate long titles', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
@@ -143,8 +208,8 @@ describe('Chat History Store', () => {
 			expect(conversation?.title.length).toBeLessThanOrEqual(53); // 50 chars + '...'
 		});
 
-		it('should update the conversation updatedAt when adding a message', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should update the conversation updatedAt when adding a message', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			const originalUpdatedAt = conv.updatedAt;
 
 			chatHistoryStore.addMessage(conv.id, {
@@ -155,51 +220,48 @@ describe('Chat History Store', () => {
 			const state = get(chatHistoryStore) as ChatHistoryState;
 			const conversation = state.conversations.find((c: Conversation) => c.id === conv.id);
 
-			// updatedAt should be set when adding a message (same or later time)
 			expect(conversation?.updatedAt.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
 		});
 	});
 
 	describe('Deleting conversations', () => {
-		it('should delete a conversation', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			const conv2 = chatHistoryStore.createConversation('Second');
+		it('should delete a conversation', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			const conv2 = await chatHistoryStore.createConversation('Second');
 
-			chatHistoryStore.deleteConversation(conv1.id);
+			await chatHistoryStore.deleteConversation(conv1.id);
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.conversations).toHaveLength(1);
 			expect(state.conversations[0].id).toBe(conv2.id);
 		});
 
-		it('should clear currentConversationId when deleting current conversation', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should clear currentConversationId when deleting current conversation', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
-			chatHistoryStore.deleteConversation(conv.id);
+			await chatHistoryStore.deleteConversation(conv.id);
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.currentConversationId).toBeNull();
 		});
 
-		it('should select another conversation after deleting current', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			chatHistoryStore.createConversation('Second');
+		it('should select another conversation after deleting current', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			await chatHistoryStore.createConversation('Second');
 
-			// conv2 should be current
 			const currentState = get(chatHistoryStore) as ChatHistoryState;
-			chatHistoryStore.deleteConversation(currentState.currentConversationId!);
+			await chatHistoryStore.deleteConversation(currentState.currentConversationId!);
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
-			// Should fallback to conv1
 			expect(state.currentConversationId).toBe(conv1.id);
 		});
 	});
 
 	describe('Renaming conversations', () => {
-		it('should rename a conversation', () => {
-			const conv = chatHistoryStore.createConversation('Original Title');
+		it('should rename a conversation', async () => {
+			const conv = await chatHistoryStore.createConversation('Original Title');
 
-			chatHistoryStore.renameConversation(conv.id, 'New Title');
+			await chatHistoryStore.renameConversation(conv.id, 'New Title');
 			const state = get(chatHistoryStore) as ChatHistoryState;
 			const conversation = state.conversations.find((c: Conversation) => c.id === conv.id);
 
@@ -208,10 +270,10 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Clearing all conversations', () => {
-		it('should clear all conversations', () => {
-			chatHistoryStore.createConversation('First');
-			chatHistoryStore.createConversation('Second');
-			chatHistoryStore.createConversation('Third');
+		it('should clear all conversations', async () => {
+			await chatHistoryStore.createConversation('First');
+			await chatHistoryStore.createConversation('Second');
+			await chatHistoryStore.createConversation('Third');
 
 			chatHistoryStore.clearAll();
 			const state = get(chatHistoryStore) as ChatHistoryState;
@@ -222,10 +284,10 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Sorting conversations', () => {
-		it('should sort conversations by most recent first', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			const conv2 = chatHistoryStore.createConversation('Second');
-			const conv3 = chatHistoryStore.createConversation('Third');
+		it('should sort conversations by most recent first', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			const conv2 = await chatHistoryStore.createConversation('Second');
+			const conv3 = await chatHistoryStore.createConversation('Third');
 
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
@@ -237,8 +299,8 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Updating messages', () => {
-		it('should update an existing message content', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should update an existing message content', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			const message = chatHistoryStore.addMessage(conv.id, {
 				role: 'assistant',
 				content: 'Initial response'
@@ -253,8 +315,8 @@ describe('Chat History Store', () => {
 			expect(updatedMessage?.content).toBe('Updated response');
 		});
 
-		it('should update message with cost information', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should update message with cost information', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			const message = chatHistoryStore.addMessage(conv.id, {
 				role: 'assistant',
 				content: 'AI response'
@@ -277,8 +339,8 @@ describe('Chat History Store', () => {
 			expect(updatedMessage?.cost).toEqual(cost);
 		});
 
-		it('should update conversation updatedAt when updating a message', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should update conversation updatedAt when updating a message', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			const message = chatHistoryStore.addMessage(conv.id, {
 				role: 'assistant',
 				content: 'Initial'
@@ -299,9 +361,9 @@ describe('Chat History Store', () => {
 			expect(afterUpdated?.getTime()).toBeGreaterThanOrEqual(beforeUpdated?.getTime() || 0);
 		});
 
-		it('should not update messages in other conversations', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			const conv2 = chatHistoryStore.createConversation('Second');
+		it('should not update messages in other conversations', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			const conv2 = await chatHistoryStore.createConversation('Second');
 
 			const message1 = chatHistoryStore.addMessage(conv1.id, {
 				role: 'user',
@@ -313,7 +375,6 @@ describe('Chat History Store', () => {
 				content: 'Message in conv2'
 			});
 
-			// Update message in conv1
 			chatHistoryStore.updateMessage(conv1.id, message1.id, 'Updated in conv1');
 
 			const state = get(chatHistoryStore) as ChatHistoryState;
@@ -329,28 +390,22 @@ describe('Chat History Store', () => {
 			expect(result).toBeNull();
 		});
 
-		it('should return the current conversation when one is selected', () => {
-			const conv = chatHistoryStore.createConversation('Test Conv');
+		it('should return the current conversation when one is selected', async () => {
+			const conv = await chatHistoryStore.createConversation('Test Conv');
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Hello' });
 
 			const result = chatHistoryStore.getCurrentConversation();
 
 			expect(result).toBeDefined();
 			expect(result?.id).toBe(conv.id);
-			// Title stays 'Test Conv' since it was set explicitly, not 'New conversation'
 			expect(result?.title).toBe('Test Conv');
 			expect(result?.messages).toHaveLength(1);
 		});
 
-		it('should return null for non-existent conversation id', () => {
-			chatHistoryStore.createConversation('Test');
+		it('should return null for non-existent conversation id', async () => {
+			const conv = await chatHistoryStore.createConversation('Test');
 
-			// Manually set a non-existent ID by selecting a valid one first then deleting
-			const state = get(chatHistoryStore) as ChatHistoryState;
-			const currentId = state.currentConversationId;
-			if (currentId) {
-				chatHistoryStore.deleteConversation(currentId);
-			}
+			await chatHistoryStore.deleteConversation(conv.id);
 
 			const result = chatHistoryStore.getCurrentConversation();
 			expect(result).toBeNull();
@@ -363,8 +418,8 @@ describe('Chat History Store', () => {
 			expect(messages).toEqual([]);
 		});
 
-		it('should return messages from the current conversation', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should return messages from the current conversation', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Message 1' });
 			chatHistoryStore.addMessage(conv.id, { role: 'assistant', content: 'Message 2' });
 
@@ -416,34 +471,22 @@ describe('Chat History Store', () => {
 	});
 
 	describe('User initialization', () => {
-		it('should initialize store for a user', () => {
-			chatHistoryStore.initializeForUser('user-123');
+		it('should initialize store for a user', async () => {
+			await chatHistoryStore.initializeForUser('user-123');
 
 			const state = get(chatHistoryStore) as ChatHistoryState;
 			expect(state.userId).toBe('user-123');
 		});
 
-		it('should load stored conversations for a user', () => {
-			// First, create some conversations and save them
-			chatHistoryStore.initializeForUser('test-user-456');
-			chatHistoryStore.createConversation('Saved Chat');
-			chatHistoryStore.addMessage((get(chatHistoryStore) as ChatHistoryState).conversations[0].id, {
-				role: 'user',
-				content: 'Persisted message'
-			});
-
-			// Reset and reinitialize
-			chatHistoryStore.reset();
-			chatHistoryStore.initializeForUser('test-user-456');
-
-			const state = get(chatHistoryStore) as ChatHistoryState;
-			expect(state.conversations.length).toBeGreaterThanOrEqual(0);
+		it('should fetch conversations on init', async () => {
+			await chatHistoryStore.initializeForUser('test-user-456');
+			expect(fetchMock).toHaveBeenCalledWith('/api/chat/conversations');
 		});
 	});
 
 	describe('Adding messages with cost', () => {
-		it('should add a message with cost information', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should add a message with cost information', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			const cost = {
 				inputTokens: 50,
 				outputTokens: 100,
@@ -461,14 +504,13 @@ describe('Chat History Store', () => {
 			expect(message.cost).toEqual(cost);
 
 			const state = get(chatHistoryStore) as ChatHistoryState;
-			const savedMessage = state.conversations[0].messages[0];
-			expect(savedMessage.cost).toEqual(cost);
+			expect(state.conversations[0].messages[0].cost).toEqual(cost);
 		});
 	});
 
 	describe('Title update behavior', () => {
-		it('should not update title if not default', () => {
-			const conv = chatHistoryStore.createConversation('Custom Title');
+		it('should not update title if not default', async () => {
+			const conv = await chatHistoryStore.createConversation('Custom Title');
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
@@ -480,8 +522,8 @@ describe('Chat History Store', () => {
 			expect(conversation?.title).toBe('Custom Title');
 		});
 
-		it('should not update title for assistant messages', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should not update title for assistant messages', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'assistant',
@@ -493,8 +535,8 @@ describe('Chat History Store', () => {
 			expect(conversation?.title).toBe('New conversation');
 		});
 
-		it('should not update title after first user message', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('should not update title after first user message', async () => {
+			const conv = await chatHistoryStore.createConversation();
 
 			chatHistoryStore.addMessage(conv.id, {
 				role: 'user',
@@ -513,12 +555,11 @@ describe('Chat History Store', () => {
 	});
 
 	describe('Deleting non-current conversation', () => {
-		it('should not change currentConversationId when deleting a different conversation', () => {
-			const conv1 = chatHistoryStore.createConversation('First');
-			const conv2 = chatHistoryStore.createConversation('Second');
+		it('should not change currentConversationId when deleting a different conversation', async () => {
+			const conv1 = await chatHistoryStore.createConversation('First');
+			const conv2 = await chatHistoryStore.createConversation('Second');
 
-			// conv2 is current
-			chatHistoryStore.deleteConversation(conv1.id);
+			await chatHistoryStore.deleteConversation(conv1.id);
 			const state = get(chatHistoryStore) as ChatHistoryState;
 
 			expect(state.currentConversationId).toBe(conv2.id);
@@ -532,8 +573,8 @@ describe('Chat History Store', () => {
 			expect(conv).toBeNull();
 		});
 
-		it('currentConversation should return the selected conversation', () => {
-			const created = chatHistoryStore.createConversation('Test Derived');
+		it('currentConversation should return the selected conversation', async () => {
+			const created = await chatHistoryStore.createConversation('Test Derived');
 			chatHistoryStore.addMessage(created.id, { role: 'user', content: 'Hello' });
 
 			const conv = get(currentConversation);
@@ -546,8 +587,8 @@ describe('Chat History Store', () => {
 			expect(messages).toEqual([]);
 		});
 
-		it('currentMessages should return messages from current conversation', () => {
-			const conv = chatHistoryStore.createConversation();
+		it('currentMessages should return messages from current conversation', async () => {
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Message 1' });
 			chatHistoryStore.addMessage(conv.id, { role: 'assistant', content: 'Message 2' });
 
@@ -557,13 +598,51 @@ describe('Chat History Store', () => {
 			expect(messages[1].content).toBe('Message 2');
 		});
 
-		it('currentConversation should return null for non-existent id', () => {
-			// Create a conversation then delete it to leave a stale reference scenario
-			const conv = chatHistoryStore.createConversation('Test');
-			chatHistoryStore.deleteConversation(conv.id);
+		it('currentConversation should return null for non-existent id', async () => {
+			const conv = await chatHistoryStore.createConversation('Test');
+			await chatHistoryStore.deleteConversation(conv.id);
 
 			const current = get(currentConversation);
 			expect(current).toBeNull();
+		});
+	});
+
+	describe('Media attachment', () => {
+		it('should add a message with media attachment', async () => {
+			const conv = await chatHistoryStore.createConversation();
+			const media = {
+				type: 'video' as const,
+				status: 'generating' as const,
+				progress: 0
+			};
+
+			const message = chatHistoryStore.addMessage(conv.id, {
+				role: 'assistant',
+				content: 'Generating video...',
+				media
+			});
+
+			expect(message.media).toEqual(media);
+		});
+
+		it('should update message media', async () => {
+			const conv = await chatHistoryStore.createConversation();
+			const message = chatHistoryStore.addMessage(conv.id, {
+				role: 'assistant',
+				content: 'Generating video...',
+				media: { type: 'video', status: 'generating', progress: 0 }
+			});
+
+			chatHistoryStore.updateMessageMedia(conv.id, message.id, {
+				status: 'complete',
+				url: 'https://example.com/video.mp4',
+				progress: 100
+			});
+
+			const state = get(chatHistoryStore) as ChatHistoryState;
+			const updated = state.conversations[0].messages[0];
+			expect(updated.media?.status).toBe('complete');
+			expect(updated.media?.url).toBe('https://example.com/video.mp4');
 		});
 	});
 });

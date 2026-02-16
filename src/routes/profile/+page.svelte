@@ -85,7 +85,7 @@
 </script>
 
 <svelte:head>
-	<title>Profile - NebulaKit</title>
+	<title>Profile - Nabu</title>
 </svelte:head>
 
 <div class="profile-container">

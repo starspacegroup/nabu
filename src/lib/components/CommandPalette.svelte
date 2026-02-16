@@ -84,7 +84,7 @@
 		{
 			id: 'documentation',
 			label: 'Documentation',
-			description: 'View NebulaKit documentation',
+			description: 'View Nabu documentation',
 			action: () => goto('/documentation'),
 			icon: '📚'
 		},

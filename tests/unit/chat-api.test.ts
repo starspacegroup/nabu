@@ -35,7 +35,8 @@ describe('POST /api/chat/stream - Text Chat Streaming', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				messages: [{ role: 'user', content: 'Hello' }]
+				messages: [{ role: 'user', content: 'Hello' }],
+				conversationId: 'conv-123'
 			})
 		});
 
@@ -97,7 +98,8 @@ describe('POST /api/chat/stream - Text Chat Streaming', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				messages: [{ role: 'user', content: 'Hello' }]
+				messages: [{ role: 'user', content: 'Hello' }],
+				conversationId: 'conv-123'
 			})
 		});
 

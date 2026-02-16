@@ -22,7 +22,7 @@
 </script>
 
 <svelte:head>
-	<title>AI Chat - NebulaKit</title>
+	<title>AI Chat - Nabu</title>
 </svelte:head>
 
 <div class="chat-page-container">
@@ -57,7 +57,7 @@
 			</svg>
 		</button>
 
-		<ChatInterface voiceAvailable={data.voiceAvailable} />
+		<ChatInterface voiceAvailable={data.voiceAvailable} videoAvailable={data.videoAvailable} />
 	</div>
 </div>
 

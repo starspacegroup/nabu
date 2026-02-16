@@ -49,7 +49,7 @@
 		<div class="nav-content">
 			<a href="/" class="logo" on:click={closeMobileMenu}>
 				<span class="logo-icon">✨</span>
-				<span class="logo-text">NebulaKit</span>
+				<span class="logo-text">Nabu</span>
 			</a>
 
 			<div class="nav-actions">

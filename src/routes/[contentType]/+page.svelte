@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-	<title>{contentType.name} - NebulaKit</title>
+	<title>{contentType.name} - Nabu</title>
 	{#if contentType.description}
 		<meta name="description" content={contentType.description} />
 	{/if}

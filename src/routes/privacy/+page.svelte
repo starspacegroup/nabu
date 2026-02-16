@@ -4,8 +4,8 @@
 </script>
 
 <svelte:head>
-	<title>Privacy Policy - NebulaKit</title>
-	<meta name="description" content="Privacy Policy for NebulaKit" />
+	<title>Privacy Policy - Nabu</title>
+	<meta name="description" content="Privacy Policy for Nabu" />
 </svelte:head>
 
 <main class="legal-page">
@@ -18,7 +18,7 @@
 		<section class="legal-section">
 			<h2>Introduction</h2>
 			<p>
-				This Privacy Policy explains how NebulaKit ("we", "us", or "our") collects, uses, and
+				This Privacy Policy explains how Nabu ("we", "us", or "our") collects, uses, and
 				protects your information when you use our service. We are committed to protecting your
 				privacy and handling your data responsibly.
 			</p>
@@ -165,7 +165,7 @@
 			<h2>Contact Us</h2>
 			<p>
 				If you have any questions about this Privacy Policy, please contact us through our <a
-					href="https://github.com/starspacegroup/NebulaKit"
+					href="https://github.com/starspacegroup/nabu"
 					target="_blank"
 					rel="noopener noreferrer">GitHub repository</a
 				>.

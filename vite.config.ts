@@ -42,6 +42,7 @@ export default defineConfig({
 				singleThread: true
 			}
 		},
+		pool: 'forks',
 		teardownTimeout: 5000
 	}
 });

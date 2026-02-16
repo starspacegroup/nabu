@@ -162,7 +162,7 @@
 </script>
 
 <svelte:head>
-	<title>Authentication Keys - Admin - NebulaKit</title>
+	<title>Authentication Keys - Admin - Nabu</title>
 </svelte:head>
 
 <div class="auth-keys-page">

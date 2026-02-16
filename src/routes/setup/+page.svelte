@@ -159,7 +159,7 @@
 				<li>
 					Fill in the form:
 					<ul>
-						<li><strong>Application name:</strong> NebulaKit (or your choice)</li>
+						<li><strong>Application name:</strong> Nabu (or your choice)</li>
 						<li><strong>Homepage URL:</strong> <code>{$page.url.origin}</code></li>
 						<li>
 							<strong>Authorization callback URL:</strong>

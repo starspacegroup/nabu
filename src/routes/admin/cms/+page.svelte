@@ -333,7 +333,7 @@
 </script>
 
 <svelte:head>
-	<title>CMS - NebulaKit Admin</title>
+	<title>CMS - Nabu Admin</title>
 </svelte:head>
 
 <div class="cms-dashboard">

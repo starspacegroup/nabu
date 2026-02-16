@@ -72,6 +72,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			voiceEnabled: data.voiceEnabled ?? false, // Voice chat disabled by default
 			// Support both single voiceModel and voiceModels array
 			voiceModels: data.voiceModels || (data.voiceModel ? [data.voiceModel] : []),
+			videoEnabled: data.videoEnabled ?? false,
+			videoModels: data.videoModels || [],
 			createdAt
 		};
 

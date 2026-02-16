@@ -1,13 +1,20 @@
 <script lang="ts">
-	import { chatHistoryStore, currentMessages, type MessageCost } from '$lib/stores/chatHistory';
+	import {
+		chatHistoryStore,
+		currentMessages,
+		type MediaAttachment,
+		type MessageCost
+	} from '$lib/stores/chatHistory';
 	import { calculateCost, formatCost, getModelDisplayName } from '$lib/utils/cost';
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { fade, fly } from 'svelte/transition';
+	import VideoCard from './VideoCard.svelte';
 	import VoiceButton from './VoiceButton.svelte';
 
-	// Voice availability is passed from server - defaults to false for safety
+	// Voice/video availability passed from server
 	export let voiceAvailable = false;
+	export let videoAvailable = false;
 
 	// Model selection
 	interface ChatModel {
@@ -15,9 +22,15 @@
 		displayName: string;
 	}
 	let availableModels: ChatModel[] = [];
+	let availableVideoModels: ChatModel[] = [];
 	let selectedModel = 'gpt-4o';
+	let selectedVideoModel = '';
 	let isLoadingModels = false;
 	let showModelSelector = false;
+
+	// Video mode
+	let isVideoMode = false;
+	let videoAspectRatio: '16:9' | '9:16' | '1:1' = '16:9';
 
 	// Use store-based messages
 	$: messages = $currentMessages.map((msg) => ({
@@ -73,6 +86,12 @@
 				availableModels = data.models;
 				selectedModel = data.defaultModel || 'gpt-4o';
 				showModelSelector = availableModels.length > 1;
+
+				// Video models
+				if (data.videoModels && data.videoModels.length > 0) {
+					availableVideoModels = data.videoModels;
+					selectedVideoModel = data.videoModels[0]?.id || '';
+				}
 			}
 		} catch (err) {
 			console.error('Failed to fetch models:', err);
@@ -119,8 +138,16 @@
 		// Ensure we have a current conversation
 		let conversationId = $chatHistoryStore.currentConversationId;
 		if (!conversationId) {
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			conversationId = conv.id;
+		}
+
+		const messageContent = input.trim();
+
+		// Check if we're in video mode
+		if (isVideoMode && videoAvailable) {
+			await sendVideoGeneration(conversationId, messageContent);
+			return;
 		}
 
 		// Add user message to store with the selected model
@@ -133,7 +160,7 @@
 		};
 		chatHistoryStore.addMessage(conversationId, {
 			role: 'user',
-			content: input.trim(),
+			content: messageContent,
 			cost: userCost
 		});
 
@@ -147,7 +174,11 @@
 			const response = await fetch('/api/chat/stream', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ messages: $currentMessages, model: selectedModel })
+				body: JSON.stringify({
+					messages: $currentMessages,
+					model: selectedModel,
+					conversationId
+				})
 			});
 
 			if (!response.ok) {
@@ -160,6 +191,7 @@
 			const decoder = new TextDecoder();
 			let assistantContent = '';
 			let usageData: MessageCost | undefined;
+			let assistantMessageId: string | undefined;
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -175,6 +207,9 @@
 
 						try {
 							const parsed = JSON.parse(data);
+							if (parsed.meta?.assistantMessageId) {
+								assistantMessageId = parsed.meta.assistantMessageId;
+							}
 							if (parsed.content) {
 								assistantContent += parsed.content;
 								streamingContent = assistantContent;
@@ -196,10 +231,13 @@
 			}
 
 			// Add complete assistant message to store with cost data
+			// The server persists the assistant message via waitUntil, so we just use
+			// the server-assigned ID so store and D1 stay in sync
 			chatHistoryStore.addMessage(conversationId, {
 				role: 'assistant',
 				content: assistantContent,
-				cost: usageData
+				cost: usageData,
+				id: assistantMessageId
 			});
 			streamingContent = '';
 		} catch (err) {
@@ -213,6 +251,139 @@
 			isLoading = false;
 			scrollToBottom();
 		}
+	}
+
+	/**
+	 * Send a video generation request
+	 */
+	async function sendVideoGeneration(conversationId: string, prompt: string) {
+		// Add user message
+		const userCost: MessageCost = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalCost: 0,
+			model: selectedVideoModel || 'sora',
+			displayName: 'Video Generation'
+		};
+		chatHistoryStore.addMessage(conversationId, {
+			role: 'user',
+			content: prompt,
+			cost: userCost
+		});
+
+		input = '';
+		isLoading = true;
+		autoResizeTextarea();
+		scrollToBottom();
+
+		try {
+			// Start video generation
+			const response = await fetch('/api/video/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					prompt,
+					model: selectedVideoModel,
+					aspectRatio: videoAspectRatio,
+					conversationId
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ error: 'Failed to start video generation' }));
+				throw new Error(errorData.error || 'Failed to start video generation');
+			}
+
+			const data = await response.json();
+
+			// Add assistant message with video media in generating state
+			const videoMessage = chatHistoryStore.addMessage(conversationId, {
+				role: 'assistant',
+				content: `Generating video: "${prompt}"`,
+				id: data.messageId,
+				media: {
+					type: 'video',
+					status: 'generating',
+					progress: 0,
+					generationId: data.generationId,
+					providerJobId: data.providerJobId
+				}
+			});
+
+			isLoading = false;
+			scrollToBottom();
+
+			// Connect to SSE for progress updates
+			connectToVideoProgress(conversationId, videoMessage.id, data.generationId);
+		} catch (err: any) {
+			console.error('Video generation error:', err);
+			chatHistoryStore.addMessage(conversationId, {
+				role: 'assistant',
+				content: `Failed to generate video: ${err.message || 'Unknown error'}`
+			});
+			isLoading = false;
+			scrollToBottom();
+		}
+	}
+
+	/**
+	 * Connect to SSE stream for video generation progress
+	 */
+	function connectToVideoProgress(
+		conversationId: string,
+		messageId: string,
+		generationId: string
+	) {
+		const eventSource = new EventSource(`/api/video/${generationId}/stream`);
+
+		eventSource.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data);
+
+				if (data.status === 'complete') {
+					chatHistoryStore.updateMessageMedia(conversationId, messageId, {
+						status: 'complete',
+						url: data.videoUrl,
+						thumbnailUrl: data.thumbnailUrl,
+						duration: data.duration,
+						progress: 100
+					});
+					eventSource.close();
+					scrollToBottom();
+				} else if (data.status === 'error') {
+					chatHistoryStore.updateMessageMedia(conversationId, messageId, {
+						status: 'error',
+						error: data.error || 'Video generation failed'
+					});
+					eventSource.close();
+				} else if (data.progress !== undefined) {
+					chatHistoryStore.updateMessageMedia(conversationId, messageId, {
+						status: 'generating',
+						progress: data.progress
+					});
+				}
+			} catch (e) {
+				console.error('Failed to parse video progress:', e);
+			}
+		};
+
+		eventSource.onerror = () => {
+			chatHistoryStore.updateMessageMedia(conversationId, messageId, {
+				status: 'error',
+				error: 'Lost connection to video generation'
+			});
+			eventSource.close();
+		};
+	}
+
+	/**
+	 * Retry a failed video generation
+	 */
+	function handleVideoRetry(event: CustomEvent<{ prompt: string }>) {
+		const conversationId = $chatHistoryStore.currentConversationId;
+		if (!conversationId) return;
+
+		sendVideoGeneration(conversationId, event.detail.prompt);
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -516,6 +687,15 @@
 										cost: messageCost
 									});
 								}
+
+								// Also persist the user message if there was a pending one
+								const userMsg = messages.find((m) => m.id === pendingUserMessageId);
+								if (userMsg) {
+									chatHistoryStore.addMessage(conversationId, {
+										role: 'user',
+										content: userMsg.content
+									});
+								}
 							}
 
 							console.log('Voice message cost:', formatCost(costResult.totalCost));
@@ -712,7 +892,7 @@
 </script>
 
 <svelte:head>
-	<title>AI Chat - NebulaKit</title>
+	<title>AI Chat - Nabu</title>
 </svelte:head>
 
 <div class="chat-interface">
@@ -754,7 +934,15 @@
 					{/if}
 				</div>
 				<div class="message-bubble">
-					<div class="message-content">{message.content}</div>
+					{#if message.media}
+						<VideoCard
+							media={message.media}
+							prompt={message.content}
+							on:retry={handleVideoRetry}
+						/>
+					{:else}
+						<div class="message-content">{message.content}</div>
+					{/if}
 					<div class="message-meta">
 						<span class="message-timestamp">
 							{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -870,18 +1058,40 @@
 						<path d="M2 17l10 5 10-5" />
 						<path d="M2 12l10 5 10-5" />
 					</svg>
-					Model:
+					{isVideoMode ? 'Video Model:' : 'Model:'}
 				</label>
-				<select
-					id="model-select"
-					bind:value={selectedModel}
-					class="model-select"
-					disabled={isLoading || isLoadingModels}
-				>
-					{#each availableModels as model}
-						<option value={model.id}>{model.displayName}</option>
-					{/each}
-				</select>
+				{#if isVideoMode}
+					<select
+						id="model-select"
+						bind:value={selectedVideoModel}
+						class="model-select"
+						disabled={isLoading || isLoadingModels}
+					>
+						{#each availableVideoModels as model}
+							<option value={model.id}>{model.displayName}</option>
+						{/each}
+					</select>
+					<select
+						bind:value={videoAspectRatio}
+						class="model-select aspect-select"
+						disabled={isLoading}
+					>
+						<option value="16:9">16:9</option>
+						<option value="9:16">9:16</option>
+						<option value="1:1">1:1</option>
+					</select>
+				{:else}
+					<select
+						id="model-select"
+						bind:value={selectedModel}
+						class="model-select"
+						disabled={isLoading || isLoadingModels}
+					>
+						{#each availableModels as model}
+							<option value={model.id}>{model.displayName}</option>
+						{/each}
+					</select>
+				{/if}
 			</div>
 		{/if}
 
@@ -897,14 +1107,18 @@
 						on:keydown={handleKeydown}
 						on:focus={() => (isFocused = true)}
 						on:blur={() => (isFocused = false)}
-						placeholder={isVoiceActive ? 'Voice chat is active' : 'Message AI assistant'}
+						placeholder={isVoiceActive
+							? 'Voice chat is active'
+							: isVideoMode
+								? 'Describe the video you want to generate...'
+								: 'Message AI assistant'}
 						class="chat-input"
 						class:voice-active={isVoiceActive}
 						class:has-send-button={!isVoiceActive}
 						rows="1"
 						maxlength={MAX_INPUT_LENGTH}
 						disabled={isVoiceActive}
-						aria-label="Chat message input"
+						aria-label={isVideoMode ? 'Video generation prompt' : 'Chat message input'}
 					></textarea>
 
 					<!-- Character count (shows when approaching limit) -->
@@ -945,6 +1159,36 @@
 					{/if}
 				</div>
 
+				<!-- Video mode toggle button -->
+				{#if videoAvailable}
+					<button
+						class="video-toggle-button"
+						class:active={isVideoMode}
+						on:click={() => (isVideoMode = !isVideoMode)}
+						aria-label={isVideoMode ? 'Switch to text chat' : 'Switch to video generation'}
+						title={isVideoMode ? 'Switch to text chat' : 'Generate video'}
+					>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							{#if isVideoMode}
+								<rect x="2" y="4" width="20" height="16" rx="2" />
+								<polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none" />
+							{:else}
+								<rect x="2" y="4" width="20" height="16" rx="2" />
+								<polygon points="10,9 16,12 10,15" />
+							{/if}
+						</svg>
+					</button>
+				{/if}
+
 				<!-- Voice toggle button (on the right) -->
 				{#if voiceAvailable}
 					<VoiceButton isActive={isVoiceActive} state={voiceState} onClick={toggleVoiceChat} />
@@ -953,7 +1197,11 @@
 			<!-- Input hint -->
 			<div class="input-hint" class:visible={!isVoiceActive}>
 				<span class="hint-text">
-					<kbd>Enter</kbd> to send • <kbd>Shift + Enter</kbd> for new line
+					{#if isVideoMode}
+						<kbd>Enter</kbd> to generate video • <kbd>Shift + Enter</kbd> for new line
+					{:else}
+						<kbd>Enter</kbd> to send • <kbd>Shift + Enter</kbd> for new line
+					{/if}
 				</span>
 			</div>
 		</div>
@@ -1388,6 +1636,43 @@
 		font-size: 0.688rem;
 		color: var(--color-text);
 		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+	}
+
+	/* Video mode toggle */
+	.video-toggle-button {
+		width: 44px;
+		height: 44px;
+		border-radius: var(--radius-md);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all var(--transition-base);
+		flex-shrink: 0;
+		border: none;
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+	}
+
+	.video-toggle-button:hover {
+		background: var(--color-surface-hover);
+		color: var(--color-text);
+		transform: scale(1.05);
+	}
+
+	.video-toggle-button.active {
+		background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+		color: white;
+		box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+	}
+
+	.video-toggle-button.active:hover {
+		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+		transform: scale(1.08);
+	}
+
+	.aspect-select {
+		max-width: 90px;
 	}
 
 	@media (max-width: 768px) {

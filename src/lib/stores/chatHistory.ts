@@ -8,12 +8,26 @@ export interface MessageCost {
 	displayName: string;
 }
 
+export interface MediaAttachment {
+	type: 'video' | 'image';
+	url?: string;
+	thumbnailUrl?: string;
+	status: 'generating' | 'complete' | 'error';
+	progress?: number;
+	r2Key?: string;
+	duration?: number;
+	error?: string;
+	providerJobId?: string;
+	generationId?: string;
+}
+
 export interface Message {
 	id: string;
 	role: 'user' | 'assistant' | 'system';
 	content: string;
 	timestamp: Date;
 	cost?: MessageCost;
+	media?: MediaAttachment;
 }
 
 export interface Conversation {
@@ -22,6 +36,9 @@ export interface Conversation {
 	messages: Message[];
 	createdAt: Date;
 	updatedAt: Date;
+	messageCount?: number;
+	lastMessage?: string;
+	_loaded?: boolean; // Whether full messages have been fetched
 }
 
 export interface ChatHistoryState {
@@ -32,65 +49,15 @@ export interface ChatHistoryState {
 	userId: string | null;
 }
 
-const STORAGE_KEY_PREFIX = 'nebulakit_chat_history';
 const MAX_TITLE_LENGTH = 50;
 
-function getStorageKey(userId: string | null): string {
-	if (!userId) return STORAGE_KEY_PREFIX;
-	return `${STORAGE_KEY_PREFIX}_${userId}`;
-}
-
 function generateId(): string {
-	return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+	return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 function truncateTitle(text: string): string {
 	if (text.length <= MAX_TITLE_LENGTH) return text;
 	return text.substring(0, MAX_TITLE_LENGTH) + '...';
-}
-
-function loadFromStorage(userId: string | null): ChatHistoryState {
-	if (typeof window === 'undefined') {
-		return createInitialState(userId);
-	}
-
-	try {
-		const storageKey = getStorageKey(userId);
-		const stored = localStorage.getItem(storageKey);
-		if (stored) {
-			const parsed = JSON.parse(stored);
-			// Convert date strings back to Date objects
-			return {
-				...parsed,
-				userId,
-				conversations: parsed.conversations.map((conv: any) => ({
-					...conv,
-					createdAt: new Date(conv.createdAt),
-					updatedAt: new Date(conv.updatedAt),
-					messages: conv.messages.map((msg: any) => ({
-						...msg,
-						timestamp: new Date(msg.timestamp)
-					}))
-				}))
-			};
-		}
-	} catch (e) {
-		console.error('Failed to load chat history from storage:', e);
-	}
-
-	return createInitialState(userId);
-}
-
-function saveToStorage(state: ChatHistoryState): void {
-	if (typeof window === 'undefined') return;
-	if (!state.userId) return; // Don't save if no user is logged in
-
-	try {
-		const storageKey = getStorageKey(state.userId);
-		localStorage.setItem(storageKey, JSON.stringify(state));
-	} catch (e) {
-		console.error('Failed to save chat history to storage:', e);
-	}
 }
 
 function createInitialState(userId: string | null = null): ChatHistoryState {
@@ -103,25 +70,58 @@ function createInitialState(userId: string | null = null): ChatHistoryState {
 	};
 }
 
+function parseTimestamp(ts: any): Date {
+	if (ts instanceof Date) return ts;
+	if (typeof ts === 'string') return new Date(ts);
+	return new Date();
+}
+
 function createChatHistoryStore() {
 	const store = writable<ChatHistoryState>(createInitialState());
 	const { subscribe, set, update } = store;
-
-	// Subscribe to changes and persist
-	subscribe((state) => {
-		saveToStorage(state);
-	});
 
 	return {
 		subscribe,
 
 		/**
 		 * Initialize the store for a specific user
-		 * This loads the user's chat history from storage
+		 * Fetches conversations from the server API
 		 */
-		initializeForUser(userId: string): void {
-			const storedState = loadFromStorage(userId);
-			set(storedState);
+		async initializeForUser(userId: string): Promise<void> {
+			update((state) => ({ ...state, userId, isLoading: true }));
+
+			try {
+				const response = await fetch('/api/chat/conversations');
+				if (response.ok) {
+					const data = await response.json();
+					const conversations: Conversation[] = (data.conversations || []).map(
+						(conv: any) => ({
+							id: conv.id,
+							title: conv.title,
+							messages: [],
+							createdAt: parseTimestamp(conv.createdAt),
+							updatedAt: parseTimestamp(conv.updatedAt),
+							messageCount: conv.messageCount || 0,
+							lastMessage: conv.lastMessage || '',
+							_loaded: false
+						})
+					);
+
+					set({
+						conversations,
+						currentConversationId: null,
+						isLoading: false,
+						isSidebarOpen: true,
+						userId
+					});
+				} else {
+					console.error('Failed to fetch conversations:', response.status);
+					set(createInitialState(userId));
+				}
+			} catch (err) {
+				console.error('Failed to initialize chat history:', err);
+				set(createInitialState(userId));
+			}
 		},
 
 		reset(): void {
@@ -129,37 +129,115 @@ function createChatHistoryStore() {
 			set(createInitialState(currentState.userId));
 		},
 
-		createConversation(title: string = 'New conversation'): Conversation {
-			const now = new Date();
-			const conversation: Conversation = {
-				id: generateId(),
-				title,
-				messages: [],
-				createdAt: now,
-				updatedAt: now
-			};
+		async createConversation(title: string = 'New conversation'): Promise<Conversation> {
+			try {
+				const response = await fetch('/api/chat/conversations', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ title })
+				});
 
-			update((state) => ({
-				...state,
-				conversations: [conversation, ...state.conversations],
-				currentConversationId: conversation.id
-			}));
+				if (!response.ok) {
+					throw new Error('Failed to create conversation');
+				}
 
-			return conversation;
+				const data = await response.json();
+				const conversation: Conversation = {
+					id: data.id,
+					title: data.title,
+					messages: [],
+					createdAt: parseTimestamp(data.createdAt),
+					updatedAt: parseTimestamp(data.updatedAt),
+					_loaded: true
+				};
+
+				update((state) => ({
+					...state,
+					conversations: [conversation, ...state.conversations],
+					currentConversationId: conversation.id
+				}));
+
+				return conversation;
+			} catch (err) {
+				console.error('Failed to create conversation:', err);
+				// Fallback: create locally with a temp ID (will sync later)
+				const now = new Date();
+				const conversation: Conversation = {
+					id: generateId(),
+					title,
+					messages: [],
+					createdAt: now,
+					updatedAt: now,
+					_loaded: true
+				};
+
+				update((state) => ({
+					...state,
+					conversations: [conversation, ...state.conversations],
+					currentConversationId: conversation.id
+				}));
+
+				return conversation;
+			}
 		},
 
-		selectConversation(id: string): void {
+		async selectConversation(id: string): Promise<void> {
+			// Set current immediately for responsive UI
 			update((state) => ({
 				...state,
 				currentConversationId: id
 			}));
+
+			// Check if messages need to be loaded
+			const state = get(store);
+			const conv = state.conversations.find((c) => c.id === id);
+			if (conv && conv._loaded) return;
+
+			// Fetch full conversation with messages
+			try {
+				update((s) => ({ ...s, isLoading: true }));
+				const response = await fetch(`/api/chat/conversations/${id}`);
+				if (response.ok) {
+					const data = await response.json();
+					const messages: Message[] = (data.messages || []).map((msg: any) => ({
+						id: msg.id,
+						role: msg.role,
+						content: msg.content,
+						timestamp: parseTimestamp(msg.timestamp),
+						cost: msg.cost,
+						media: msg.media
+					}));
+
+					update((s) => ({
+						...s,
+						isLoading: false,
+						conversations: s.conversations.map((c) =>
+							c.id === id
+								? {
+									...c,
+									title: data.title,
+									messages,
+									_loaded: true
+								}
+								: c
+						)
+					}));
+				} else {
+					update((s) => ({ ...s, isLoading: false }));
+				}
+			} catch (err) {
+				console.error('Failed to load conversation:', err);
+				update((s) => ({ ...s, isLoading: false }));
+			}
 		},
 
 		getCurrentMessages(): Message[] {
 			const state = get(store);
 			if (!state.currentConversationId) return [];
 
-			const conversation = state.conversations.find((c) => c.id === state.currentConversationId);
+			const conversation = state.conversations.find(
+				(c) => c.id === state.currentConversationId
+			);
 			return conversation?.messages || [];
 		},
 
@@ -167,19 +245,28 @@ function createChatHistoryStore() {
 			const state = get(store);
 			if (!state.currentConversationId) return null;
 
-			return state.conversations.find((c) => c.id === state.currentConversationId) || null;
+			return (
+				state.conversations.find((c) => c.id === state.currentConversationId) || null
+			);
 		},
 
 		addMessage(
 			conversationId: string,
-			message: { role: 'user' | 'assistant' | 'system'; content: string; cost?: MessageCost }
+			message: {
+				role: 'user' | 'assistant' | 'system';
+				content: string;
+				cost?: MessageCost;
+				media?: MediaAttachment;
+				id?: string;
+			}
 		): Message {
 			const newMessage: Message = {
-				id: generateId(),
+				id: message.id || generateId(),
 				role: message.role,
 				content: message.content,
 				timestamp: new Date(),
-				cost: message.cost
+				cost: message.cost,
+				media: message.media
 			};
 
 			update((state) => {
@@ -210,6 +297,23 @@ function createChatHistoryStore() {
 				};
 			});
 
+			// Persist to server (non-blocking)
+			// Note: For text chat, the stream endpoint handles assistant message persistence.
+			// User messages and video messages are persisted here.
+			if (message.role === 'user' || message.media) {
+				fetch(`/api/chat/conversations/${conversationId}/messages`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						id: newMessage.id,
+						role: message.role,
+						content: message.content,
+						cost: message.cost,
+						media: message.media
+					})
+				}).catch((err) => console.error('Failed to persist message:', err));
+			}
+
 			return newMessage;
 		},
 
@@ -217,7 +321,8 @@ function createChatHistoryStore() {
 			conversationId: string,
 			messageId: string,
 			content: string,
-			cost?: MessageCost
+			cost?: MessageCost,
+			media?: MediaAttachment
 		): void {
 			update((state) => ({
 				...state,
@@ -227,7 +332,14 @@ function createChatHistoryStore() {
 					return {
 						...conv,
 						messages: conv.messages.map((msg) =>
-							msg.id === messageId ? { ...msg, content, ...(cost && { cost }) } : msg
+							msg.id === messageId
+								? {
+									...msg,
+									content,
+									...(cost && { cost }),
+									...(media && { media })
+								}
+								: msg
 						),
 						updatedAt: new Date()
 					};
@@ -235,7 +347,36 @@ function createChatHistoryStore() {
 			}));
 		},
 
-		deleteConversation(id: string): void {
+		/**
+		 * Update just the media attachment on a message (for video progress)
+		 */
+		updateMessageMedia(
+			conversationId: string,
+			messageId: string,
+			media: Partial<MediaAttachment>
+		): void {
+			update((state) => ({
+				...state,
+				conversations: state.conversations.map((conv) => {
+					if (conv.id !== conversationId) return conv;
+
+					return {
+						...conv,
+						messages: conv.messages.map((msg) => {
+							if (msg.id !== messageId) return msg;
+							return {
+								...msg,
+								media: msg.media
+									? { ...msg.media, ...media }
+									: ({ type: 'video', status: 'generating', ...media } as MediaAttachment)
+							};
+						})
+					};
+				})
+			}));
+		},
+
+		async deleteConversation(id: string): Promise<void> {
 			update((state) => {
 				const newConversations = state.conversations.filter((c) => c.id !== id);
 				let newCurrentId = state.currentConversationId;
@@ -251,15 +392,33 @@ function createChatHistoryStore() {
 					currentConversationId: newCurrentId
 				};
 			});
+
+			// Delete on server
+			try {
+				await fetch(`/api/chat/conversations/${id}`, { method: 'DELETE' });
+			} catch (err) {
+				console.error('Failed to delete conversation on server:', err);
+			}
 		},
 
-		renameConversation(id: string, title: string): void {
+		async renameConversation(id: string, title: string): Promise<void> {
 			update((state) => ({
 				...state,
 				conversations: state.conversations.map((conv) =>
 					conv.id === id ? { ...conv, title, updatedAt: new Date() } : conv
 				)
 			}));
+
+			// Persist rename
+			try {
+				await fetch(`/api/chat/conversations/${id}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ title })
+				});
+			} catch (err) {
+				console.error('Failed to rename conversation on server:', err);
+			}
 		},
 
 		clearAll(): void {

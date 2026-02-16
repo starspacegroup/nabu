@@ -1,5 +1,5 @@
 import { chatHistoryStore } from '$lib/stores/chatHistory';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -11,6 +11,17 @@ describe('ChatInterface Component', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		chatHistoryStore.reset();
+		// Mock fetch for API-backed store
+		globalThis.fetch = vi.fn(async (url: string, options?: RequestInit) => {
+			if (typeof url === 'string' && url.includes('/api/chat/conversations')) {
+				let title = 'New conversation';
+				if (options?.body) {
+					try { title = JSON.parse(options.body as string).title || title; } catch { }
+				}
+				return new Response(JSON.stringify({ id: crypto.randomUUID(), title, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), conversations: [], success: true }), { status: 200 });
+			}
+			return new Response('Not found', { status: 404 });
+		}) as typeof globalThis.fetch;
 	});
 
 	describe('Unified Chat Interface', () => {
@@ -33,7 +44,9 @@ describe('ChatInterface Component', () => {
 			await fireEvent.input(input, { target: { value: 'Hello AI' } });
 			await fireEvent.click(sendButton);
 
-			expect(input.value).toBe('');
+			await waitFor(() => {
+				expect(input.value).toBe('');
+			});
 			expect(screen.getByText('Hello AI')).toBeTruthy();
 		});
 
@@ -46,7 +59,9 @@ describe('ChatInterface Component', () => {
 			await fireEvent.input(input, { target: { value: 'Test message' } });
 			await fireEvent.keyDown(input, { key: 'Enter', shiftKey: false });
 
-			expect(input.value).toBe('');
+			await waitFor(() => {
+				expect(input.value).toBe('');
+			});
 		});
 
 		it('should not send message on Shift+Enter', async () => {
@@ -110,7 +125,7 @@ describe('ChatInterface Component', () => {
 
 		it('should show unified message history', async () => {
 			// Add messages to the store first
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Text message' });
 			chatHistoryStore.addMessage(conv.id, { role: 'assistant', content: 'AI response' });
 
@@ -159,7 +174,7 @@ describe('ChatInterface Component', () => {
 	describe('Message Display', () => {
 		it('should display user messages aligned to the right', async () => {
 			// Add user message to the store first
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'User message' });
 
 			const { default: ChatInterface } = await import('$lib/components/ChatInterface.svelte');
@@ -171,7 +186,7 @@ describe('ChatInterface Component', () => {
 
 		it('should display assistant messages aligned to the left', async () => {
 			// Add assistant message to the store first
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'assistant', content: 'AI message' });
 
 			const { default: ChatInterface } = await import('$lib/components/ChatInterface.svelte');
@@ -183,7 +198,7 @@ describe('ChatInterface Component', () => {
 
 		it('should show timestamp for each message', async () => {
 			// Add message to the store first
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Test' });
 
 			const { default: ChatInterface } = await import('$lib/components/ChatInterface.svelte');
@@ -199,7 +214,7 @@ describe('ChatInterface Component', () => {
 
 		it('should preserve message history across voice and text interactions', async () => {
 			// Add messages to the store first
-			const conv = chatHistoryStore.createConversation();
+			const conv = await chatHistoryStore.createConversation();
 			chatHistoryStore.addMessage(conv.id, { role: 'user', content: 'Text message' });
 			chatHistoryStore.addMessage(conv.id, { role: 'assistant', content: 'Text response' });
 

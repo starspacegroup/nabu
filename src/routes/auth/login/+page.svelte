@@ -66,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign In - NebulaKit</title>
+	<title>Sign In - Nabu</title>
 </svelte:head>
 
 <div class="auth-page">

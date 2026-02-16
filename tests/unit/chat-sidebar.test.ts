@@ -2,11 +2,26 @@ import ChatSidebar from '$lib/components/ChatSidebar.svelte';
 import { chatHistoryStore } from '$lib/stores/chatHistory';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('ChatSidebar', () => {
 	beforeEach(() => {
 		chatHistoryStore.reset();
+		// Mock fetch for API-backed store
+		globalThis.fetch = vi.fn(async (url: string, options?: RequestInit) => {
+			if (typeof url === 'string' && url.includes('/api/chat/conversations')) {
+				let title = 'New conversation';
+				if (options?.body) {
+					try { title = JSON.parse(options.body as string).title || title; } catch { }
+				}
+				return new Response(JSON.stringify({ id: crypto.randomUUID(), title, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), conversations: [], success: true }), { status: 200 });
+			}
+			return new Response('Not found', { status: 404 });
+		}) as typeof globalThis.fetch;
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	describe('Rendering', () => {
@@ -33,27 +48,31 @@ describe('ChatSidebar', () => {
 			const newChatButton = screen.getByRole('button', { name: /new chat/i });
 			await fireEvent.click(newChatButton);
 
-			const state = get(chatHistoryStore);
-			expect(state.conversations).toHaveLength(1);
+			await waitFor(() => {
+				const state = get(chatHistoryStore);
+				expect(state.conversations).toHaveLength(1);
+			});
 		});
 	});
 
 	describe('Displaying conversations', () => {
-		it('should display conversation titles', () => {
-			chatHistoryStore.createConversation('Test Conversation');
+		it('should display conversation titles', async () => {
+			await chatHistoryStore.createConversation('Test Conversation');
 
 			render(ChatSidebar);
-			expect(screen.getByText('Test Conversation')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('Test Conversation')).toBeInTheDocument();
+			});
 		});
 
 		it('should highlight the current conversation', async () => {
-			const conv1 = chatHistoryStore.createConversation('First Chat');
-			chatHistoryStore.createConversation('Second Chat');
+			const conv1 = await chatHistoryStore.createConversation('First Chat');
+			await chatHistoryStore.createConversation('Second Chat');
 
 			const { rerender } = render(ChatSidebar);
 
 			// Select the first conversation
-			chatHistoryStore.selectConversation(conv1.id);
+			await chatHistoryStore.selectConversation(conv1.id);
 
 			// Wait for re-render
 			await waitFor(() => {
@@ -62,25 +81,27 @@ describe('ChatSidebar', () => {
 			});
 		});
 
-		it('should show conversations in order of most recent', () => {
-			chatHistoryStore.createConversation('Oldest');
-			chatHistoryStore.createConversation('Middle');
-			chatHistoryStore.createConversation('Newest');
+		it('should show conversations in order of most recent', async () => {
+			await chatHistoryStore.createConversation('Oldest');
+			await chatHistoryStore.createConversation('Middle');
+			await chatHistoryStore.createConversation('Newest');
 
 			render(ChatSidebar);
 
-			const conversations = screen.getAllByRole('button', { name: /select conversation/i });
-			// Most recent should be first
-			expect(conversations[0]).toHaveTextContent('Newest');
-			expect(conversations[1]).toHaveTextContent('Middle');
-			expect(conversations[2]).toHaveTextContent('Oldest');
+			await waitFor(() => {
+				const conversations = screen.getAllByRole('button', { name: /select conversation/i });
+				// Most recent should be first
+				expect(conversations[0]).toHaveTextContent('Newest');
+				expect(conversations[1]).toHaveTextContent('Middle');
+				expect(conversations[2]).toHaveTextContent('Oldest');
+			});
 		});
 	});
 
 	describe('Selecting conversations', () => {
 		it('should select a conversation when clicked', async () => {
-			const conv1 = chatHistoryStore.createConversation('First Chat');
-			const conv2 = chatHistoryStore.createConversation('Second Chat');
+			const conv1 = await chatHistoryStore.createConversation('First Chat');
+			const conv2 = await chatHistoryStore.createConversation('Second Chat');
 
 			render(ChatSidebar);
 
@@ -95,26 +116,32 @@ describe('ChatSidebar', () => {
 
 	describe('Deleting conversations', () => {
 		it('should show delete button on hover/focus', async () => {
-			chatHistoryStore.createConversation('Test Chat');
+			await chatHistoryStore.createConversation('Test Chat');
 
 			render(ChatSidebar);
 
-			// There should be a delete button (might be hidden with CSS)
-			const deleteButton = screen.getByRole('button', { name: /delete conversation/i });
-			expect(deleteButton).toBeInTheDocument();
+			await waitFor(() => {
+				// There should be a delete button (might be hidden with CSS)
+				const deleteButton = screen.getByRole('button', { name: /delete conversation/i });
+				expect(deleteButton).toBeInTheDocument();
+			});
 		});
 
 		it('should delete conversation when delete button is clicked', async () => {
-			chatHistoryStore.createConversation('Chat to Delete');
+			await chatHistoryStore.createConversation('Chat to Delete');
 
 			render(ChatSidebar);
 
-			// Get the delete button specifically (not the parent conversation button)
-			const deleteButton = screen.getByRole('button', { name: /delete conversation/i });
-			await fireEvent.click(deleteButton);
+			await waitFor(async () => {
+				// Get the delete button specifically (not the parent conversation button)
+				const deleteButton = screen.getByRole('button', { name: /delete conversation/i });
+				await fireEvent.click(deleteButton);
+			});
 
-			const state = get(chatHistoryStore);
-			expect(state.conversations).toHaveLength(0);
+			await waitFor(() => {
+				const state = get(chatHistoryStore);
+				expect(state.conversations).toHaveLength(0);
+			});
 		});
 	});
 });

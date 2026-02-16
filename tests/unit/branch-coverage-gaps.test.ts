@@ -941,20 +941,17 @@ describe('Chat History Store - SSR and localStorage error branches', () => {
     vi.clearAllMocks();
   });
 
-  it('should handle localStorage.getItem throwing an error', async () => {
-    // Mock window with broken localStorage
+  it('should handle fetch failure gracefully during initialization', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
-    const originalGetItem = Storage.prototype.getItem;
-    Storage.prototype.getItem = vi.fn().mockImplementation(() => {
-      throw new Error('localStorage not available');
-    });
+    // Mock fetch to fail
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
     const module = await import('../../src/lib/stores/chatHistory.js');
     const store = module.chatHistoryStore;
 
-    // Initialize user - should trigger loadFromStorage which catches the error
-    store.initializeForUser('user-test');
+    // Initialize user - should trigger API call which catches the error
+    await store.initializeForUser('user-test');
 
     // Should fall back to initial state
     let state: any;
@@ -965,26 +962,22 @@ describe('Chat History Store - SSR and localStorage error branches', () => {
     expect(state.conversations).toEqual([]);
     expect(state.userId).toBe('user-test');
 
-    Storage.prototype.getItem = originalGetItem;
     consoleSpy.mockRestore();
   });
 
-  it('should handle localStorage.setItem throwing an error', async () => {
+  it('should handle fetch failure when creating a conversation', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
-    const originalSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = vi.fn().mockImplementation(() => {
-      throw new Error('QuotaExceededError');
-    });
+    // Mock fetch to fail
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
     const module = await import('../../src/lib/stores/chatHistory.js');
     const store = module.chatHistoryStore;
 
-    // Initialize and create a conversation - should trigger saveToStorage which catches the error
-    store.initializeForUser('user-save-test');
-    store.createConversation('Test');
+    // Create conversation - should fall back to local creation
+    const conv = await store.createConversation('Test');
 
-    // Should not throw
+    // Should still create locally via fallback
     let state: any;
     store.subscribe((s: any) => {
       state = s;
@@ -992,12 +985,12 @@ describe('Chat History Store - SSR and localStorage error branches', () => {
 
     expect(state.conversations).toHaveLength(1);
 
-    Storage.prototype.setItem = originalSetItem;
     consoleSpy.mockRestore();
   });
 
-  it('should not save to storage when userId is null', async () => {
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+  it('should create conversation without user', async () => {
+    // Mock fetch to fail (no user = no auth = API will fail)
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Unauthorized'));
 
     const module = await import('../../src/lib/stores/chatHistory.js');
     const store = module.chatHistoryStore;
@@ -1005,12 +998,9 @@ describe('Chat History Store - SSR and localStorage error branches', () => {
     // Reset to state without userId
     store.reset();
 
-    // The initial subscription save would happen but userId should prevent actual saving
-    // Create conversation without user - save should be skipped
-    const conv = store.createConversation('Test without user');
+    // Create conversation without user - should fall back to local creation
+    const conv = await store.createConversation('Test without user');
     expect(conv.title).toBe('Test without user');
-
-    setItemSpy.mockRestore();
   });
 });
 

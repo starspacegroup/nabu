@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>{status} - {info.title} | NebulaKit</title>
+	<title>{status} - {info.title} | Nabu</title>
 </svelte:head>
 
 <div class="error-page">

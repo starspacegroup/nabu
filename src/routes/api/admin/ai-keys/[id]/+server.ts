@@ -33,6 +33,7 @@ export const PUT: RequestHandler = async ({ params, request, platform, locals })
 		const models = data.models || (data.model ? [data.model] : existing.models || []);
 		const voiceModels =
 			data.voiceModels || (data.voiceModel ? [data.voiceModel] : existing.voiceModels || []);
+		const videoModels = data.videoModels ?? existing.videoModels ?? [];
 
 		const updatedKey = {
 			...existing,
@@ -43,6 +44,9 @@ export const PUT: RequestHandler = async ({ params, request, platform, locals })
 			voiceEnabled:
 				data.voiceEnabled !== undefined ? data.voiceEnabled : (existing.voiceEnabled ?? false),
 			voiceModels,
+			videoEnabled:
+				data.videoEnabled !== undefined ? data.videoEnabled : (existing.videoEnabled ?? false),
+			videoModels,
 			updatedAt: new Date().toISOString()
 		};
 

@@ -28,7 +28,7 @@
 </script>
 
 <svelte:head>
-	<title>{item.seoTitle || item.title} - NebulaKit</title>
+	<title>{item.seoTitle || item.title} - Nabu</title>
 	{#if item.seoDescription}
 		<meta name="description" content={item.seoDescription} />
 	{/if}

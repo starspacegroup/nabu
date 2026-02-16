@@ -40,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>Reset Configuration - NebulaKit</title>
+	<title>Reset Configuration - Nabu</title>
 </svelte:head>
 
 <div class="container">
