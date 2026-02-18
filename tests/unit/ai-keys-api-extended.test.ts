@@ -470,7 +470,7 @@ describe('AI Keys API', () => {
 
 	describe('Error handling for GET /api/admin/ai-keys', () => {
 		it('should return 500 when an error occurs fetching keys', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi.fn().mockRejectedValue(new Error('KV Error'))
 			};
@@ -493,7 +493,7 @@ describe('AI Keys API', () => {
 
 	describe('Error handling for POST /api/admin/ai-keys', () => {
 		it('should return 500 when an unexpected error occurs creating key', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi.fn().mockResolvedValue(null),
 				put: vi.fn().mockRejectedValue(new Error('KV write error'))
@@ -524,7 +524,7 @@ describe('AI Keys API', () => {
 
 	describe('Error handling for PUT /api/admin/ai-keys/[id]', () => {
 		it('should return 500 when an unexpected error occurs updating key', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi.fn().mockResolvedValue(JSON.stringify({ id: 'key1', name: 'Old Name' })),
 				put: vi.fn().mockRejectedValue(new Error('KV write error'))
@@ -554,7 +554,7 @@ describe('AI Keys API', () => {
 
 	describe('Error handling for PATCH /api/admin/ai-keys/[id]', () => {
 		it('should return 500 when an unexpected error occurs toggling key', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi
 					.fn()
@@ -582,7 +582,7 @@ describe('AI Keys API', () => {
 
 	describe('Error handling for DELETE /api/admin/ai-keys/[id]', () => {
 		it('should return 500 when an unexpected error occurs deleting key', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi
 					.fn()
@@ -606,6 +606,98 @@ describe('AI Keys API', () => {
 			}
 
 			consoleSpy.mockRestore();
+		});
+	});
+
+	describe('Admin (isAdmin) access to AI keys API', () => {
+		it('GET should allow access for isAdmin users', async () => {
+			const { GET } = await import('../../src/routes/api/admin/ai-keys/+server');
+
+			const response = await GET({
+				platform: { env: {} },
+				locals: { user: { id: '1', isOwner: false, isAdmin: true } }
+			} as any);
+
+			const result = await response.json();
+			expect(result.keys).toEqual([]);
+		});
+
+		it('GET should reject users with neither isOwner nor isAdmin', async () => {
+			const { GET } = await import('../../src/routes/api/admin/ai-keys/+server');
+
+			await expect(
+				GET({
+					platform: {},
+					locals: { user: { id: '1', isOwner: false, isAdmin: false } }
+				} as any)
+			).rejects.toThrow();
+		});
+
+		it('POST should allow access for isAdmin users', async () => {
+			const mockPut = vi.fn().mockResolvedValue(undefined);
+			const mockKV = {
+				get: vi.fn().mockResolvedValue(null),
+				put: mockPut
+			};
+
+			vi.stubGlobal('crypto', { randomUUID: () => 'admin-key-id' });
+
+			const { POST } = await import('../../src/routes/api/admin/ai-keys/+server');
+
+			const response = await POST({
+				request: {
+					json: vi.fn().mockResolvedValue({
+						name: 'Admin Created Key',
+						provider: 'openai',
+						apiKey: 'sk-admin-key'
+					})
+				},
+				platform: { env: { KV: mockKV } },
+				locals: { user: { id: '1', isOwner: false, isAdmin: true } }
+			} as any);
+
+			const result = await response.json();
+			expect(result.success).toBe(true);
+		});
+
+		it('PUT should allow access for isAdmin users', async () => {
+			const mockKV = {
+				get: vi.fn().mockResolvedValue(JSON.stringify({ id: 'key1', name: 'Old Name', models: [] })),
+				put: vi.fn().mockResolvedValue(undefined)
+			};
+
+			const { PUT } = await import('../../src/routes/api/admin/ai-keys/[id]/+server');
+
+			const response = await PUT({
+				params: { id: 'key1' },
+				request: {
+					json: vi.fn().mockResolvedValue({ name: 'Updated by Admin' })
+				},
+				platform: { env: { KV: mockKV } },
+				locals: { user: { id: '1', isOwner: false, isAdmin: true } }
+			} as any);
+
+			const result = await response.json();
+			expect(result.success).toBe(true);
+		});
+
+		it('DELETE should allow access for isAdmin users', async () => {
+			const mockKV = {
+				get: vi.fn().mockResolvedValue(JSON.stringify(['key1'])),
+				put: vi.fn().mockResolvedValue(undefined),
+				delete: vi.fn().mockResolvedValue(undefined)
+			};
+
+			const { DELETE } = await import('../../src/routes/api/admin/ai-keys/[id]/+server');
+
+			const response = await DELETE({
+				params: { id: 'key1' },
+				platform: { env: { KV: mockKV } },
+				locals: { user: { id: '1', isOwner: false, isAdmin: true } }
+			} as any);
+
+			const result = await response.json();
+			expect(result.success).toBe(true);
 		});
 	});
 });

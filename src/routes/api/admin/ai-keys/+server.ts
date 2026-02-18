@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 // GET - List all AI keys
 export const GET: RequestHandler = async ({ platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 
@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 
 // POST - Create new AI key
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 

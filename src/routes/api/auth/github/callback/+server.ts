@@ -234,7 +234,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 							name: linkedUser.name || githubUser.name,
 							email: linkedUser.email || githubUser.email,
 							avatarUrl: linkedUser.github_avatar_url || githubUser.avatar_url,
-							isOwner: false,
+							isOwner,
 							isAdmin: linkedUser.is_admin === 1
 						};
 

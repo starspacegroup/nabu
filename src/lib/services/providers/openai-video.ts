@@ -1,6 +1,14 @@
 /**
  * OpenAI Video Provider (Sora)
- * Implements video generation using OpenAI's video generation API
+ * Implements video generation using OpenAI's Sora Video API
+ * @see https://developers.openai.com/api/docs/guides/video-generation
+ *
+ * API endpoints:
+ *   POST   /v1/videos              - Create a video render job
+ *   GET    /v1/videos/{video_id}   - Poll job status & progress
+ *   GET    /v1/videos/{video_id}/content - Download the finished MP4
+ *   GET    /v1/videos              - List videos
+ *   DELETE /v1/videos/{video_id}   - Delete a video
  */
 
 import type {
@@ -15,12 +23,20 @@ const OPENAI_API_BASE = 'https://api.openai.com/v1';
 
 const OPENAI_VIDEO_MODELS: VideoModel[] = [
   {
-    id: 'sora',
-    displayName: 'Sora',
+    id: 'sora-2',
+    displayName: 'Sora 2',
     provider: 'openai',
-    maxDuration: 20,
+    maxDuration: 12,
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    supportedResolutions: ['1080p', '720p', '480p']
+    supportedResolutions: ['1080p', '720p']
+  },
+  {
+    id: 'sora-2-pro',
+    displayName: 'Sora 2 Pro',
+    provider: 'openai',
+    maxDuration: 12,
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    supportedResolutions: ['1080p', '720p']
   }
 ];
 
@@ -32,18 +48,17 @@ export class OpenAIVideoProvider implements VideoProvider {
     request: VideoGenerationRequest
   ): Promise<VideoGenerationResult> {
     try {
-      const response = await fetch(`${OPENAI_API_BASE}/videos/generations`, {
+      const response = await fetch(`${OPENAI_API_BASE}/videos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: request.model || 'sora',
+          model: request.model || 'sora-2',
           prompt: request.prompt,
           size: this.mapAspectRatio(request.aspectRatio),
-          duration: request.duration,
-          n: 1
+          seconds: String(request.duration || 8)
         })
       });
 
@@ -61,23 +76,27 @@ export class OpenAIVideoProvider implements VideoProvider {
 
       const data = (await response.json()) as {
         id: string;
+        object: string;
         status: string;
-        data?: Array<{ url: string; }>;
-        error?: { message: string; };
+        model: string;
+        progress: number;
+        seconds: string;
+        size: string;
       };
 
-      // OpenAI may return the video immediately or provide a job ID for polling
-      if (data.data && data.data.length > 0 && data.data[0].url) {
+      // The API returns a job with status 'queued' or 'in_progress'
+      // Video must be polled via GET /videos/{id} until 'completed'
+      if (data.status === 'completed') {
         return {
-          providerJobId: data.id || 'direct',
+          providerJobId: data.id,
           status: 'complete',
-          videoUrl: data.data[0].url
+          videoUrl: `${OPENAI_API_BASE}/videos/${data.id}/content`
         };
       }
 
       return {
         providerJobId: data.id,
-        status: data.status === 'completed' ? 'complete' : 'processing'
+        status: data.status === 'queued' ? 'queued' : 'processing'
       };
     } catch (err) {
       return {
@@ -93,7 +112,7 @@ export class OpenAIVideoProvider implements VideoProvider {
     providerJobId: string
   ): Promise<VideoStatusResult> {
     try {
-      const response = await fetch(`${OPENAI_API_BASE}/videos/generations/${providerJobId}`, {
+      const response = await fetch(`${OPENAI_API_BASE}/videos/${providerJobId}`, {
         headers: {
           Authorization: `Bearer ${apiKey}`
         }
@@ -110,29 +129,33 @@ export class OpenAIVideoProvider implements VideoProvider {
       }
 
       const data = (await response.json()) as {
+        id: string;
+        object: string;
         status: string;
-        data?: Array<{ url: string; }>;
-        error?: { message: string; };
+        model: string;
+        progress: number;
+        seconds: string;
+        size: string;
       };
 
-      if (data.status === 'completed' && data.data && data.data.length > 0) {
+      if (data.status === 'completed') {
         return {
           status: 'complete',
-          videoUrl: data.data[0].url,
+          videoUrl: `${OPENAI_API_BASE}/videos/${data.id}/content`,
           progress: 100
         };
       }
 
-      if (data.status === 'failed' || data.error) {
+      if (data.status === 'failed') {
         return {
           status: 'error',
-          error: data.error?.message || 'Video generation failed'
+          error: 'Video generation failed'
         };
       }
 
       return {
-        status: 'processing',
-        progress: 50 // OpenAI doesn't provide granular progress
+        status: data.status === 'queued' ? 'queued' : 'processing',
+        progress: data.progress ?? 0
       };
     } catch (err) {
       return {
@@ -146,8 +169,13 @@ export class OpenAIVideoProvider implements VideoProvider {
     return OPENAI_VIDEO_MODELS;
   }
 
-  async downloadVideo(_apiKey: string, videoUrl: string): Promise<ArrayBuffer> {
-    const response = await fetch(videoUrl);
+  async downloadVideo(apiKey: string, videoUrl: string): Promise<ArrayBuffer> {
+    // OpenAI video content endpoint requires authentication
+    const response = await fetch(videoUrl, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      }
+    });
     if (!response.ok) {
       throw new Error(`Failed to download video: ${response.status}`);
     }
@@ -155,17 +183,17 @@ export class OpenAIVideoProvider implements VideoProvider {
   }
 
   /**
-   * Map aspect ratio to OpenAI size parameter
+   * Map aspect ratio to OpenAI size parameter (width x height)
    */
   private mapAspectRatio(aspectRatio?: string): string {
     switch (aspectRatio) {
       case '9:16':
-        return '1080x1920';
+        return '720x1280';
       case '1:1':
         return '1080x1080';
       case '16:9':
       default:
-        return '1920x1080';
+        return '1280x720';
     }
   }
 }

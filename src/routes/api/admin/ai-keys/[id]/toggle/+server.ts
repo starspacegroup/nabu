@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 // PATCH - Toggle enabled status
 export const PATCH: RequestHandler = async ({ params, request, platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 

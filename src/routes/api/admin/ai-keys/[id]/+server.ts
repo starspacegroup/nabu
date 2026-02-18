@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 // PUT - Update AI key
 export const PUT: RequestHandler = async ({ params, request, platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 
@@ -74,7 +74,7 @@ export const PUT: RequestHandler = async ({ params, request, platform, locals })
 
 // PATCH - Toggle enabled status
 export const PATCH: RequestHandler = async ({ params, request, platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 
@@ -120,7 +120,7 @@ export const PATCH: RequestHandler = async ({ params, request, platform, locals 
 
 // DELETE - Delete AI key
 export const DELETE: RequestHandler = async ({ params, platform, locals }) => {
-	if (!locals.user?.isOwner) {
+	if (!locals.user?.isOwner && !locals.user?.isAdmin) {
 		throw error(403, 'Admin access required');
 	}
 

@@ -159,7 +159,8 @@
 
 	// Video models (static list from registry)
 	const videoModelOptions = [
-		{ id: 'sora', displayName: 'Sora', description: 'OpenAI video generation' }
+		{ id: 'sora-2', displayName: 'Sora 2', description: 'Fast video generation, ideal for iteration' },
+		{ id: 'sora-2-pro', displayName: 'Sora 2 Pro', description: 'Higher quality, production-grade output' }
 	];
 
 	onMount(() => {
@@ -287,7 +288,8 @@
 				}
 				closeForm();
 			} else {
-				errors.submit = 'Failed to save key';
+				const errorData = await response.json().catch(() => null);
+				errors.submit = errorData?.message || `Failed to save key (${response.status})`;
 			}
 		} catch (error) {
 			errors.submit = 'An error occurred while saving';

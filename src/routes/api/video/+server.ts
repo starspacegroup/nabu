@@ -18,9 +18,9 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
   const offset = parseInt(url.searchParams.get('offset') || '0');
   const status = url.searchParams.get('status'); // 'complete', 'error', 'processing'
 
-  let query = `SELECT id, prompt, provider, model, status, video_url, thumbnail_url,
-	                    r2_key, duration_seconds, aspect_ratio, cost, error,
-	                    created_at, completed_at
+  let query = `SELECT id, prompt, provider, provider_job_id, model, status, video_url, thumbnail_url,
+	                    r2_key, duration_seconds, aspect_ratio, resolution, cost, error,
+	                    created_at, completed_at, conversation_id, message_id
 	             FROM video_generations
 	             WHERE user_id = ?`;
   const params: (string | number)[] = [locals.user.id];
@@ -41,6 +41,7 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
     id: row.id,
     prompt: row.prompt,
     provider: row.provider,
+    providerJobId: row.provider_job_id,
     model: row.model,
     status: row.status,
     videoUrl: row.video_url,
@@ -48,10 +49,13 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
     r2Key: row.r2_key,
     duration: row.duration_seconds,
     aspectRatio: row.aspect_ratio,
+    resolution: row.resolution,
     cost: row.cost,
     error: row.error,
     createdAt: row.created_at,
-    completedAt: row.completed_at
+    completedAt: row.completed_at,
+    conversationId: row.conversation_id ?? null,
+    messageId: row.message_id ?? null
   }));
 
   // Get total count

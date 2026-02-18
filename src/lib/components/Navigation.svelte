@@ -117,6 +117,13 @@
 
 			<div class="nav-links" class:open={mobileMenuOpen}>
 				{#if user}
+					<a
+						href="/videos"
+						class:active={$page.url.pathname.startsWith('/videos')}
+						on:click={closeMobileMenu}
+					>
+						Videos
+					</a>
 					{#if user.isOwner || user.isAdmin}
 						<a
 							href="/admin"

@@ -168,18 +168,19 @@ export const GET: RequestHandler = async ({ params, platform, locals }) => {
                       httpMetadata: { contentType: 'video/mp4' }
                     });
 
-                    // Update with R2 key
+                    // Update with R2 key and set video_url to the R2 serving endpoint
+                    const r2Url = `/api/video/file/${r2Key}`;
                     await platform.env.DB.prepare(
-                      `UPDATE video_generations SET r2_key = ? WHERE id = ?`
+                      `UPDATE video_generations SET r2_key = ?, video_url = ? WHERE id = ?`
                     )
-                      .bind(r2Key, generationId)
+                      .bind(r2Key, r2Url, generationId)
                       .run();
 
                     if (generation.message_id) {
                       await platform.env.DB.prepare(
-                        `UPDATE chat_messages SET media_r2_key = ? WHERE id = ?`
+                        `UPDATE chat_messages SET media_r2_key = ?, media_url = ? WHERE id = ?`
                       )
-                        .bind(r2Key, generation.message_id)
+                        .bind(r2Key, r2Url, generation.message_id)
                         .run();
                     }
                   } catch (r2Err) {

@@ -6,7 +6,7 @@
 	<title>Documentation - Nabu</title>
 	<meta
 		name="description"
-		content="Nabu documentation - Learn how to build with the cosmic-grade SvelteKit starter powered by Cloudflare"
+		content="Nabu documentation — Marketing automation platform with optional AI-generated content and AI assistance for creating new products from scratch."
 	/>
 </svelte:head>
 
@@ -15,23 +15,23 @@
 		<header class="docs-header">
 			<h1>✨ Nabu Documentation</h1>
 			<p class="docs-intro">
-				A cosmic-grade SvelteKit starter template powered by Cloudflare's full stack.
-				Production-ready with Cloudflare Workers integration (D1, KV, R2, Queues, Turnstile), a
-				complete theme system, command palette, LLM chat UI, full authentication, and polished
-				drag-and-drop.
+				Nabu is a marketing automation platform with optional AI-generated content and AI
+				assistance for those looking to create a new product from scratch. Manage content,
+				run campaigns, leverage intelligent chat, and streamline your marketing
+				workflows — all from one place.
 			</p>
 		</header>
 
 		<nav class="docs-nav" aria-label="Documentation navigation">
 			<a href="#features">Features</a>
-			<a href="#quick-start">Quick Start</a>
+			<a href="#quick-start">Getting Started</a>
 			<a href="#testing">Testing</a>
 			<a href="#project-structure">Structure</a>
 			<a href="#theming">Theming</a>
 			<a href="#authentication">Auth</a>
-			<a href="#cloudflare">Cloudflare</a>
+			<a href="#cloudflare">Infrastructure</a>
 			<a href="#deployment">Deployment</a>
-			<a href="#zero-config">Zero-Config (Optional)</a>
+			<a href="#zero-config">Quick Setup</a>
 			<a href="#contributing">Contributing</a>
 		</nav>
 
@@ -39,46 +39,51 @@
 			<h2>🌟 Features</h2>
 			<div class="feature-grid">
 				<div class="feature-card">
-					<h3>🚀 Cloudflare Full Stack</h3>
-					<p>D1 database, KV storage, R2 buckets, Queues, and Turnstile built-in.</p>
+					<h3>� Content Management</h3>
+					<p>Create, organize, and publish marketing content with a built-in CMS and drag-and-drop editor.</p>
 				</div>
 				<div class="feature-card">
-					<h3>🎨 Theme System</h3>
-					<p>Light/dark modes with extensible CSS variables and WCAG AA compliance.</p>
+					<h3>🤖 AI-Powered Chat</h3>
+					<p>Intelligent chat interface with multi-provider AI support for content generation, brainstorming, and more.</p>
+				</div>
+				<div class="feature-card">
+					<h3>🎬 AI Video Generation</h3>
+					<p>Generate marketing videos using AI, with a built-in gallery to manage your creations.</p>
+				</div>
+				<div class="feature-card">
+					<h3>🔐 Authentication & Teams</h3>
+					<p>Email/password + SSO (Google, GitHub) with account linking and team management.</p>
 				</div>
 				<div class="feature-card">
 					<h3>⌨️ Command Palette</h3>
-					<p>Keyboard-first navigation with Cmd/Ctrl + K.</p>
+					<p>Keyboard-first navigation with Cmd/Ctrl + K for fast access to any feature.</p>
 				</div>
 				<div class="feature-card">
-					<h3>💬 LLM Chat UI</h3>
-					<p>Ready-to-use chat interface for AI integration with multiple providers.</p>
+					<h3>🎨 Customizable Themes</h3>
+					<p>Light/dark modes with WCAG AA compliance and fully customizable design tokens.</p>
 				</div>
 				<div class="feature-card">
-					<h3>🔐 Full Authentication</h3>
-					<p>Email/password + SSO (Google, GitHub) with account linking.</p>
+					<h3>📱 Mobile-Ready</h3>
+					<p>Responsive layouts optimized for managing campaigns from any device.</p>
 				</div>
 				<div class="feature-card">
-					<h3>📱 Mobile-First</h3>
-					<p>Responsive layouts optimized for all devices.</p>
+					<h3>🔗 Hermes Integration</h3>
+					<p>Seamlessly connects with the broader Hermes ecosystem for end-to-end marketing workflows.</p>
 				</div>
 				<div class="feature-card">
-					<h3>🎯 Drag & Drop</h3>
-					<p>Polished DnD with cross-column and mobile support.</p>
-				</div>
-				<div class="feature-card">
-					<h3>⚡ TypeScript</h3>
-					<p>Full type safety with Cloudflare Workers types.</p>
-				</div>
-				<div class="feature-card">
-					<h3>🎨 UI Components</h3>
-					<p>Beautiful, accessible components out of the box.</p>
+					<h3>☁️ Edge-Powered</h3>
+					<p>Deployed on Cloudflare's global edge network for blazing-fast performance worldwide.</p>
 				</div>
 			</div>
 		</section>
 
 		<section id="quick-start" class="docs-section">
-			<h2>🚀 Quick Start</h2>
+			<h2>🚀 Getting Started</h2>
+
+			<p>
+				Nabu is designed to get your marketing automation up and running quickly — with optional
+				AI features you can enable when you're ready. Follow these steps to set up your instance.
+			</p>
 
 			<div class="template-button-container">
 				<a
@@ -92,12 +97,12 @@
 							d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
 						/>
 					</svg>
-					Use this template
+					Deploy your own Nabu instance
 				</a>
 			</div>
 
 			<p class="template-hint">
-				Click the button above to create your own repository from the Nabu template on GitHub.
+				Click the button above to create your own Nabu instance from the GitHub template.
 			</p>
 
 			<pre><code
@@ -114,14 +119,14 @@ npm run build
 npm run deploy</code
 				></pre>
 			<p>
-				Visit <code>http://localhost:4277</code> to see your app!
+				Visit <code>http://localhost:4277</code> to access your Nabu dashboard.
 			</p>
 		</section>
 
 		<section id="testing" class="docs-section">
-			<h2>🧪 Testing (TDD Required!)</h2>
+			<h2>🧪 Testing</h2>
 			<p>
-				Nabu follows <strong>Test-Driven Development</strong> with 90%+ code coverage requirements.
+				Nabu follows <strong>Test-Driven Development</strong> with 90%+ code coverage requirements to ensure reliability.
 			</p>
 			<pre><code
 					># Run all tests
@@ -154,7 +159,7 @@ npm run test:all</code
 │   │   ├── stores/         # Svelte stores (theme, etc.)
 │   │   ├── server/         # Server-side utilities
 │   │   └── utils/          # Helper functions
-│   ├── routes/             # SvelteKit routes
+│   ├── routes/             # Application routes
 │   │   ├── auth/          # Authentication pages
 │   │   ├── chat/          # LLM chat interface
 │   │   └── documentation/ # Project documentation
@@ -167,7 +172,7 @@ npm run test:all</code
 
 		<section id="theming" class="docs-section">
 			<h2>🎨 Theming</h2>
-			<p>Nabu includes a comprehensive theme system with:</p>
+			<p>Nabu includes a comprehensive theme system so you can match your brand:</p>
 			<ul>
 				<li><strong>WCAG AA compliant</strong> colors (4.5:1 contrast minimum)</li>
 				<li>Light and dark modes with automatic system detection</li>
@@ -198,9 +203,7 @@ npm run test:all</code
 				<li>Account linking</li>
 			</ul>
 			<p>
-				Easily extend with <a href="https://authjs.dev/" target="_blank" rel="noopener noreferrer"
-					>@auth/sveltekit</a
-				> for more providers.
+				Easily extend with additional OAuth providers as your team grows.
 			</p>
 		</section>
 
@@ -234,8 +237,8 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 		<section id="deployment" class="docs-section">
 			<h2>🚀 Deployment</h2>
 			<p>
-				Nabu is designed to be deployed via <strong>Cloudflare Pages</strong> connected to your
-				GitHub repository for automatic deployments.
+				Nabu is deployed via <strong>Cloudflare Pages</strong> connected to your
+				GitHub repository for automatic deployments with zero downtime.
 			</p>
 
 			<h3>Step 1: Fork or Clone the Repository</h3>
@@ -266,7 +269,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 
 			<h3>Step 3: Configure Build Settings</h3>
 			<ul>
-				<li><strong>Framework preset:</strong> SvelteKit</li>
+				<li><strong>Framework preset:</strong> SvelteKit (auto-detected)</li>
 				<li><strong>Build command:</strong> <code>npm run build</code></li>
 				<li><strong>Build output directory:</strong> <code>.svelte-kit/cloudflare</code></li>
 			</ul>
@@ -315,16 +318,17 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 		</section>
 
 		<section id="tech-stack" class="docs-section">
-			<h2>🛠️ Tech Stack</h2>
+			<h2>🛠️ Built With</h2>
+			<p>Nabu is built on a modern, performant stack designed for reliability at scale:</p>
 			<ul>
-				<li>
-					<a href="https://kit.svelte.dev/" target="_blank" rel="noopener noreferrer">SvelteKit</a> -
-					Web framework
-				</li>
 				<li>
 					<a href="https://workers.cloudflare.com/" target="_blank" rel="noopener noreferrer"
 						>Cloudflare Workers</a
-					> - Edge runtime
+					> - Global edge runtime
+				</li>
+				<li>
+					<a href="https://kit.svelte.dev/" target="_blank" rel="noopener noreferrer">SvelteKit</a> -
+					Application framework
 				</li>
 				<li>
 					<a href="https://www.typescriptlang.org/" target="_blank" rel="noopener noreferrer"
@@ -332,38 +336,33 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 					> - Type safety
 				</li>
 				<li>
-					<a href="https://vitejs.dev/" target="_blank" rel="noopener noreferrer">Vite</a> - Build tool
-				</li>
-				<li>
-					<a href="https://vitest.dev/" target="_blank" rel="noopener noreferrer">Vitest</a> - Unit testing
-				</li>
-				<li>
-					<a href="https://playwright.dev/" target="_blank" rel="noopener noreferrer">Playwright</a>
-					- E2E testing
+					<a href="https://developers.cloudflare.com/d1/" target="_blank" rel="noopener noreferrer"
+						>Cloudflare D1</a
+					> - Edge SQL database
 				</li>
 			</ul>
 		</section>
 
 		<section id="zero-config" class="docs-section">
-			<h2>🔧 Zero-Config Setup (Optional)</h2>
+			<h2>🔧 Quick Setup (Optional)</h2>
 			<div class="recommended-box">
-				<strong>💡 Recommended:</strong> For production deployments, we recommend using
+				<strong>💡 Recommended:</strong> For production deployments, use
 				<strong>secure environment variables</strong> in Cloudflare Pages (see Deployment section
-				above). The zero-config setup below is an <em>alternative approach</em> for scenarios where you
-				want to configure credentials via a web UI instead.
+				above). The quick setup below is an <em>alternative approach</em> for scenarios where you
+				want to configure credentials via the Nabu admin UI instead.
 			</div>
 
 			<p>
-				Nabu can also work <strong>without any pre-configured environment variables</strong>.
-				All configuration is done through a web-based setup flow and stored in Cloudflare KV.
+				Nabu can work <strong>without any pre-configured environment variables</strong>.
+				All configuration is done through a web-based setup flow and stored securely.
 			</p>
 
-			<h3>When to Use Zero-Config</h3>
+			<h3>When to Use Quick Setup</h3>
 			<ul>
-				<li>👥 Non-technical users deploying their own instance</li>
-				<li>🧪 Quick prototyping and demos</li>
+				<li>👥 Getting your team onboarded fast</li>
+				<li>🧪 Quick demos and evaluations</li>
 				<li>🔄 Scenarios requiring runtime credential changes without redeployment</li>
-				<li>🎓 Learning and educational environments</li>
+				<li>🎓 Training and onboarding environments</li>
 			</ul>
 
 			<h3>The Setup Flow</h3>
@@ -412,12 +411,10 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 
 		<section id="contributing" class="docs-section">
 			<h2>🤝 Contributing</h2>
-			<p>We welcome contributions! Key requirements:</p>
+			<p>We welcome contributions to Nabu! Key requirements:</p>
 			<ul>
-				<li>✅ Test-Driven Development (TDD) - write tests first</li>
+				<li>✅ Test-Driven Development (TDD) — write tests first</li>
 				<li>✅ 90%+ code coverage on all changes</li>
-				<li>✅ Cloudflare-first architecture</li>
-				<li>✅ Minimal external dependencies</li>
 				<li>✅ All tests passing before PR</li>
 			</ul>
 		</section>
@@ -429,32 +426,21 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 					<a
 						href="https://github.com/starspacegroup/nabu"
 						target="_blank"
-						rel="noopener noreferrer">GitHub Repository</a
+						rel="noopener noreferrer">Nabu on GitHub</a
 					>
 				</li>
 				<li>
 					<a
-						href="https://developers.cloudflare.com/workers/"
+						href="https://hermes.starspace.group"
 						target="_blank"
-						rel="noopener noreferrer">Cloudflare Workers Docs</a
+						rel="noopener noreferrer">Hermes</a
 					>
 				</li>
 				<li>
-					<a href="https://developers.cloudflare.com/d1/" target="_blank" rel="noopener noreferrer"
-						>Cloudflare D1 Docs</a
-					>
-				</li>
-				<li>
-					<a href="https://kit.svelte.dev/docs" target="_blank" rel="noopener noreferrer"
-						>SvelteKit Docs</a
-					>
-				</li>
-				<li>
-					<a href="https://vitest.dev/" target="_blank" rel="noopener noreferrer">Vitest Docs</a>
-				</li>
-				<li>
-					<a href="https://playwright.dev/" target="_blank" rel="noopener noreferrer"
-						>Playwright Docs</a
+					<a
+						href="https://starspace.group"
+						target="_blank"
+						rel="noopener noreferrer">*Space</a
 					>
 				</li>
 			</ul>
@@ -462,11 +448,15 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 
 		<footer class="docs-footer">
 			<p>
-				⭐ If you find Nabu useful, please consider giving it a star on <a
-					href="https://github.com/starspacegroup/nabu"
+				Nabu is part of the <a
+					href="https://hermes.starspace.group"
 					target="_blank"
-					rel="noopener noreferrer">GitHub</a
-				>!
+					rel="noopener noreferrer">Hermes</a
+				> ecosystem, built by <a
+					href="https://starspace.group"
+					target="_blank"
+					rel="noopener noreferrer">*Space</a
+				>.
 			</p>
 		</footer>
 	</div>

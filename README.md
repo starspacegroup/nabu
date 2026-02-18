@@ -1,20 +1,20 @@
 # Nabu 🎬
 
-> **AI-powered marketing automation and video content generation**  
+> **Marketing automation platform with optional AI-generated content**  
 > _Named after the Babylonian god of writing and scribes_
 
-Nabu is the marketing engine behind [Ammoura](https://ammoura.me) — helping brands create, schedule, and publish video content for YouTube Shorts, TikTok, and more.
+Nabu is a marketing automation platform with optional AI-generated content and AI assistance for those looking to create a new product from scratch. Part of the [Hermes](https://hermes.starspace.group) ecosystem.
 
 ---
 
 ## ✨ Vision
 
-Nabu guides users from brand conception to automated content creation:
+Nabu guides users from product conception to automated marketing:
 
-1. **AI Onboarding** - Assess existing brand or build from scratch
+1. **AI Onboarding** - Assess your existing product or build one from scratch with AI assistance
 2. **Brand Creation** - Name, style guide, voice, positioning
-3. **Content Strategy** - AI-generated calendar and topics
-4. **Video Generation** - Automated shorts/reels with voiceover
+3. **Content Strategy** - Optional AI-generated calendar, topics, and campaigns
+4. **Video Generation** - Optional AI-powered shorts/reels with voiceover
 5. **Review & Publish** - Drafts for approval before going live
 
 ---
@@ -103,7 +103,7 @@ npm run deploy
 
 > "Nabu, the Babylonian god of scribes and wisdom, gave humanity the gift of writing. Today, Nabu gives merchants the power to craft and share their message across the digital world."
 
-Part of the Ammoura ecosystem — inspired by ancient Babylon's legacy of commerce and communication.
+Part of the Hermes ecosystem — inspired by ancient Babylon's legacy of commerce and communication.
 
 ---
 

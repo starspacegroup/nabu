@@ -43,15 +43,14 @@ showToast = false;
 
 <svelte:head>
 <title>Nabu</title>
-<meta name="description" content="Nabu - SvelteKit + Cloudflare full-stack starter" />
+<meta name="description" content="Nabu — Marketing automation platform by Hermes. AI-powered content, campaigns, and more." />
 </svelte:head>
 
 <div class="home" class:mounted>
 <header class="hero">
 <h1 class="title">Nabu</h1>
 <p class="subtitle">
-Full-stack SvelteKit + Cloudflare starter with auth, CMS, AI chat, and more.
-</p>
+Marketing automation platform with AI-powered content, campaign management, and intelligent chat — built for Hermes.
 
 <button
 class="search-trigger"
@@ -195,7 +194,7 @@ aria-label="Open command palette"
 <h3>Chat</h3>
 <p>AI text & voice conversations</p>
 </a>
-<a href="/chat/videos" class="nav-card">
+<a href="/videos" class="nav-card">
 <div class="card-icon video-icon">
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 <polygon points="23 7 16 12 23 17 23 7" />
@@ -203,7 +202,7 @@ aria-label="Open command palette"
 </svg>
 </div>
 <h3>Videos</h3>
-<p>AI-generated video gallery</p>
+<p>Create & manage AI videos</p>
 </a>
 <a href="/profile" class="nav-card">
 <div class="card-icon profile-icon">

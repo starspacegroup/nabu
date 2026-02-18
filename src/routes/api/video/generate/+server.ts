@@ -20,12 +20,14 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     prompt,
     model,
     aspectRatio,
+    duration,
     conversationId,
     messageId
   } = body as {
     prompt: string;
     model?: string;
     aspectRatio?: '16:9' | '9:16' | '1:1';
+    duration?: number;
     conversationId?: string;
     messageId?: string;
   };
@@ -49,16 +51,21 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(503, `Video provider "${videoKey.provider}" is not supported`);
   }
 
-  const selectedModel = model || provider.getAvailableModels()[0]?.id || 'sora';
+  const selectedModel = model || provider.getAvailableModels()[0]?.id || 'sora-2';
 
   // Generate a generation ID for tracking
   const generationId = crypto.randomUUID();
+
+  // Validate duration — OpenAI Sora accepts '4', '8', or '12' seconds
+  const validDurations = [4, 8, 12];
+  const videoDuration = duration && validDurations.includes(duration) ? duration : undefined;
 
   // Start video generation
   const result = await provider.generateVideo(videoKey.apiKey, {
     prompt: prompt.trim(),
     model: selectedModel,
-    aspectRatio: aspectRatio || '16:9'
+    aspectRatio: aspectRatio || '16:9',
+    duration: videoDuration
   });
 
   if (result.status === 'error') {
@@ -87,6 +94,12 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   }
 
   // Store the generation record
+  // Map provider status to DB-allowed values: 'pending', 'generating', 'complete', 'error'
+  const dbStatus = result.status === 'queued' ? 'pending'
+    : result.status === 'processing' ? 'generating'
+      : result.status === 'complete' ? 'complete'
+        : 'pending';
+
   try {
     await platform.env.DB.prepare(
       `INSERT INTO video_generations (id, user_id, message_id, conversation_id, prompt, provider, provider_job_id, model, status, video_url, aspect_ratio, created_at)
@@ -101,7 +114,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
         videoKey.provider,
         result.providerJobId,
         selectedModel,
-        result.status,
+        dbStatus,
         result.videoUrl || null,
         aspectRatio || '16:9'
       )

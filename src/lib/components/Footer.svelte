@@ -12,7 +12,7 @@
 					<span class="logo-text">Nabu</span>
 				</a>
 				<p class="footer-tagline">
-					A cosmic-grade SvelteKit starter powered by Cloudflare Workers.
+					Marketing automation with optional AI-generated content — helping you build and grow products from scratch.
 				</p>
 				<div class="footer-badge">
 					<svg
@@ -27,7 +27,7 @@
 						<path d="M2 17l10 5 10-5" />
 						<path d="M2 12l10 5 10-5" />
 					</svg>
-					<span>Powered by Cloudflare</span>
+					<span>Part of the Hermes ecosystem</span>
 				</div>
 			</div>
 
@@ -74,7 +74,11 @@
 		<!-- Bottom Bar -->
 		<div class="footer-bottom">
 			<p class="footer-copyright">
-				© {currentYear} Nabu. Created by
+				© {currentYear} Nabu. Created by <a
+					href="https://davis9001.dev"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="starspace-link">davis9001</a>, incubated in
 				<a
 					href="https://starspace.group"
 					target="_blank"

@@ -16,7 +16,7 @@ describe('Footer', () => {
 
 	it('should display the tagline', () => {
 		render(Footer);
-		expect(screen.getByText(/cosmic-grade sveltekit starter/i)).toBeInTheDocument();
+		expect(screen.getByText(/marketing automation with optional AI-generated content/i)).toBeInTheDocument();
 	});
 
 	it('should have navigation links section', () => {
@@ -92,8 +92,12 @@ describe('Footer', () => {
 		expect(screen.getByText(new RegExp(`© ${currentYear}`, 'i'))).toBeInTheDocument();
 	});
 
-	it('should display created by *Space link', () => {
+	it('should display created by davis9001 linked to davis9001.dev, incubated in *Space', () => {
 		render(Footer);
+		const davisLink = screen.getByRole('link', { name: /davis9001/i });
+		expect(davisLink).toHaveAttribute('href', 'https://davis9001.dev');
+		expect(davisLink).toHaveAttribute('target', '_blank');
+		expect(davisLink).toHaveAttribute('rel', 'noopener noreferrer');
 		const spaceLink = screen.getByRole('link', { name: /\*space/i });
 		expect(spaceLink).toHaveAttribute('href', 'https://starspace.group');
 		expect(spaceLink).toHaveAttribute('target', '_blank');
@@ -117,8 +121,8 @@ describe('Footer', () => {
 		expect(resourcesLink).toHaveAttribute('rel', 'noopener noreferrer');
 	});
 
-	it('should render Cloudflare badge', () => {
+	it('should render Hermes ecosystem badge', () => {
 		render(Footer);
-		expect(screen.getByText('Powered by Cloudflare')).toBeInTheDocument();
+		expect(screen.getByText('Part of the Hermes ecosystem')).toBeInTheDocument();
 	});
 });
