@@ -48,7 +48,7 @@
 	<div class="container">
 		<div class="nav-content">
 			<a href="/" class="logo" on:click={closeMobileMenu}>
-				<span class="logo-icon">✨</span>
+				<img src="/logo.svg" alt="Nabu logo" class="logo-img" />
 				<span class="logo-text">Nabu</span>
 			</a>
 
@@ -244,8 +244,10 @@
 		opacity: 0.8;
 	}
 
-	.logo-icon {
-		font-size: 1.5rem;
+	.logo-img {
+		width: 28px;
+		height: 28px;
+		object-fit: contain;
 	}
 
 	.nav-actions {
