@@ -5,10 +5,12 @@
 
 import type { VideoProvider, VideoModel } from './video-provider';
 import { OpenAIVideoProvider } from './providers/openai-video';
+import { WaveSpeedVideoProvider } from './providers/wavespeed-video';
 
 // Provider instances (singletons)
 const providers: Record<string, VideoProvider> = {
-  openai: new OpenAIVideoProvider()
+  openai: new OpenAIVideoProvider(),
+  wavespeed: new WaveSpeedVideoProvider()
 };
 
 /**

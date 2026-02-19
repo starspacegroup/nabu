@@ -58,7 +58,8 @@
 			label: 'Mistral AI',
 			models: ['mistral-large', 'mistral-medium', 'mistral-small']
 		},
-		{ value: 'cohere', label: 'Cohere', models: ['command', 'command-light'] }
+		{ value: 'cohere', label: 'Cohere', models: ['command', 'command-light'] },
+		{ value: 'wavespeed', label: 'WaveSpeed AI', models: [] as string[] }
 	];
 
 	// Format pricing for display
@@ -163,8 +164,123 @@
 		{ id: 'sora-2-pro', displayName: 'Sora 2 Pro', description: 'Higher quality, production-grade output' }
 	];
 
+	// WaveSpeed video/image model options
+	const wavespeedModelOptions = [
+		{ id: 'wan-2.1-t2v-720p', displayName: 'Wan 2.1 T2V 720p', description: 'Text-to-video, 720p quality', category: 'video' },
+		{ id: 'wan-2.1-i2v-720p', displayName: 'Wan 2.1 I2V 720p', description: 'Image-to-video, 720p quality', category: 'video' },
+		{ id: 'wan-2.1-t2v-480p', displayName: 'Wan 2.1 T2V 480p', description: 'Text-to-video, fast 480p', category: 'video' },
+		{ id: 'wan-2.2-t2v-720p', displayName: 'Wan 2.2 T2V 720p', description: 'Latest Wan text-to-video', category: 'video' },
+		{ id: 'wan-2.2-i2v-480p', displayName: 'Wan 2.2 I2V 480p', description: 'Latest Wan image-to-video', category: 'video' },
+		{ id: 'hunyuan-video-t2v', displayName: 'HunYuan Video', description: 'Tencent HunYuan text-to-video', category: 'video' },
+		{ id: 'ltx-2-19b-text-to-video', displayName: 'LTX 2 T2V', description: 'Lightricks text-to-video', category: 'video' },
+		{ id: 'ltx-2-19b-image-to-video', displayName: 'LTX 2 I2V', description: 'Lightricks image-to-video', category: 'video' },
+		{ id: 'framepack', displayName: 'FramePack', description: 'Frame-based video generation', category: 'video' },
+		{ id: 'flux-dev', displayName: 'Flux Dev', description: 'High-quality image generation', category: 'image' },
+		{ id: 'flux-schnell', displayName: 'Flux Schnell', description: 'Fast image generation', category: 'image' }
+	];
+
+	// WaveSpeed pricing data
+	interface WaveSpeedPricingModel {
+		model_id: string;
+		name: string;
+		base_price: number;
+		description: string;
+		type: string;
+	}
+	let wavespeedPricing: WaveSpeedPricingModel[] = [];
+	let wavespeedPricingLoading = false;
+	let wavespeedPricingError = '';
+	let wavespeedPricingCached = false;
+
+	async function loadWaveSpeedPricing(forceRefresh = false) {
+		if (wavespeedPricingLoading) return;
+		wavespeedPricingLoading = true;
+		wavespeedPricingError = '';
+		try {
+			const url = forceRefresh
+				? '/api/admin/ai-keys/wavespeed-pricing?refresh=true'
+				: '/api/admin/ai-keys/wavespeed-pricing';
+			const response = await fetch(url);
+			if (!response.ok) throw new Error('Failed to load pricing');
+			const data = await response.json();
+			wavespeedPricing = data.models || [];
+			wavespeedPricingCached = data.cached || false;
+			if (data.error) wavespeedPricingError = data.error;
+		} catch (err) {
+			console.error('Failed to load WaveSpeed pricing:', err);
+			wavespeedPricingError = 'Failed to load pricing data.';
+		} finally {
+			wavespeedPricingLoading = false;
+		}
+	}
+
+	/**
+	 * Look up base_price for a local model ID from the API pricing data.
+	 * Local IDs like "wan-2.1-t2v-720p" map to API model_ids like "wavespeed-ai/wan-2.1-t2v-720p".
+	 * Performs normalized matching (strips prefix, replaces / with -).
+	 */
+	function getWaveSpeedPrice(localModelId: string): number | null {
+		if (wavespeedPricing.length === 0) return null;
+
+		// Direct match with wavespeed-ai/ prefix
+		const prefixed = `wavespeed-ai/${localModelId}`;
+		const directMatch = wavespeedPricing.find(m => m.model_id === prefixed);
+		if (directMatch) return directMatch.base_price;
+
+		// Normalized match: strip prefix and replace / with -
+		const normalizedLocal = localModelId.toLowerCase();
+		const normalizedMatch = wavespeedPricing.find(m => {
+			const stripped = m.model_id.replace(/^wavespeed-ai\//, '').replace(/\//g, '-').toLowerCase();
+			return stripped === normalizedLocal;
+		});
+		if (normalizedMatch) return normalizedMatch.base_price;
+
+		return null;
+	}
+
+	/**
+	 * Get the model type from API data for display (e.g., "per second", "per image")
+	 */
+	function getWaveSpeedModelType(localModelId: string): string | null {
+		if (wavespeedPricing.length === 0) return null;
+
+		const prefixed = `wavespeed-ai/${localModelId}`;
+		const match = wavespeedPricing.find(m => m.model_id === prefixed) || 
+			wavespeedPricing.find(m => {
+				const stripped = m.model_id.replace(/^wavespeed-ai\//, '').replace(/\//g, '-').toLowerCase();
+				return stripped === localModelId.toLowerCase();
+			});
+		return match?.type || null;
+	}
+
+	// WaveSpeed key validation
+	let wavespeedValidating = false;
+	let wavespeedValidationResult: { valid: boolean; balance?: number; error?: string } | null = null;
+
+	async function validateWavespeedKey() {
+		if (!formData.apiKey.trim()) {
+			wavespeedValidationResult = { valid: false, error: 'Enter an API key first' };
+			return;
+		}
+		wavespeedValidating = true;
+		wavespeedValidationResult = null;
+		try {
+			const response = await fetch('/api/admin/ai-keys/wavespeed-validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ apiKey: formData.apiKey })
+			});
+			wavespeedValidationResult = await response.json();
+		} catch {
+			wavespeedValidationResult = { valid: false, error: 'Failed to validate key' };
+		} finally {
+			wavespeedValidating = false;
+		}
+	}
+
 	onMount(() => {
 		loadOpenAIModels();
+		loadWaveSpeedPricing();
 	});
 
 	function toggleModel(modelId: string) {
@@ -206,6 +322,7 @@
 			videoModels: []
 		};
 		errors = {};
+		wavespeedValidationResult = null;
 	}
 
 	function openEditForm(key: any) {
@@ -244,6 +361,7 @@
 			videoModels: []
 		};
 		errors = {};
+		wavespeedValidationResult = null;
 	}
 
 	function validateForm() {
@@ -608,15 +726,67 @@
 
 				<div class="form-group">
 					<label for="api-key">API Key</label>
+					{#if formData.provider === 'wavespeed'}
+						<div class="api-key-helper">
+							<a
+								href="https://wavespeed.ai/accesskey"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="btn btn-sm btn-outline"
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+									<polyline points="15 3 21 3 21 9" />
+									<line x1="10" y1="14" x2="21" y2="3" />
+								</svg>
+								Get Your API Key
+							</a>
+						</div>
+					{/if}
 					<input
 						id="api-key"
 						type="password"
 						bind:value={formData.apiKey}
 						class:error={errors.apiKey}
-						placeholder={editingKey ? 'Leave blank to keep existing' : 'Enter API key'}
+						placeholder={editingKey ? 'Leave blank to keep existing' : formData.provider === 'wavespeed' ? 'Paste your WaveSpeed API key' : 'Enter API key'}
 					/>
 					{#if errors.apiKey}
 						<span class="error-message">{errors.apiKey}</span>
+					{/if}
+					{#if formData.provider === 'wavespeed'}
+						<div class="wavespeed-validate">
+							<button
+								type="button"
+								class="btn btn-sm btn-secondary"
+								on:click={validateWavespeedKey}
+								disabled={wavespeedValidating}
+							>
+								{#if wavespeedValidating}
+									Validating...
+								{:else}
+									Validate Key
+								{/if}
+							</button>
+							{#if wavespeedValidationResult}
+								{#if wavespeedValidationResult.valid}
+									<span class="validation-success">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polyline points="20 6 9 17 4 12" />
+										</svg>
+										Valid — Balance: ${wavespeedValidationResult.balance?.toFixed(2)}
+									</span>
+								{:else}
+									<span class="validation-error">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="10" />
+											<line x1="15" y1="9" x2="9" y2="15" />
+											<line x1="9" y1="9" x2="15" y2="15" />
+										</svg>
+										{wavespeedValidationResult.error || 'Invalid key'}
+									</span>
+								{/if}
+							{/if}
+						</div>
 					{/if}
 				</div>
 
@@ -885,6 +1055,124 @@
 							</p>
 						{/if}
 					</div>
+				{:else if formData.provider === 'wavespeed'}
+					<!-- WaveSpeed models -->
+					<div class="form-section">
+						<div class="section-header">
+							<h3>
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<rect x="2" y="4" width="20" height="16" rx="2" />
+									<polygon points="10,9 16,12 10,15" />
+								</svg>
+								Video &amp; Image Models
+							</h3>
+							<div class="section-header-actions">
+								<span class="selection-count">{formData.videoModels.length} selected</span>
+								<label class="toggle-switch">
+									<input type="checkbox" bind:checked={formData.videoEnabled} />
+									<span class="slider"></span>
+								</label>
+							</div>
+						</div>
+						{#if formData.videoEnabled}
+							<p class="help-text-inline">
+								Select which WaveSpeed models to enable for video and image generation.
+								{#if wavespeedPricingLoading}
+									<span class="loading-hint">Loading pricing...</span>
+								{:else if wavespeedPricingCached}
+									<button type="button" class="refresh-pricing-btn" on:click|preventDefault={() => loadWaveSpeedPricing(true)}>
+										↻ Refresh pricing
+									</button>
+								{/if}
+							</p>
+							{@const videoModels = wavespeedModelOptions.filter(m => m.category === 'video')}
+							{@const imageModels = wavespeedModelOptions.filter(m => m.category === 'image')}
+							{#if videoModels.length > 0}
+								<div class="model-category-label">Video Models</div>
+								<div class="model-grid">
+									{#each videoModels as model}
+										{@const price = getWaveSpeedPrice(model.id)}
+										{@const modelType = getWaveSpeedModelType(model.id)}
+										<button
+											type="button"
+											class="model-card video-card"
+											class:selected={formData.videoModels.includes(model.id)}
+											on:click={() => toggleVideoModel(model.id)}
+										>
+											<div class="model-card-header">
+												<span class="model-name">{model.displayName}</span>
+												<label class="toggle-switch-sm">
+													<input
+														type="checkbox"
+														checked={formData.videoModels.includes(model.id)}
+														on:click|stopPropagation={() => toggleVideoModel(model.id)}
+													/>
+													<span class="slider-sm"></span>
+												</label>
+											</div>
+											<div class="model-description">
+												{model.description}
+											</div>
+											{#if price !== null}
+												<div class="model-pricing">
+													<span class="price-tag wavespeed">
+														<span class="price-label">Price:</span> ${price}{modelType?.includes('video') ? '/sec' : '/run'}
+													</span>
+												</div>
+											{/if}
+										</button>
+									{/each}
+								</div>
+							{/if}
+							{#if imageModels.length > 0}
+								<div class="model-category-label">Image Models</div>
+								<div class="model-grid">
+									{#each imageModels as model}
+										{@const price = getWaveSpeedPrice(model.id)}
+										<button
+											type="button"
+											class="model-card video-card"
+											class:selected={formData.videoModels.includes(model.id)}
+											on:click={() => toggleVideoModel(model.id)}
+										>
+											<div class="model-card-header">
+												<span class="model-name">{model.displayName}</span>
+												<label class="toggle-switch-sm">
+													<input
+														type="checkbox"
+														checked={formData.videoModels.includes(model.id)}
+														on:click|stopPropagation={() => toggleVideoModel(model.id)}
+													/>
+													<span class="slider-sm"></span>
+												</label>
+											</div>
+											<div class="model-description">
+												{model.description}
+											</div>
+											{#if price !== null}
+												<div class="model-pricing">
+													<span class="price-tag wavespeed">
+														<span class="price-label">Price:</span> ${price}/image
+													</span>
+												</div>
+											{/if}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						{:else}
+							<p class="help-text-inline disabled">
+								Toggle on to enable WaveSpeed video and image generation models.
+							</p>
+						{/if}
+					</div>
 				{:else}
 					<!-- Non-OpenAI providers -->
 					<div class="form-section">
@@ -1018,6 +1306,22 @@
 
 	.btn-secondary:hover {
 		background: var(--color-background);
+	}
+
+	.btn-sm {
+		padding: var(--spacing-xs) var(--spacing-sm);
+		font-size: 0.813rem;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
+	.btn-outline:hover {
+		background: var(--color-primary);
+		color: var(--color-background);
 	}
 
 	.btn-danger {
@@ -1549,9 +1853,35 @@
 		color: var(--color-secondary, #8b5cf6);
 	}
 
+	.price-tag.wavespeed {
+		background: rgba(59, 130, 246, 0.1);
+		color: var(--color-primary, #3b82f6);
+	}
+
 	.price-label {
 		font-weight: 500;
 		opacity: 0.7;
+	}
+
+	.loading-hint {
+		color: var(--color-text-secondary);
+		font-style: italic;
+		font-size: 0.8rem;
+	}
+
+	.refresh-pricing-btn {
+		background: none;
+		border: none;
+		color: var(--color-primary);
+		font-size: 0.8rem;
+		cursor: pointer;
+		padding: 0;
+		margin-left: var(--spacing-xs);
+		text-decoration: underline;
+	}
+
+	.refresh-pricing-btn:hover {
+		opacity: 0.8;
 	}
 
 	.toggle-switch-sm {
@@ -1698,5 +2028,56 @@
 			align-items: flex-start;
 			gap: var(--spacing-sm);
 		}
+	}
+
+	/* WaveSpeed-specific styles */
+	.api-key-helper {
+		display: flex;
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.api-key-helper a {
+		text-decoration: none;
+	}
+
+	.wavespeed-validate {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		margin-top: var(--spacing-sm);
+	}
+
+	.validation-success {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.813rem;
+		color: var(--color-success, #22c55e);
+		font-weight: 500;
+	}
+
+	.validation-error {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.813rem;
+		color: var(--color-error, #ef4444);
+		font-weight: 500;
+	}
+
+	.model-category-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin-top: var(--spacing-md);
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.model-description {
+		font-size: 0.75rem;
+		color: var(--color-text-secondary);
+		margin-top: 4px;
 	}
 </style>
