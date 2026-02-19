@@ -221,6 +221,10 @@
 		backdrop-filter: blur(10px);
 	}
 
+	.nav :global(.container) {
+		max-width: none;
+	}
+
 	.nav-content {
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
