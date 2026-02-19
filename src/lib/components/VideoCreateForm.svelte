@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 
+	interface ResolutionPricing {
+		estimatedCostPerSecond?: number;
+		estimatedCostPerGeneration?: number;
+	}
+
 	interface VideoModelPricing {
 		estimatedCostPerSecond?: number;
 		estimatedCostPerGeneration?: number;
+		pricingByResolution?: Record<string, ResolutionPricing>;
 		currency: string;
 	}
 
@@ -12,6 +18,10 @@
 		displayName: string;
 		provider: string;
 		maxDuration?: number;
+		supportedDurations?: number[];
+		supportedAspectRatios?: string[];
+		supportedResolutions?: string[];
+		validSizes?: Record<string, Record<string, string>>;
 		pricing?: VideoModelPricing;
 	}
 
@@ -22,10 +32,11 @@
 	let duration = 8;
 	let selectedModel = '';
 	let selectedProvider = '';
+	let selectedResolution = '720p';
 	let generating = false;
 
-	const aspectRatios = ['16:9', '9:16', '1:1'];
-	const durations = [4, 8, 12];
+	const allAspectRatios = ['16:9', '9:16', '1:1'];
+	const defaultDurations = [5, 8];
 
 	const providerDisplayNames: Record<string, string> = {
 		openai: 'OpenAI (Sora)',
@@ -33,7 +44,7 @@
 	};
 
 	const dispatch = createEventDispatcher<{
-		generate: { prompt: string; aspectRatio: string; duration: number; model: string; provider: string };
+		generate: { prompt: string; aspectRatio: string; duration: number; model: string; provider: string; resolution: string };
 	}>();
 
 	// Derive unique providers from models
@@ -58,17 +69,87 @@
 
 	// Pricing computation
 	$: currentModel = filteredModels.find((m) => m.id === selectedModel);
-	$: hasPricing = currentModel?.pricing != null;
-	$: estimatedCost = computeEstimatedCost(currentModel, duration);
 
-	function computeEstimatedCost(model: VideoModel | undefined, dur: number): string | null {
+	// Aspect ratio support: derive from validSizes or supportedAspectRatios
+	$: availableAspectRatios = (() => {
+		if (currentModel?.validSizes) {
+			return allAspectRatios.filter((ar) => ar in currentModel!.validSizes!);
+		}
+		return currentModel?.supportedAspectRatios || allAspectRatios;
+	})();
+
+	// Auto-correct aspect ratio if current selection is not valid for this model
+	$: if (availableAspectRatios.length > 0 && !availableAspectRatios.includes(aspectRatio)) {
+		aspectRatio = availableAspectRatios[0];
+	}
+
+	// Resolution support: derive from validSizes (filtered by current aspect ratio) or supportedResolutions
+	$: availableResolutions = (() => {
+		if (currentModel?.validSizes) {
+			const ratioSizes = currentModel.validSizes[aspectRatio];
+			return ratioSizes ? Object.keys(ratioSizes) : [];
+		}
+		return currentModel?.supportedResolutions || [];
+	})();
+	$: hasResolutionSelector = availableResolutions.length > 1;
+
+	// Duration support: derive from selected model or fall back to defaults
+	$: availableDurations = currentModel?.supportedDurations || defaultDurations;
+
+	// Reset duration when model changes and current selection isn't available
+	$: if (availableDurations.length > 0 && !availableDurations.includes(duration)) {
+		duration = availableDurations[0];
+	}
+
+	// Reset resolution when model changes and current selection isn't available
+	$: if (availableResolutions.length > 0 && !availableResolutions.includes(selectedResolution)) {
+		selectedResolution = availableResolutions[availableResolutions.length - 1]; // default to highest
+	}
+
+	$: hasPricing = currentModel?.pricing != null;
+	$: estimatedCost = computeEstimatedCost(currentModel, duration, selectedResolution);
+	$: effectiveRate = getEffectiveRate(currentModel, selectedResolution);
+
+	function getEffectiveRate(model: VideoModel | undefined, resolution: string): number | null {
 		if (!model?.pricing) return null;
 		const p = model.pricing;
-		let cost: number;
+
+		// Check resolution-specific pricing first
+		if (p.pricingByResolution?.[resolution]?.estimatedCostPerSecond != null) {
+			return p.pricingByResolution[resolution].estimatedCostPerSecond!;
+		}
+
+		// Fall back to top-level
 		if (typeof p.estimatedCostPerSecond === 'number') {
-			cost = p.estimatedCostPerSecond * dur;
-		} else if (typeof p.estimatedCostPerGeneration === 'number') {
-			cost = p.estimatedCostPerGeneration;
+			return p.estimatedCostPerSecond;
+		}
+
+		return null;
+	}
+
+	function computeEstimatedCost(model: VideoModel | undefined, dur: number, resolution: string): string | null {
+		if (!model?.pricing) return null;
+		const p = model.pricing;
+
+		// Resolve effective rates with resolution override
+		let costPerSecond = p.estimatedCostPerSecond;
+		let costPerGeneration = p.estimatedCostPerGeneration;
+
+		if (p.pricingByResolution?.[resolution]) {
+			const resPricing = p.pricingByResolution[resolution];
+			if (resPricing.estimatedCostPerSecond != null) {
+				costPerSecond = resPricing.estimatedCostPerSecond;
+			}
+			if (resPricing.estimatedCostPerGeneration != null) {
+				costPerGeneration = resPricing.estimatedCostPerGeneration;
+			}
+		}
+
+		let cost: number;
+		if (typeof costPerSecond === 'number' && costPerSecond > 0) {
+			cost = costPerSecond * dur;
+		} else if (typeof costPerGeneration === 'number' && costPerGeneration > 0) {
+			cost = costPerGeneration;
 		} else {
 			return null;
 		}
@@ -86,7 +167,8 @@
 			aspectRatio,
 			duration,
 			model: selectedModel,
-			provider: model.provider
+			provider: model.provider,
+			resolution: selectedResolution
 		});
 	}
 
@@ -135,7 +217,7 @@
 				<div class="option-group">
 					<label class="option-label">Aspect Ratio</label>
 					<div class="ratio-selector" role="radiogroup" aria-label="Aspect ratio">
-						{#each aspectRatios as ratio}
+						{#each availableAspectRatios as ratio}
 							<button
 								type="button"
 								class="ratio-btn"
@@ -153,7 +235,7 @@
 				<div class="option-group">
 					<label class="option-label">Duration</label>
 					<div class="ratio-selector" role="radiogroup" aria-label="Video duration">
-						{#each durations as d}
+						{#each availableDurations as d}
 							<button
 								type="button"
 								class="ratio-btn"
@@ -167,6 +249,26 @@
 						{/each}
 					</div>
 				</div>
+
+				{#if hasResolutionSelector}
+					<div class="option-group">
+						<label class="option-label">Resolution</label>
+						<div class="ratio-selector" role="radiogroup" aria-label="Video resolution">
+							{#each availableResolutions as res}
+								<button
+									type="button"
+									class="ratio-btn"
+									class:active={selectedResolution === res}
+									on:click={() => (selectedResolution = res)}
+									role="radio"
+									aria-checked={selectedResolution === res}
+								>
+									{res}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
 				{#if filteredModels.length > 1 || hasMultipleProviders}
 					<div class="option-group">
@@ -188,9 +290,9 @@
 						<line x1="8" y1="12" x2="16" y2="12" />
 					</svg>
 					<span>Estimated cost: <strong>{estimatedCost}</strong></span>
-					{#if currentModel?.pricing?.estimatedCostPerSecond}
-						<span class="pricing-detail">({duration}s &times; ${currentModel.pricing.estimatedCostPerSecond}/s)</span>
-					{:else}
+					{#if effectiveRate != null}
+						<span class="pricing-detail">({duration}s &times; ${effectiveRate}/s{hasResolutionSelector ? ` @ ${selectedResolution}` : ''})</span>
+					{:else if currentModel?.pricing?.estimatedCostPerGeneration}
 						<span class="pricing-detail">(per generation)</span>
 					{/if}
 				</div>

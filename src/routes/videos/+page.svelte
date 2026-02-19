@@ -30,6 +30,7 @@
 		displayName: string;
 		provider: string;
 		maxDuration?: number;
+		supportedDurations?: number[];
 		pricing?: {
 			estimatedCostPerSecond?: number;
 			estimatedCostPerGeneration?: number;
@@ -298,14 +299,14 @@
 	}
 
 	async function handleGenerate(
-		e: CustomEvent<{ prompt: string; aspectRatio: string; duration: number; model: string; provider: string }>
+		e: CustomEvent<{ prompt: string; aspectRatio: string; duration: number; model: string; provider: string; resolution: string }>
 	) {
-		const { prompt, aspectRatio, duration, model, provider } = e.detail;
+		const { prompt, aspectRatio, duration, model, provider, resolution } = e.detail;
 		try {
 			const res = await fetch('/api/video/generate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ prompt, aspectRatio, duration, model, provider })
+				body: JSON.stringify({ prompt, aspectRatio, duration, model, provider, resolution })
 			});
 
 			if (!res.ok) {

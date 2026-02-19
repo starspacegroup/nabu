@@ -1,22 +1,26 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// OpenAI model pricing per 1M tokens (as of December 2025)
-// Source: https://openai.com/api/pricing/
+// OpenAI model pricing per 1M tokens (as of February 2026)
+// Source: https://developers.openai.com/api/docs/pricing
 const OPENAI_PRICING: Record<string, { input: number; output: number; cached?: number; }> = {
-	// GPT-5.1 (flagship, latest)
+	// GPT-5.2 (latest flagship)
+	'gpt-5.2': { input: 1.75, output: 14, cached: 0.175 },
+	'gpt-5.2-pro': { input: 21, output: 168 },
+
+	// GPT-5.1
 	'gpt-5.1': { input: 1.25, output: 10, cached: 0.125 },
 
 	// GPT-5 models
-	'gpt-5': { input: 2, output: 8, cached: 0.2 },
+	'gpt-5': { input: 1.25, output: 10, cached: 0.125 },
 	'gpt-5-mini': { input: 0.25, output: 2, cached: 0.025 },
 	'gpt-5-nano': { input: 0.05, output: 0.4, cached: 0.005 },
 	'gpt-5-pro': { input: 15, output: 120 },
 
 	// GPT-4.1 models
-	'gpt-4.1': { input: 3, output: 12, cached: 0.75 },
-	'gpt-4.1-mini': { input: 0.8, output: 3.2, cached: 0.2 },
-	'gpt-4.1-nano': { input: 0.2, output: 0.8, cached: 0.05 },
+	'gpt-4.1': { input: 2, output: 8, cached: 0.50 },
+	'gpt-4.1-mini': { input: 0.40, output: 1.60, cached: 0.10 },
+	'gpt-4.1-nano': { input: 0.10, output: 0.40, cached: 0.025 },
 
 	// GPT-4o models
 	'gpt-4o': { input: 2.5, output: 10, cached: 1.25 },
@@ -38,70 +42,75 @@ const OPENAI_PRICING: Record<string, { input: number; output: number; cached?: n
 	'gpt-4o-mini-audio-preview-2024-12-17': { input: 0.15, output: 0.6 },
 
 	// o4-mini (reasoning)
-	'o4-mini': { input: 4, output: 16, cached: 1 },
+	'o4-mini': { input: 1.10, output: 4.40, cached: 0.275 },
 
 	// o3 models (reasoning)
-	o3: { input: 20, output: 80, cached: 10 },
-	'o3-mini': { input: 4, output: 16, cached: 2 },
+	o3: { input: 2, output: 8, cached: 0.50 },
+	'o3-pro': { input: 20, output: 80 },
+	'o3-mini': { input: 1.10, output: 4.40, cached: 0.55 },
 
 	// o1 models (reasoning)
 	o1: { input: 15, output: 60, cached: 7.5 },
 	'o1-2024-12-17': { input: 15, output: 60, cached: 7.5 },
+	'o1-pro': { input: 150, output: 600 },
 	'o1-preview': { input: 15, output: 60 },
 	'o1-preview-2024-09-12': { input: 15, output: 60 },
-	'o1-mini': { input: 3, output: 12, cached: 1.5 },
-	'o1-mini-2024-09-12': { input: 3, output: 12, cached: 1.5 },
+	'o1-mini': { input: 1.10, output: 4.40, cached: 0.55 },
+	'o1-mini-2024-09-12': { input: 1.10, output: 4.40, cached: 0.55 },
 
-	// GPT-4 Turbo
+	// GPT-4 Turbo (legacy)
 	'gpt-4-turbo': { input: 10, output: 30 },
 	'gpt-4-turbo-2024-04-09': { input: 10, output: 30 },
 	'gpt-4-turbo-preview': { input: 10, output: 30 },
 	'gpt-4-0125-preview': { input: 10, output: 30 },
 	'gpt-4-1106-preview': { input: 10, output: 30 },
 
-	// GPT-4
+	// GPT-4 (legacy)
 	'gpt-4': { input: 30, output: 60 },
 	'gpt-4-0613': { input: 30, output: 60 },
 	'gpt-4-0314': { input: 30, output: 60 },
 
-	// GPT-4 32k
+	// GPT-4 32k (legacy)
 	'gpt-4-32k': { input: 60, output: 120 },
 	'gpt-4-32k-0613': { input: 60, output: 120 },
 	'gpt-4-32k-0314': { input: 60, output: 120 },
 
-	// GPT-3.5 Turbo
+	// GPT-3.5 Turbo (legacy)
 	'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
 	'gpt-3.5-turbo-0125': { input: 0.5, output: 1.5 },
 	'gpt-3.5-turbo-1106': { input: 1, output: 2 },
 	'gpt-3.5-turbo-instruct': { input: 1.5, output: 2 },
 
-	// GPT-3.5 Turbo 16k
+	// GPT-3.5 Turbo 16k (legacy)
 	'gpt-3.5-turbo-16k': { input: 3, output: 4 },
 	'gpt-3.5-turbo-16k-0613': { input: 3, output: 4 },
 
 	// Realtime API models (text tokens per 1M)
-	'gpt-4o-realtime-preview': { input: 4, output: 16, cached: 0.4 },
-	'gpt-4o-realtime-preview-2024-12-17': { input: 4, output: 16, cached: 0.4 },
+	'gpt-realtime': { input: 4, output: 16, cached: 0.40 },
+	'gpt-realtime-mini': { input: 0.60, output: 2.40, cached: 0.06 },
+	'gpt-4o-realtime-preview': { input: 5, output: 20, cached: 2.50 },
+	'gpt-4o-realtime-preview-2024-12-17': { input: 5, output: 20, cached: 2.50 },
 	'gpt-4o-realtime-preview-2024-10-01': { input: 5, output: 20 },
-	'gpt-4o-mini-realtime-preview': { input: 0.6, output: 2.4, cached: 0.06 },
-	'gpt-4o-mini-realtime-preview-2024-12-17': { input: 0.6, output: 2.4, cached: 0.06 },
-	'gpt-realtime': { input: 4, output: 16, cached: 0.4 },
-	'gpt-realtime-mini': { input: 0.6, output: 2.4, cached: 0.06 }
+	'gpt-4o-mini-realtime-preview': { input: 0.60, output: 2.40, cached: 0.30 },
+	'gpt-4o-mini-realtime-preview-2024-12-17': { input: 0.60, output: 2.40, cached: 0.30 }
 };
 
-// Realtime API audio pricing per minute
+// Realtime API audio pricing per minute (estimated from audio token pricing)
+// Audio tokens: ~25 tokens/sec input, ~50 tokens/sec output
+// Source: https://developers.openai.com/api/docs/pricing (audio tokens section)
 const REALTIME_AUDIO_PRICING: Record<string, { input: number; output: number; }> = {
-	'gpt-4o-realtime-preview': { input: 0.06, output: 0.24 },
+	'gpt-realtime': { input: 0.05, output: 0.19 },          // $32/$64 per 1M audio tokens
+	'gpt-realtime-mini': { input: 0.015, output: 0.06 },     // $10/$20 per 1M audio tokens
+	'gpt-4o-realtime-preview': { input: 0.06, output: 0.24 },           // $40/$80 per 1M audio tokens
 	'gpt-4o-realtime-preview-2024-12-17': { input: 0.06, output: 0.24 },
-	'gpt-4o-realtime-preview-2024-10-01': { input: 0.1, output: 0.2 },
-	'gpt-4o-mini-realtime-preview': { input: 0.01, output: 0.04 },
-	'gpt-4o-mini-realtime-preview-2024-12-17': { input: 0.01, output: 0.04 },
-	'gpt-realtime': { input: 0.06, output: 0.24 },
-	'gpt-realtime-mini': { input: 0.01, output: 0.04 }
+	'gpt-4o-realtime-preview-2024-10-01': { input: 0.06, output: 0.24 },
+	'gpt-4o-mini-realtime-preview': { input: 0.015, output: 0.06 },     // $10/$20 per 1M audio tokens
+	'gpt-4o-mini-realtime-preview-2024-12-17': { input: 0.015, output: 0.06 }
 };
 
 // Models suitable for chat completions
 const CHAT_MODEL_PREFIXES = [
+	'gpt-5.2',
 	'gpt-5.1',
 	'gpt-5',
 	'gpt-4.1',

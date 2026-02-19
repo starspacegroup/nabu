@@ -3,8 +3,10 @@
  * Calculates costs for OpenAI API usage (text, voice, and video)
  */
 
-// OpenAI pricing per 1M tokens (as of Dec 2024)
-// Source: https://openai.com/pricing
+import { getVideoProvider } from '$lib/services/video-registry';
+
+// OpenAI pricing per 1M tokens (as of February 2026)
+// Source: https://developers.openai.com/api/docs/pricing
 export const MODEL_PRICING: Record<
 	string,
 	{
@@ -14,6 +16,70 @@ export const MODEL_PRICING: Record<
 		displayName: string;
 	}
 > = {
+	// GPT-5.2 (latest flagship)
+	'gpt-5.2': {
+		inputPer1M: 1.75,
+		outputPer1M: 14.0,
+		type: 'text',
+		displayName: 'GPT-5.2'
+	},
+	'gpt-5.2-pro': {
+		inputPer1M: 21.0,
+		outputPer1M: 168.0,
+		type: 'text',
+		displayName: 'GPT-5.2 Pro'
+	},
+	// GPT-5.1
+	'gpt-5.1': {
+		inputPer1M: 1.25,
+		outputPer1M: 10.0,
+		type: 'text',
+		displayName: 'GPT-5.1'
+	},
+	// GPT-5 models
+	'gpt-5': {
+		inputPer1M: 1.25,
+		outputPer1M: 10.0,
+		type: 'text',
+		displayName: 'GPT-5'
+	},
+	'gpt-5-mini': {
+		inputPer1M: 0.25,
+		outputPer1M: 2.0,
+		type: 'text',
+		displayName: 'GPT-5 mini'
+	},
+	'gpt-5-nano': {
+		inputPer1M: 0.05,
+		outputPer1M: 0.4,
+		type: 'text',
+		displayName: 'GPT-5 nano'
+	},
+	'gpt-5-pro': {
+		inputPer1M: 15.0,
+		outputPer1M: 120.0,
+		type: 'text',
+		displayName: 'GPT-5 Pro'
+	},
+	// GPT-4.1 models
+	'gpt-4.1': {
+		inputPer1M: 2.0,
+		outputPer1M: 8.0,
+		type: 'text',
+		displayName: 'GPT-4.1'
+	},
+	'gpt-4.1-mini': {
+		inputPer1M: 0.40,
+		outputPer1M: 1.60,
+		type: 'text',
+		displayName: 'GPT-4.1 mini'
+	},
+	'gpt-4.1-nano': {
+		inputPer1M: 0.10,
+		outputPer1M: 0.40,
+		type: 'text',
+		displayName: 'GPT-4.1 nano'
+	},
 	// GPT-4o models
 	'gpt-4o': {
 		inputPer1M: 2.5,
@@ -46,7 +112,52 @@ export const MODEL_PRICING: Record<
 		type: 'text',
 		displayName: 'GPT-4o mini'
 	},
-	// GPT-4 Turbo
+	// o4-mini (reasoning)
+	'o4-mini': {
+		inputPer1M: 1.10,
+		outputPer1M: 4.40,
+		type: 'text',
+		displayName: 'o4-mini'
+	},
+	// o3 models (reasoning)
+	o3: {
+		inputPer1M: 2.0,
+		outputPer1M: 8.0,
+		type: 'text',
+		displayName: 'o3'
+	},
+	'o3-pro': {
+		inputPer1M: 20.0,
+		outputPer1M: 80.0,
+		type: 'text',
+		displayName: 'o3 Pro'
+	},
+	'o3-mini': {
+		inputPer1M: 1.10,
+		outputPer1M: 4.40,
+		type: 'text',
+		displayName: 'o3 mini'
+	},
+	// o1 models (reasoning)
+	o1: {
+		inputPer1M: 15.0,
+		outputPer1M: 60.0,
+		type: 'text',
+		displayName: 'o1'
+	},
+	'o1-pro': {
+		inputPer1M: 150.0,
+		outputPer1M: 600.0,
+		type: 'text',
+		displayName: 'o1 Pro'
+	},
+	'o1-mini': {
+		inputPer1M: 1.10,
+		outputPer1M: 4.40,
+		type: 'text',
+		displayName: 'o1 mini'
+	},
+	// GPT-4 Turbo (legacy)
 	'gpt-4-turbo': {
 		inputPer1M: 10.0,
 		outputPer1M: 30.0,
@@ -59,14 +170,14 @@ export const MODEL_PRICING: Record<
 		type: 'text',
 		displayName: 'GPT-4 Turbo'
 	},
-	// GPT-4
+	// GPT-4 (legacy)
 	'gpt-4': {
 		inputPer1M: 30.0,
 		outputPer1M: 60.0,
 		type: 'text',
 		displayName: 'GPT-4'
 	},
-	// GPT-3.5 Turbo
+	// GPT-3.5 Turbo (legacy)
 	'gpt-3.5-turbo': {
 		inputPer1M: 0.5,
 		outputPer1M: 1.5,
@@ -79,10 +190,22 @@ export const MODEL_PRICING: Record<
 		type: 'text',
 		displayName: 'GPT-3.5 Turbo'
 	},
-	// Realtime API (voice) - pricing per 1M tokens
+	// Realtime API (voice) — text token pricing per 1M
+	'gpt-realtime': {
+		inputPer1M: 4.0,
+		outputPer1M: 16.0,
+		type: 'voice',
+		displayName: 'GPT Realtime'
+	},
+	'gpt-realtime-mini': {
+		inputPer1M: 0.60,
+		outputPer1M: 2.40,
+		type: 'voice',
+		displayName: 'GPT Realtime mini'
+	},
 	'gpt-4o-realtime-preview': {
-		inputPer1M: 5.0, // Audio input: $100/1M tokens, but ~20 tokens/sec audio
-		outputPer1M: 20.0, // Audio output: $200/1M tokens
+		inputPer1M: 5.0,
+		outputPer1M: 20.0,
 		type: 'voice',
 		displayName: 'GPT-4o Realtime'
 	},
@@ -97,6 +220,18 @@ export const MODEL_PRICING: Record<
 		outputPer1M: 20.0,
 		type: 'voice',
 		displayName: 'GPT-4o Realtime'
+	},
+	'gpt-4o-mini-realtime-preview': {
+		inputPer1M: 0.60,
+		outputPer1M: 2.40,
+		type: 'voice',
+		displayName: 'GPT-4o mini Realtime'
+	},
+	'gpt-4o-mini-realtime-preview-2024-12-17': {
+		inputPer1M: 0.60,
+		outputPer1M: 2.40,
+		type: 'voice',
+		displayName: 'GPT-4o mini Realtime'
 	}
 };
 
@@ -211,7 +346,9 @@ export function isVideoModel(model: string): boolean {
 	return MODEL_PRICING[model]?.type === 'video';
 }
 
-// Video pricing (flat per-generation pricing, varies by resolution and duration)
+// Legacy VIDEO_PRICING map — kept for backward compatibility but prefer
+// calculateVideoCostFromPricing() which uses the provider registry's
+// VideoModelPricing directly.
 export const VIDEO_PRICING: Record<
 	string,
 	{
@@ -226,7 +363,7 @@ export const VIDEO_PRICING: Record<
 };
 
 /**
- * Calculate cost for a video generation
+ * Calculate cost for a video generation (legacy — uses VIDEO_PRICING map)
  */
 export function calculateVideoCost(
 	model: string,
@@ -249,6 +386,80 @@ export function calculateVideoCost(
 export function formatVideoCost(model: string, durationSeconds: number): string {
 	const { cost, displayName } = calculateVideoCost(model, durationSeconds);
 	return `${displayName}: ${formatCost(cost)} (${durationSeconds}s)`;
+}
+
+/**
+ * Calculate cost from VideoModelPricing (from provider registry).
+ *
+ * Supports two pricing models:
+ * - estimatedCostPerSecond: cost = rate × duration (e.g. OpenAI Sora)
+ * - estimatedCostPerGeneration: flat cost per generation (e.g. WaveSpeed)
+ *
+ * When pricingByResolution is present and a matching resolution is given,
+ * the resolution-specific override replaces the top-level rates.
+ *
+ * When both per-second and per-generation are present, per-second pricing
+ * takes priority. Returns 0 when pricing is undefined or has no rate fields.
+ */
+export function calculateVideoCostFromPricing(
+	pricing: {
+		estimatedCostPerSecond?: number;
+		estimatedCostPerGeneration?: number;
+		pricingByResolution?: Record<string, { estimatedCostPerSecond?: number; estimatedCostPerGeneration?: number; }>;
+		currency?: string;
+	} | undefined | null,
+	durationSeconds: number,
+	resolution?: string
+): number {
+	if (!pricing) return 0;
+
+	// Resolve effective rates: resolution-specific overrides first, then top-level
+	let effectiveCostPerSecond = pricing.estimatedCostPerSecond;
+	let effectiveCostPerGeneration = pricing.estimatedCostPerGeneration;
+
+	if (resolution && pricing.pricingByResolution?.[resolution]) {
+		const resPricing = pricing.pricingByResolution[resolution];
+		if (resPricing.estimatedCostPerSecond != null) {
+			effectiveCostPerSecond = resPricing.estimatedCostPerSecond;
+		}
+		if (resPricing.estimatedCostPerGeneration != null) {
+			effectiveCostPerGeneration = resPricing.estimatedCostPerGeneration;
+		}
+	}
+
+	if (effectiveCostPerSecond != null && effectiveCostPerSecond > 0) {
+		return (durationSeconds || 0) * effectiveCostPerSecond;
+	}
+
+	if (effectiveCostPerGeneration != null && effectiveCostPerGeneration > 0) {
+		return effectiveCostPerGeneration;
+	}
+
+	return 0;
+}
+
+/**
+ * Look up a video model's pricing from the provider registry and compute cost.
+ *
+ * @param providerName - Provider key (e.g. 'openai', 'wavespeed')
+ * @param modelId - Model identifier (e.g. 'sora-2', 'wan2.1-t2v-turbo')
+ * @param durationSeconds - Video duration in seconds
+ * @param resolution - Optional resolution (e.g. '480p', '720p', '1080p') for resolution-aware pricing
+ * @returns Calculated cost, or 0 if provider/model not found
+ */
+export function lookupVideoModelCost(
+	providerName: string,
+	modelId: string,
+	durationSeconds: number,
+	resolution?: string
+): number {
+	const provider = getVideoProvider(providerName);
+	if (!provider) return 0;
+
+	const model = provider.getAvailableModels().find((m) => m.id === modelId);
+	if (!model?.pricing) return 0;
+
+	return calculateVideoCostFromPricing(model.pricing, durationSeconds, resolution);
 }
 
 /**

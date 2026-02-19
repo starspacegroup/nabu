@@ -770,6 +770,7 @@ describe('GET /api/video/models - Available models', () => {
         id: 'sora',
         displayName: 'Sora',
         provider: 'openai',
+        type: 'text-to-video',
         maxDuration: 12,
         supportedAspectRatios: ['16:9', '9:16', '1:1'],
         supportedResolutions: ['1080p', '720p']

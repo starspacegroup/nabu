@@ -135,7 +135,7 @@ describe('getAllEnabledVideoKeys', () => {
         apiKey: 'ws-test',
         enabled: true,
         videoEnabled: true,
-        videoModels: ['wan-2.1-t2v-720p']
+        videoModels: ['wan-2.1/t2v-720p']
       }
     ];
 
@@ -223,9 +223,10 @@ describe('GET /api/video/models — pricing and multi-provider', () => {
         id: 'sora-2',
         displayName: 'Sora 2',
         provider: 'openai',
+        type: 'text-to-video',
         maxDuration: 12,
         supportedAspectRatios: ['16:9', '9:16', '1:1'],
-        pricing: { estimatedCostPerSecond: 0.025, currency: 'USD' }
+        pricing: { estimatedCostPerSecond: 0.10, currency: 'USD' }
       }
     ]);
 
@@ -239,7 +240,7 @@ describe('GET /api/video/models — pricing and multi-provider', () => {
     const data = await response.json();
     expect(data.models).toHaveLength(1);
     expect(data.models[0].pricing).toBeDefined();
-    expect(data.models[0].pricing.estimatedCostPerSecond).toBe(0.025);
+    expect(data.models[0].pricing.estimatedCostPerSecond).toBe(0.10);
     expect(data.models[0].pricing.currency).toBe('USD');
   });
 
@@ -271,14 +272,16 @@ describe('GET /api/video/models — pricing and multi-provider', () => {
           id: 'sora-2',
           displayName: 'Sora 2',
           provider: 'openai',
-          pricing: { estimatedCostPerSecond: 0.025, currency: 'USD' }
+          type: 'text-to-video',
+          pricing: { estimatedCostPerSecond: 0.10, currency: 'USD' }
         }
       ])
       .mockReturnValueOnce([
         {
-          id: 'wan-2.1-t2v-720p',
+          id: 'wan-2.1/t2v-720p',
           displayName: 'Wan 2.1 720p',
           provider: 'wavespeed',
+          type: 'text-to-video',
           pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
         }
       ]);
@@ -308,7 +311,7 @@ describe('POST /api/video/generate — provider preference', () => {
     const mockProvider = {
       name: 'wavespeed',
       getAvailableModels: () => [
-        { id: 'wan-2.1-t2v-720p', displayName: 'Wan 2.1', provider: 'wavespeed' }
+        { id: 'wan-2.1/t2v-720p', displayName: 'Wan 2.1', provider: 'wavespeed' }
       ],
       generateVideo: vi.fn().mockResolvedValue({
         providerJobId: 'ws-job-1',
@@ -333,7 +336,7 @@ describe('POST /api/video/generate — provider preference', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: 'A sunset over mountains',
-          model: 'wan-2.1-t2v-720p',
+          model: 'wan-2.1/t2v-720p',
           provider: 'wavespeed',
           aspectRatio: '16:9',
           duration: 8
@@ -358,17 +361,17 @@ describe('VideoCreateForm — provider selection', () => {
       displayName: 'Sora 2',
       provider: 'openai',
       maxDuration: 12,
-      pricing: { estimatedCostPerSecond: 0.025, currency: 'USD' }
+      pricing: { estimatedCostPerSecond: 0.10, currency: 'USD' }
     },
     {
       id: 'sora-2-pro',
       displayName: 'Sora 2 Pro',
       provider: 'openai',
       maxDuration: 12,
-      pricing: { estimatedCostPerSecond: 0.05, currency: 'USD' }
+      pricing: { estimatedCostPerSecond: 0.30, currency: 'USD' }
     },
     {
-      id: 'wan-2.1-t2v-720p',
+      id: 'wan-2.1/t2v-720p',
       displayName: 'Wan 2.1 720p',
       provider: 'wavespeed',
       pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
@@ -422,7 +425,7 @@ describe('VideoCreateForm — provider selection', () => {
       ...multiProviderModels.filter((m) => m.provider === 'wavespeed'),
       // Add a second wavespeed model to ensure the model select is visible
       {
-        id: 'wan-2.2-t2v-720p',
+        id: 'wan-2.2/t2v-720p',
         displayName: 'Wan 2.2 720p',
         provider: 'wavespeed',
         pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
@@ -447,12 +450,14 @@ describe('VideoCreateForm — pricing preview', () => {
       displayName: 'Sora 2',
       provider: 'openai',
       maxDuration: 12,
-      pricing: { estimatedCostPerSecond: 0.025, currency: 'USD' }
+      supportedDurations: [4, 8, 12],
+      pricing: { estimatedCostPerSecond: 0.10, currency: 'USD' }
     },
     {
-      id: 'wan-2.1-t2v-720p',
+      id: 'wan-2.1/t2v-720p',
       displayName: 'Wan 2.1 720p',
       provider: 'wavespeed',
+      supportedDurations: [5, 8],
       pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
     }
   ];
@@ -468,10 +473,10 @@ describe('VideoCreateForm — pricing preview', () => {
       }
     });
 
-    // Default duration is 8s, cost per second is 0.025 → $0.20
+    // Default duration is 8s, cost per second is 0.10 → $0.80
     const pricingEl = screen.getByTestId('pricing-preview');
     expect(pricingEl).toBeInTheDocument();
-    expect(pricingEl.textContent).toContain('$0.20');
+    expect(pricingEl.textContent).toContain('$0.80');
   });
 
   it('should update pricing when duration changes', async () => {
@@ -485,12 +490,12 @@ describe('VideoCreateForm — pricing preview', () => {
       }
     });
 
-    // Switch to 12s → $0.30
+    // Switch to 12s → $1.20
     const btn12s = screen.getByRole('radio', { name: '12s' });
     await fireEvent.click(btn12s);
 
     const pricingEl = screen.getByTestId('pricing-preview');
-    expect(pricingEl.textContent).toContain('$0.30');
+    expect(pricingEl.textContent).toContain('$1.20');
   });
 
   it('should show per-generation pricing for flat-rate models', async () => {

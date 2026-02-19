@@ -21,16 +21,31 @@ import type {
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 
+/**
+ * Official OpenAI Sora API pricing (per second):
+ *   sora-2     — 480p: $0.04/sec, 720p: $0.10/sec
+ *   sora-2-pro — 480p: $0.04/sec, 720p: $0.30/sec, 1080p: $0.50/sec
+ * @see https://developers.openai.com/api/docs/pricing
+ */
 const OPENAI_VIDEO_MODELS: VideoModel[] = [
   {
     id: 'sora-2',
     displayName: 'Sora 2',
     provider: 'openai',
+    type: 'text-to-video',
     maxDuration: 12,
-    supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    supportedResolutions: ['1080p', '720p'],
+    supportedDurations: [4, 8, 12],
+    supportedAspectRatios: ['16:9', '9:16'],
+    supportedResolutions: ['720p'],
+    validSizes: {
+      '16:9': { '720p': '1280x720' },
+      '9:16': { '720p': '720x1280' }
+    },
     pricing: {
-      estimatedCostPerSecond: 0.025,
+      estimatedCostPerSecond: 0.10,
+      pricingByResolution: {
+        '720p': { estimatedCostPerSecond: 0.10 }
+      },
       currency: 'USD'
     }
   },
@@ -38,11 +53,21 @@ const OPENAI_VIDEO_MODELS: VideoModel[] = [
     id: 'sora-2-pro',
     displayName: 'Sora 2 Pro',
     provider: 'openai',
+    type: 'text-to-video',
     maxDuration: 12,
-    supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    supportedResolutions: ['1080p', '720p'],
+    supportedDurations: [4, 8, 12],
+    supportedAspectRatios: ['16:9', '9:16'],
+    supportedResolutions: ['720p', '1080p'],
+    validSizes: {
+      '16:9': { '720p': '1280x720', '1080p': '1792x1024' },
+      '9:16': { '720p': '720x1280', '1080p': '1024x1792' }
+    },
     pricing: {
-      estimatedCostPerSecond: 0.05,
+      estimatedCostPerSecond: 0.30,
+      pricingByResolution: {
+        '720p': { estimatedCostPerSecond: 0.30 },
+        '1080p': { estimatedCostPerSecond: 0.50 }
+      },
       currency: 'USD'
     }
   }
@@ -65,7 +90,7 @@ export class OpenAIVideoProvider implements VideoProvider {
         body: JSON.stringify({
           model: request.model || 'sora-2',
           prompt: request.prompt,
-          size: this.mapAspectRatio(request.aspectRatio),
+          size: this.mapAspectRatioAndResolution(request.aspectRatio, request.resolution, request.model),
           seconds: String(request.duration || 8)
         })
       });
@@ -98,13 +123,15 @@ export class OpenAIVideoProvider implements VideoProvider {
         return {
           providerJobId: data.id,
           status: 'complete',
-          videoUrl: `${OPENAI_API_BASE}/videos/${data.id}/content`
+          videoUrl: `${OPENAI_API_BASE}/videos/${data.id}/content`,
+          duration: parseFloat(data.seconds) || undefined
         };
       }
 
       return {
         providerJobId: data.id,
-        status: data.status === 'queued' ? 'queued' : 'processing'
+        status: data.status === 'queued' ? 'queued' : 'processing',
+        duration: parseFloat(data.seconds) || undefined
       };
     } catch (err) {
       return {
@@ -150,7 +177,8 @@ export class OpenAIVideoProvider implements VideoProvider {
         return {
           status: 'complete',
           videoUrl: `${OPENAI_API_BASE}/videos/${data.id}/content`,
-          progress: 100
+          progress: 100,
+          duration: parseFloat(data.seconds) || undefined
         };
       }
 
@@ -191,17 +219,40 @@ export class OpenAIVideoProvider implements VideoProvider {
   }
 
   /**
-   * Map aspect ratio to OpenAI size parameter (width x height)
+   * Map aspect ratio + resolution to OpenAI size parameter (width x height).
+   * Uses the validSizes lookup on each model definition, falling back to
+   * a hardcoded table for backwards compatibility.
    */
-  private mapAspectRatio(aspectRatio?: string): string {
+  private mapAspectRatioAndResolution(aspectRatio?: string, resolution?: string, modelId?: string): string {
+    // Try validSizes lookup first
+    const model = OPENAI_VIDEO_MODELS.find((m) => m.id === modelId);
+    if (model?.validSizes) {
+      const ar = aspectRatio || '16:9';
+      const res = resolution || '720p';
+      const size = model.validSizes[ar]?.[res];
+      if (size) return size;
+      // If the exact combo isn't found, pick the first valid size for this ratio
+      const ratioSizes = model.validSizes[ar];
+      if (ratioSizes) {
+        const firstRes = Object.keys(ratioSizes)[0];
+        if (firstRes) return ratioSizes[firstRes];
+      }
+    }
+
+    // Fallback table
+    const res = resolution || '720p';
+    if (res === '1080p') {
+      switch (aspectRatio) {
+        case '9:16': return '1024x1792';
+        case '16:9':
+        default: return '1792x1024';
+      }
+    }
+    // 720p (default)
     switch (aspectRatio) {
-      case '9:16':
-        return '720x1280';
-      case '1:1':
-        return '1080x1080';
+      case '9:16': return '720x1280';
       case '16:9':
-      default:
-        return '1280x720';
+      default: return '1280x720';
     }
   }
 }

@@ -32,6 +32,85 @@ describe('VideoCreateForm', () => {
     expect(screen.getByText('1:1')).toBeInTheDocument();
   });
 
+  it('should only show aspect ratios defined in validSizes', async () => {
+    const { default: VideoCreateForm } = await import(
+      '../../src/lib/components/VideoCreateForm.svelte'
+    );
+
+    render(VideoCreateForm, {
+      props: {
+        models: [{
+          id: 'sora-2',
+          displayName: 'Sora 2',
+          provider: 'openai',
+          supportedAspectRatios: ['16:9', '9:16'],
+          supportedResolutions: ['720p'],
+          validSizes: {
+            '16:9': { '720p': '1280x720' },
+            '9:16': { '720p': '720x1280' }
+          }
+        }]
+      }
+    });
+
+    expect(screen.getByText('16:9')).toBeInTheDocument();
+    expect(screen.getByText('9:16')).toBeInTheDocument();
+    expect(screen.queryByText('1:1')).not.toBeInTheDocument();
+  });
+
+  it('should only show resolutions valid for the selected aspect ratio', async () => {
+    const { default: VideoCreateForm } = await import(
+      '../../src/lib/components/VideoCreateForm.svelte'
+    );
+
+    render(VideoCreateForm, {
+      props: {
+        models: [{
+          id: 'test-model',
+          displayName: 'Test',
+          provider: 'openai',
+          supportedResolutions: ['480p', '720p', '1080p'],
+          validSizes: {
+            '16:9': { '720p': '1280x720', '1080p': '1920x1080' },
+            '9:16': { '720p': '720x1280' }
+          }
+        }]
+      }
+    });
+
+    // Default aspect ratio is 16:9 — should show 720p and 1080p
+    const radioGroup = screen.getByRole('radiogroup', { name: /video resolution/i });
+    expect(radioGroup).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '720p' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '1080p' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: '480p' })).not.toBeInTheDocument();
+  });
+
+  it('should auto-correct aspect ratio when switching to model without it', async () => {
+    const { default: VideoCreateForm } = await import(
+      '../../src/lib/components/VideoCreateForm.svelte'
+    );
+
+    render(VideoCreateForm, {
+      props: {
+        models: [{
+          id: 'sora-2',
+          displayName: 'Sora 2',
+          provider: 'openai',
+          validSizes: {
+            '16:9': { '720p': '1280x720' },
+            '9:16': { '720p': '720x1280' }
+          }
+        }]
+      }
+    });
+
+    // 1:1 should not be present — 16:9 should be selected by default
+    expect(screen.queryByRole('radio', { name: '1:1' })).not.toBeInTheDocument();
+    const btn16 = screen.getByRole('radio', { name: '16:9' });
+    expect(btn16.getAttribute('aria-checked')).toBe('true');
+  });
+
   it('should show generate button', async () => {
     const { default: VideoCreateForm } = await import(
       '../../src/lib/components/VideoCreateForm.svelte'
@@ -75,7 +154,7 @@ describe('VideoCreateForm', () => {
     );
 
     render(VideoCreateForm, {
-      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai' }] }
+      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai', supportedDurations: [4, 8, 12] }] }
     });
 
     expect(screen.getByText('4s')).toBeInTheDocument();
@@ -89,7 +168,7 @@ describe('VideoCreateForm', () => {
     );
 
     render(VideoCreateForm, {
-      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai' }] }
+      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai', supportedDurations: [4, 8, 12] }] }
     });
 
     const btn8s = screen.getByRole('radio', { name: '8s' });
@@ -102,7 +181,7 @@ describe('VideoCreateForm', () => {
     );
 
     render(VideoCreateForm, {
-      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai' }] }
+      props: { models: [{ id: 'sora', displayName: 'Sora', provider: 'openai', supportedDurations: [4, 8, 12] }] }
     });
 
     const btn12s = screen.getByRole('radio', { name: '12s' });

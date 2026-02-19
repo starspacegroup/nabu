@@ -63,7 +63,7 @@ describe('WaveSpeed AI Integration', () => {
           provider: 'wavespeed',
           apiKey: 'ws-test-key-12345',
           videoEnabled: true,
-          videoModels: ['wan-2.1-t2v-720p', 'flux-dev']
+          videoModels: ['wan-2.1/t2v-720p', 'flux-dev']
         })
       });
 
@@ -77,7 +77,7 @@ describe('WaveSpeed AI Integration', () => {
       expect(data.success).toBe(true);
       expect(data.key.provider).toBe('wavespeed');
       expect(data.key.videoEnabled).toBe(true);
-      expect(data.key.videoModels).toContain('wan-2.1-t2v-720p');
+      expect(data.key.videoModels).toContain('wan-2.1/t2v-720p');
       expect(data.key.videoModels).toContain('flux-dev');
       // API key should not be returned
       expect(data.key.apiKey).toBeUndefined();
@@ -96,7 +96,7 @@ describe('WaveSpeed AI Integration', () => {
           apiKey: 'ws-full-key',
           models: ['flux-dev', 'flux-schnell'],
           videoEnabled: true,
-          videoModels: ['wan-2.1-t2v-720p']
+          videoModels: ['wan-2.1/t2v-720p']
         })
       });
 
@@ -109,7 +109,7 @@ describe('WaveSpeed AI Integration', () => {
       const data = await result.json();
       expect(data.success).toBe(true);
       expect(data.key.models).toContain('flux-dev');
-      expect(data.key.videoModels).toContain('wan-2.1-t2v-720p');
+      expect(data.key.videoModels).toContain('wan-2.1/t2v-720p');
     });
   });
 
@@ -131,7 +131,7 @@ describe('WaveSpeed AI Integration', () => {
         apiKey: 'ws-secret',
         enabled: true,
         videoEnabled: true,
-        videoModels: ['wan-2.1-t2v-720p'],
+        videoModels: ['wan-2.1/t2v-720p'],
         createdAt: '2024-01-02'
       };
 
@@ -315,7 +315,7 @@ describe('WaveSpeed AI Integration', () => {
 
       // Should include popular WaveSpeed video models
       const modelIds = models.map((m) => m.id);
-      expect(modelIds).toContain('wan-2.1-t2v-720p');
+      expect(modelIds).toContain('wan-2.1/t2v-720p');
     });
 
     it('should have correct provider name on models', async () => {
@@ -351,14 +351,14 @@ describe('WaveSpeed AI Integration', () => {
 
       const result = await provider!.generateVideo('ws-test-key', {
         prompt: 'A cat in space',
-        model: 'wavespeed-ai/wan-2.1-t2v-720p'
+        model: 'wan-2.1/t2v-720p'
       });
 
       expect(result.providerJobId).toBe('pred_abc123');
       expect(result.status).toBe('queued');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.1-t2v-720p',
+        'https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.1/t2v-720p',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -488,7 +488,7 @@ describe('WaveSpeed AI Integration', () => {
         apiKey: 'ws-key',
         enabled: true,
         videoEnabled: true,
-        videoModels: ['wan-2.1-t2v-720p'],
+        videoModels: ['wan-2.1/t2v-720p'],
         createdAt: '2024-01-01'
       };
 
@@ -517,7 +517,7 @@ describe('WaveSpeed AI Integration', () => {
         apiKey: 'ws-key',
         enabled: true,
         videoEnabled: true,
-        videoModels: ['wan-2.1-t2v-720p'],
+        videoModels: ['wan-2.1/t2v-720p'],
         createdAt: '2024-01-01'
       };
 

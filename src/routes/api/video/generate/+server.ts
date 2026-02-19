@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { getEnabledVideoKey, getVideoProvider } from '$lib/services/video-registry';
+import { calculateVideoCostFromPricing } from '$lib/utils/cost';
 
 /**
  * POST /api/video/generate
@@ -21,6 +22,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     model,
     aspectRatio,
     duration,
+    resolution,
     conversationId,
     messageId,
     provider: preferredProvider
@@ -29,6 +31,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     model?: string;
     aspectRatio?: '16:9' | '9:16' | '1:1';
     duration?: number;
+    resolution?: string;
     conversationId?: string;
     messageId?: string;
     provider?: string;
@@ -67,7 +70,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     prompt: prompt.trim(),
     model: selectedModel,
     aspectRatio: aspectRatio || '16:9',
-    duration: videoDuration
+    duration: videoDuration,
+    resolution: resolution || undefined
   });
 
   if (result.status === 'error') {
@@ -102,10 +106,29 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
       : result.status === 'complete' ? 'complete'
         : 'pending';
 
+  // Calculate cost if the video completed immediately
+  let generationCost = 0;
+  if (dbStatus === 'complete') {
+    try {
+      const modelInfo = provider.getAvailableModels().find(
+        (m) => m.id === selectedModel
+      );
+      if (modelInfo?.pricing) {
+        generationCost = calculateVideoCostFromPricing(
+          modelInfo.pricing,
+          result.duration || 0,
+          resolution || undefined
+        );
+      }
+    } catch {
+      // Non-critical: default to 0 if pricing lookup fails
+    }
+  }
+
   try {
     await platform.env.DB.prepare(
-      `INSERT INTO video_generations (id, user_id, message_id, conversation_id, prompt, provider, provider_job_id, model, status, video_url, aspect_ratio, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      `INSERT INTO video_generations (id, user_id, message_id, conversation_id, prompt, provider, provider_job_id, model, status, video_url, aspect_ratio, resolution, duration_seconds, cost, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
       .bind(
         generationId,
@@ -118,7 +141,10 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
         selectedModel,
         dbStatus,
         result.videoUrl || null,
-        aspectRatio || '16:9'
+        aspectRatio || '16:9',
+        resolution || null,
+        result.duration || videoDuration || null,
+        generationCost
       )
       .run();
   } catch (err) {

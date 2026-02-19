@@ -27,6 +27,8 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
   for (const key of videoKeys) {
     const models = getModelsForKey(key);
     for (const m of models) {
+      // Only include text-to-video models in the video generation UI
+      if (m.type !== 'text-to-video') continue;
       if (!seenModelIds.has(m.id)) {
         seenModelIds.add(m.id);
         allModels.push({
@@ -34,6 +36,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
           displayName: m.displayName,
           provider: m.provider,
           maxDuration: m.maxDuration,
+          supportedDurations: m.supportedDurations,
           supportedAspectRatios: m.supportedAspectRatios,
           supportedResolutions: m.supportedResolutions,
           pricing: m.pricing || null

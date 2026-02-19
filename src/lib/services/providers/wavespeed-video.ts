@@ -39,42 +39,58 @@ function mapStatus(wsStatus: string): 'queued' | 'processing' | 'complete' | 'er
 /**
  * Curated list of popular WaveSpeed video models
  * These are the most commonly used models available via WaveSpeed's API
+ *
+ * Pricing values below are fallback estimates. Live pricing is fetched from
+ * the WaveSpeed API (/api/admin/ai-keys/wavespeed-pricing) and displayed in
+ * the admin panel. These fallbacks are used in the VideoCreateForm when live
+ * pricing is not available.
+ * @see https://wavespeed.ai/pricing
  */
 const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
   // Wan 2.1 Models
   {
-    id: 'wan-2.1-t2v-720p',
+    id: 'wan-2.1/t2v-720p',
     displayName: 'Wan 2.1 Text-to-Video 720p',
     provider: 'wavespeed',
+    type: 'text-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
   {
-    id: 'wan-2.1-i2v-720p',
+    id: 'wan-2.1/i2v-720p',
     displayName: 'Wan 2.1 Image-to-Video 720p',
     provider: 'wavespeed',
+    type: 'image-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   },
   {
-    id: 'wan-2.1-t2v-480p',
+    id: 'wan-2.1/t2v-480p',
     displayName: 'Wan 2.1 Text-to-Video 480p',
     provider: 'wavespeed',
+    type: 'text-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.02, currency: 'USD' }
   },
   // Wan 2.2 Models
   {
-    id: 'wan-2.2-t2v-720p',
+    id: 'wan-2.2/t2v-720p',
     displayName: 'Wan 2.2 Text-to-Video 720p',
     provider: 'wavespeed',
+    type: 'text-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   },
   {
-    id: 'wan-2.2-i2v-480p',
+    id: 'wan-2.2/i2v-480p',
     displayName: 'Wan 2.2 Image-to-Video 480p',
     provider: 'wavespeed',
+    type: 'image-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
@@ -83,6 +99,7 @@ const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
     id: 'flux-dev',
     displayName: 'FLUX Dev',
     provider: 'wavespeed',
+    type: 'image',
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.025, currency: 'USD' }
   },
@@ -90,37 +107,46 @@ const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
     id: 'flux-schnell',
     displayName: 'FLUX Schnell',
     provider: 'wavespeed',
+    type: 'image',
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.015, currency: 'USD' }
   },
   // Hunyuan Video Models
   {
-    id: 'hunyuan-video-t2v',
+    id: 'hunyuan-video/t2v',
     displayName: 'Hunyuan Video Text-to-Video',
     provider: 'wavespeed',
+    type: 'text-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.05, currency: 'USD' }
   },
   // LTX Video Models
   {
-    id: 'ltx-2-19b-text-to-video',
+    id: 'ltx-video/ltx-2-19b-text-to-video',
     displayName: 'LTX 2 Text-to-Video',
     provider: 'wavespeed',
+    type: 'text-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
   {
-    id: 'ltx-2-19b-image-to-video',
+    id: 'ltx-video/ltx-2-19b-image-to-video',
     displayName: 'LTX 2 Image-to-Video',
     provider: 'wavespeed',
+    type: 'image-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.035, currency: 'USD' }
   },
   // Framepack
   {
-    id: 'framepack',
+    id: 'framepack/framepack-f1',
     displayName: 'Framepack',
     provider: 'wavespeed',
+    type: 'image-to-video',
+    supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   }
@@ -137,9 +163,10 @@ export class WaveSpeedVideoProvider implements VideoProvider {
     apiKey: string,
     request: VideoGenerationRequest
   ): Promise<VideoGenerationResult> {
-    // The model ID should be in the format "owner/model" for WaveSpeed API
-    // If it doesn't contain a slash, prefix with "wavespeed-ai/"
-    const modelPath = request.model.includes('/')
+    // The model ID maps to a WaveSpeed API URL path segment.
+    // IDs may contain slashes for sub-paths (e.g., "wan-2.1/t2v-720p").
+    // Always prefix with "wavespeed-ai/" unless already present.
+    const modelPath = request.model.startsWith('wavespeed-ai/')
       ? request.model
       : `wavespeed-ai/${request.model}`;
 

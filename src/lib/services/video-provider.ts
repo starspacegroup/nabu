@@ -10,6 +10,7 @@ export interface VideoGenerationRequest {
   model: string;
   aspectRatio?: '16:9' | '9:16' | '1:1';
   duration?: number;
+  /** Target resolution (e.g. '480p', '720p', '1080p'). Affects output quality and pricing. */
   resolution?: string;
 }
 
@@ -33,22 +34,48 @@ export interface VideoStatusResult {
   cost?: number;
 }
 
-export interface VideoModelPricing {
-  /** Cost per second of generated video (e.g. OpenAI Sora) */
+/** Resolution-specific pricing override */
+export interface ResolutionPricing {
   estimatedCostPerSecond?: number;
-  /** Flat cost per generation regardless of duration (e.g. WaveSpeed) */
   estimatedCostPerGeneration?: number;
+}
+
+export interface VideoModelPricing {
+  /** Cost per second of generated video — default/fallback rate (e.g. OpenAI Sora) */
+  estimatedCostPerSecond?: number;
+  /** Flat cost per generation regardless of duration — default/fallback (e.g. WaveSpeed) */
+  estimatedCostPerGeneration?: number;
+  /**
+   * Resolution-specific pricing overrides.
+   * Keys are resolution labels (e.g. '480p', '720p', '1080p').
+   * When a resolution key is present, its rates take priority over the
+   * top-level estimatedCostPerSecond / estimatedCostPerGeneration.
+   */
+  pricingByResolution?: Record<string, ResolutionPricing>;
   /** ISO 4217 currency code */
   currency: string;
 }
+
+export type VideoModelType = 'text-to-video' | 'image-to-video' | 'image';
 
 export interface VideoModel {
   id: string;
   displayName: string;
   provider: string;
+  /** The type of generation this model performs */
+  type: VideoModelType;
   maxDuration?: number;
+  /** Allowed duration values in seconds (e.g. [5, 8]). Provider APIs may only accept specific values. */
+  supportedDurations?: number[];
   supportedAspectRatios?: string[];
   supportedResolutions?: string[];
+  /**
+   * Explicit map of valid (aspectRatio, resolution) → API size string.
+   * Keys are aspect ratio values (e.g. '16:9'), values map resolution labels
+   * (e.g. '720p') to the concrete size string the provider API expects.
+   * When present, the UI should only allow combinations defined here.
+   */
+  validSizes?: Record<string, Record<string, string>>;
   /** Estimated pricing for this model */
   pricing?: VideoModelPricing;
 }

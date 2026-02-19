@@ -115,23 +115,43 @@
 			modelsError = 'Failed to load models. Using default list.';
 			// Fallback to static list
 			openaiChatModels = [
-				{ id: 'gpt-4o', pricing: { input: 2.5, output: 10 }, ownedBy: 'openai', created: 0 },
-				{ id: 'gpt-4o-mini', pricing: { input: 0.15, output: 0.6 }, ownedBy: 'openai', created: 0 },
-				{ id: 'gpt-4-turbo', pricing: { input: 10, output: 30 }, ownedBy: 'openai', created: 0 },
-				{ id: 'gpt-3.5-turbo', pricing: { input: 0.5, output: 1.5 }, ownedBy: 'openai', created: 0 }
+				{ id: 'gpt-5.2', pricing: { input: 1.75, output: 14, cached: 0.175 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-5.1', pricing: { input: 1.25, output: 10, cached: 0.125 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-5', pricing: { input: 1.25, output: 10, cached: 0.125 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-5-mini', pricing: { input: 0.25, output: 2, cached: 0.025 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-4.1', pricing: { input: 2, output: 8, cached: 0.50 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-4.1-mini', pricing: { input: 0.40, output: 1.60, cached: 0.10 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-4o', pricing: { input: 2.5, output: 10, cached: 1.25 }, ownedBy: 'openai', created: 0 },
+				{ id: 'gpt-4o-mini', pricing: { input: 0.15, output: 0.6, cached: 0.075 }, ownedBy: 'openai', created: 0 },
+				{ id: 'o4-mini', pricing: { input: 1.10, output: 4.40, cached: 0.275 }, ownedBy: 'openai', created: 0 },
+				{ id: 'o3', pricing: { input: 2, output: 8, cached: 0.50 }, ownedBy: 'openai', created: 0 }
 			];
 			openaiVoiceModels = [
 				{
+					id: 'gpt-realtime',
+					pricing: { input: 4, output: 16, cached: 0.40 },
+					audioPricing: { input: 0.05, output: 0.19 },
+					ownedBy: 'openai',
+					created: 0
+				},
+				{
+					id: 'gpt-realtime-mini',
+					pricing: { input: 0.60, output: 2.40, cached: 0.06 },
+					audioPricing: { input: 0.015, output: 0.06 },
+					ownedBy: 'openai',
+					created: 0
+				},
+				{
 					id: 'gpt-4o-realtime-preview-2024-12-17',
-					pricing: { input: 5, output: 20 },
+					pricing: { input: 5, output: 20, cached: 2.50 },
 					audioPricing: { input: 0.06, output: 0.24 },
 					ownedBy: 'openai',
 					created: 0
 				},
 				{
 					id: 'gpt-4o-mini-realtime-preview-2024-12-17',
-					pricing: { input: 0.6, output: 2.4 },
-					audioPricing: { input: 0.01, output: 0.04 },
+					pricing: { input: 0.60, output: 2.40, cached: 0.30 },
+					audioPricing: { input: 0.015, output: 0.06 },
 					ownedBy: 'openai',
 					created: 0
 				}
@@ -159,24 +179,38 @@
 	);
 
 	// Video models (static list from registry)
+	// Pricing from https://openai.com/api/pricing/ (per second of generated video)
 	const videoModelOptions = [
-		{ id: 'sora-2', displayName: 'Sora 2', description: 'Fast video generation, ideal for iteration' },
-		{ id: 'sora-2-pro', displayName: 'Sora 2 Pro', description: 'Higher quality, production-grade output' }
+		{
+			id: 'sora-2',
+			displayName: 'Sora 2',
+			description: 'Fast video generation, ideal for iteration',
+			resolutions: '720p',
+			pricing: { perSecond: 0.10 }
+		},
+		{
+			id: 'sora-2-pro',
+			displayName: 'Sora 2 Pro',
+			description: 'Higher quality, production-grade output',
+			resolutions: '720p / 1080p',
+			pricing: { perSecond: 0.30, perSecondHighRes: 0.50 }
+		}
 	];
 
 	// WaveSpeed video/image model options
+	// Fallback pricing from https://wavespeed.ai/pricing — overridden by live API data when available
 	const wavespeedModelOptions = [
-		{ id: 'wan-2.1-t2v-720p', displayName: 'Wan 2.1 T2V 720p', description: 'Text-to-video, 720p quality', category: 'video' },
-		{ id: 'wan-2.1-i2v-720p', displayName: 'Wan 2.1 I2V 720p', description: 'Image-to-video, 720p quality', category: 'video' },
-		{ id: 'wan-2.1-t2v-480p', displayName: 'Wan 2.1 T2V 480p', description: 'Text-to-video, fast 480p', category: 'video' },
-		{ id: 'wan-2.2-t2v-720p', displayName: 'Wan 2.2 T2V 720p', description: 'Latest Wan text-to-video', category: 'video' },
-		{ id: 'wan-2.2-i2v-480p', displayName: 'Wan 2.2 I2V 480p', description: 'Latest Wan image-to-video', category: 'video' },
-		{ id: 'hunyuan-video-t2v', displayName: 'HunYuan Video', description: 'Tencent HunYuan text-to-video', category: 'video' },
-		{ id: 'ltx-2-19b-text-to-video', displayName: 'LTX 2 T2V', description: 'Lightricks text-to-video', category: 'video' },
-		{ id: 'ltx-2-19b-image-to-video', displayName: 'LTX 2 I2V', description: 'Lightricks image-to-video', category: 'video' },
-		{ id: 'framepack', displayName: 'FramePack', description: 'Frame-based video generation', category: 'video' },
-		{ id: 'flux-dev', displayName: 'Flux Dev', description: 'High-quality image generation', category: 'image' },
-		{ id: 'flux-schnell', displayName: 'Flux Schnell', description: 'Fast image generation', category: 'image' }
+		{ id: 'wan-2.1/t2v-720p', displayName: 'Wan 2.1 T2V 720p', description: 'Text-to-video, 720p quality', category: 'video', fallbackPrice: 0.03 },
+		{ id: 'wan-2.1/i2v-720p', displayName: 'Wan 2.1 I2V 720p', description: 'Image-to-video, 720p quality', category: 'video', fallbackPrice: 0.04 },
+		{ id: 'wan-2.1/t2v-480p', displayName: 'Wan 2.1 T2V 480p', description: 'Text-to-video, fast 480p', category: 'video', fallbackPrice: 0.02 },
+		{ id: 'wan-2.2/t2v-720p', displayName: 'Wan 2.2 T2V 720p', description: 'Latest Wan text-to-video', category: 'video', fallbackPrice: 0.04 },
+		{ id: 'wan-2.2/i2v-480p', displayName: 'Wan 2.2 I2V 480p', description: 'Latest Wan image-to-video', category: 'video', fallbackPrice: 0.03 },
+		{ id: 'hunyuan-video/t2v', displayName: 'HunYuan Video', description: 'Tencent HunYuan text-to-video', category: 'video', fallbackPrice: 0.05 },
+		{ id: 'ltx-video/ltx-2-19b-text-to-video', displayName: 'LTX 2 T2V', description: 'Lightricks text-to-video', category: 'video', fallbackPrice: 0.03 },
+		{ id: 'ltx-video/ltx-2-19b-image-to-video', displayName: 'LTX 2 I2V', description: 'Lightricks image-to-video', category: 'video', fallbackPrice: 0.035 },
+		{ id: 'framepack/framepack-f1', displayName: 'FramePack', description: 'Frame-based video generation', category: 'video', fallbackPrice: 0.04 },
+		{ id: 'flux-dev', displayName: 'Flux Dev', description: 'High-quality image generation', category: 'image', fallbackPrice: 0.025 },
+		{ id: 'flux-schnell', displayName: 'Flux Schnell', description: 'Fast image generation', category: 'image', fallbackPrice: 0.015 }
 	];
 
 	// WaveSpeed pricing data
@@ -215,19 +249,44 @@
 	}
 
 	/**
-	 * Look up base_price for a local model ID from the API pricing data.
-	 * Local IDs like "wan-2.1-t2v-720p" map to API model_ids like "wavespeed-ai/wan-2.1-t2v-720p".
+	 * Look up base_price for a local model ID.
+	 * Checks live API pricing data first, then falls back to the local fallback price.
+	 * Local IDs like "wan-2.1/t2v-720p" map to API model_ids like "wavespeed-ai/wan-2.1/t2v-720p".
 	 * Performs normalized matching (strips prefix, replaces / with -).
 	 */
 	function getWaveSpeedPrice(localModelId: string): number | null {
+		// Try live API pricing first
+		if (wavespeedPricing.length > 0) {
+			// Direct match with wavespeed-ai/ prefix
+			const prefixed = `wavespeed-ai/${localModelId}`;
+			const directMatch = wavespeedPricing.find(m => m.model_id === prefixed);
+			if (directMatch) return directMatch.base_price;
+
+			// Normalized match: strip prefix and replace / with -
+			const normalizedLocal = localModelId.toLowerCase();
+			const normalizedMatch = wavespeedPricing.find(m => {
+				const stripped = m.model_id.replace(/^wavespeed-ai\//, '').replace(/\//g, '-').toLowerCase();
+				return stripped === normalizedLocal;
+			});
+			if (normalizedMatch) return normalizedMatch.base_price;
+		}
+
+		// Fall back to local pricing estimate
+		const model = wavespeedModelOptions.find(m => m.id === localModelId);
+		return model?.fallbackPrice ?? null;
+	}
+
+	/**
+	 * Look up the live API price only (no fallback). Used to determine
+	 * whether the displayed price came from the API or from local estimates.
+	 */
+	function getWaveSpeedLivePrice(localModelId: string): number | null {
 		if (wavespeedPricing.length === 0) return null;
 
-		// Direct match with wavespeed-ai/ prefix
 		const prefixed = `wavespeed-ai/${localModelId}`;
 		const directMatch = wavespeedPricing.find(m => m.model_id === prefixed);
 		if (directMatch) return directMatch.base_price;
 
-		// Normalized match: strip prefix and replace / with -
 		const normalizedLocal = localModelId.toLowerCase();
 		const normalizedMatch = wavespeedPricing.find(m => {
 			const stripped = m.model_id.replace(/^wavespeed-ai\//, '').replace(/\//g, '-').toLowerCase();
@@ -1046,6 +1105,22 @@
 										<div class="model-description">
 											{model.description}
 										</div>
+										{#if model.pricing}
+											<div class="model-pricing">
+												<div class="price-row">
+													<span class="price-tag">
+														<span class="price-label">{model.resolutions}:</span> ${model.pricing.perSecond.toFixed(2)}/sec
+													</span>
+												</div>
+												{#if model.pricing.perSecondHighRes}
+													<div class="price-row">
+														<span class="price-tag">
+															<span class="price-label">1080p+:</span> ${model.pricing.perSecondHighRes.toFixed(2)}/sec
+														</span>
+													</div>
+												{/if}
+											</div>
+										{/if}
 									</button>
 								{/each}
 							</div>
@@ -1100,6 +1175,7 @@
 									{#each videoModels as model}
 										{@const price = getWaveSpeedPrice(model.id)}
 										{@const modelType = getWaveSpeedModelType(model.id)}
+										{@const isLivePrice = wavespeedPricing.length > 0 && getWaveSpeedLivePrice(model.id) !== null}
 										<button
 											type="button"
 											class="model-card video-card"
@@ -1123,7 +1199,11 @@
 											{#if price !== null}
 												<div class="model-pricing">
 													<span class="price-tag wavespeed">
-														<span class="price-label">Price:</span> ${price}{modelType?.includes('video') ? '/sec' : '/run'}
+														{#if isLivePrice}
+															${price}{modelType?.includes('video') ? '/sec' : '/run'}
+														{:else}
+															~${price}/run
+														{/if}
 													</span>
 												</div>
 											{/if}
@@ -1136,6 +1216,7 @@
 								<div class="model-grid">
 									{#each imageModels as model}
 										{@const price = getWaveSpeedPrice(model.id)}
+										{@const isLivePrice = wavespeedPricing.length > 0 && getWaveSpeedLivePrice(model.id) !== null}
 										<button
 											type="button"
 											class="model-card video-card"
@@ -1159,7 +1240,11 @@
 											{#if price !== null}
 												<div class="model-pricing">
 													<span class="price-tag wavespeed">
-														<span class="price-label">Price:</span> ${price}/image
+														{#if isLivePrice}
+															${price}/image
+														{:else}
+															~${price}/image
+														{/if}
 													</span>
 												</div>
 											{/if}

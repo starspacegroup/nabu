@@ -110,6 +110,7 @@ describe('OpenAIVideoProvider', () => {
       expect(result.status).toBe('complete');
       expect(result.videoUrl).toBe('https://api.openai.com/v1/videos/video_abc123/content');
       expect(result.providerJobId).toBe('video_abc123');
+      expect(result.duration).toBe(10);
     });
 
     it('should return queued for newly created job', async () => {
@@ -136,6 +137,7 @@ describe('OpenAIVideoProvider', () => {
 
       expect(result.status).toBe('queued');
       expect(result.providerJobId).toBe('video_456');
+      expect(result.duration).toBe(10);
     });
 
     it('should return processing for in-progress job', async () => {
@@ -162,6 +164,7 @@ describe('OpenAIVideoProvider', () => {
 
       expect(result.status).toBe('processing');
       expect(result.providerJobId).toBe('video_789');
+      expect(result.duration).toBe(10);
     });
 
     it('should send correct aspect ratio for 9:16', async () => {
@@ -297,6 +300,7 @@ describe('OpenAIVideoProvider', () => {
       expect(result.status).toBe('complete');
       expect(result.videoUrl).toBe('https://api.openai.com/v1/videos/video_abc123/content');
       expect(result.progress).toBe(100);
+      expect(result.duration).toBe(10);
     });
 
     it('should return processing with actual progress', async () => {
