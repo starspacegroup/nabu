@@ -46,72 +46,83 @@ const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
     id: 'wan-2.1-t2v-720p',
     displayName: 'Wan 2.1 Text-to-Video 720p',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
   {
     id: 'wan-2.1-i2v-720p',
     displayName: 'Wan 2.1 Image-to-Video 720p',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   },
   {
     id: 'wan-2.1-t2v-480p',
     displayName: 'Wan 2.1 Text-to-Video 480p',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.02, currency: 'USD' }
   },
   // Wan 2.2 Models
   {
     id: 'wan-2.2-t2v-720p',
     displayName: 'Wan 2.2 Text-to-Video 720p',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   },
   {
     id: 'wan-2.2-i2v-480p',
     displayName: 'Wan 2.2 Image-to-Video 480p',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
   // FLUX Image Models
   {
     id: 'flux-dev',
     displayName: 'FLUX Dev',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.025, currency: 'USD' }
   },
   {
     id: 'flux-schnell',
     displayName: 'FLUX Schnell',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.015, currency: 'USD' }
   },
   // Hunyuan Video Models
   {
     id: 'hunyuan-video-t2v',
     displayName: 'Hunyuan Video Text-to-Video',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.05, currency: 'USD' }
   },
   // LTX Video Models
   {
     id: 'ltx-2-19b-text-to-video',
     displayName: 'LTX 2 Text-to-Video',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
   },
   {
     id: 'ltx-2-19b-image-to-video',
     displayName: 'LTX 2 Image-to-Video',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.035, currency: 'USD' }
   },
   // Framepack
   {
     id: 'framepack',
     displayName: 'Framepack',
     provider: 'wavespeed',
-    supportedAspectRatios: ['16:9', '9:16', '1:1']
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   }
 ];
 

@@ -28,7 +28,11 @@ const OPENAI_VIDEO_MODELS: VideoModel[] = [
     provider: 'openai',
     maxDuration: 12,
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    supportedResolutions: ['1080p', '720p']
+    supportedResolutions: ['1080p', '720p'],
+    pricing: {
+      estimatedCostPerSecond: 0.025,
+      currency: 'USD'
+    }
   },
   {
     id: 'sora-2-pro',
@@ -36,7 +40,11 @@ const OPENAI_VIDEO_MODELS: VideoModel[] = [
     provider: 'openai',
     maxDuration: 12,
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    supportedResolutions: ['1080p', '720p']
+    supportedResolutions: ['1080p', '720p'],
+    pricing: {
+      estimatedCostPerSecond: 0.05,
+      currency: 'USD'
+    }
   }
 ];
 

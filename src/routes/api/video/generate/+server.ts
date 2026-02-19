@@ -22,7 +22,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     aspectRatio,
     duration,
     conversationId,
-    messageId
+    messageId,
+    provider: preferredProvider
   } = body as {
     prompt: string;
     model?: string;
@@ -30,6 +31,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     duration?: number;
     conversationId?: string;
     messageId?: string;
+    provider?: string;
   };
 
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -40,8 +42,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(400, 'Prompt too long (max 4000 characters)');
   }
 
-  // Get an enabled video API key
-  const videoKey = await getEnabledVideoKey(platform);
+  // Get an enabled video API key, preferring the user-selected provider
+  const videoKey = await getEnabledVideoKey(platform, preferredProvider);
   if (!videoKey) {
     throw error(503, 'No video generation provider is currently available');
   }

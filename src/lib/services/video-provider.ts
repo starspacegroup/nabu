@@ -33,6 +33,15 @@ export interface VideoStatusResult {
   cost?: number;
 }
 
+export interface VideoModelPricing {
+  /** Cost per second of generated video (e.g. OpenAI Sora) */
+  estimatedCostPerSecond?: number;
+  /** Flat cost per generation regardless of duration (e.g. WaveSpeed) */
+  estimatedCostPerGeneration?: number;
+  /** ISO 4217 currency code */
+  currency: string;
+}
+
 export interface VideoModel {
   id: string;
   displayName: string;
@@ -40,6 +49,8 @@ export interface VideoModel {
   maxDuration?: number;
   supportedAspectRatios?: string[];
   supportedResolutions?: string[];
+  /** Estimated pricing for this model */
+  pricing?: VideoModelPricing;
 }
 
 /**

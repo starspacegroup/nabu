@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { getEnabledVideoKey, getModelsForKey } from '$lib/services/video-registry';
+import { getAllEnabledVideoKeys, getModelsForKey } from '$lib/services/video-registry';
 
 /**
  * GET /api/video/models
- * Get available video models based on configured providers
+ * Get available video models from all configured providers, including pricing
  */
 export const GET: RequestHandler = async ({ platform, locals }) => {
   if (!locals.user) {
@@ -15,21 +15,32 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
     throw error(500, 'Platform not available');
   }
 
-  const videoKey = await getEnabledVideoKey(platform);
-  if (!videoKey) {
+  const videoKeys = await getAllEnabledVideoKeys(platform);
+  if (videoKeys.length === 0) {
     return json({ models: [] });
   }
 
-  const models = getModelsForKey(videoKey);
+  // Collect models from all enabled providers (deduplicate by id)
+  const seenModelIds = new Set<string>();
+  const allModels: Array<Record<string, unknown>> = [];
 
-  return json({
-    models: models.map((m) => ({
-      id: m.id,
-      displayName: m.displayName,
-      provider: m.provider,
-      maxDuration: m.maxDuration,
-      supportedAspectRatios: m.supportedAspectRatios,
-      supportedResolutions: m.supportedResolutions
-    }))
-  });
+  for (const key of videoKeys) {
+    const models = getModelsForKey(key);
+    for (const m of models) {
+      if (!seenModelIds.has(m.id)) {
+        seenModelIds.add(m.id);
+        allModels.push({
+          id: m.id,
+          displayName: m.displayName,
+          provider: m.provider,
+          maxDuration: m.maxDuration,
+          supportedAspectRatios: m.supportedAspectRatios,
+          supportedResolutions: m.supportedResolutions,
+          pricing: m.pricing || null
+        });
+      }
+    }
+  }
+
+  return json({ models: allModels });
 };

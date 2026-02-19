@@ -76,6 +76,36 @@ export async function getEnabledVideoKey(
 }
 
 /**
+ * Get all enabled video-capable API keys from KV storage
+ */
+export async function getAllEnabledVideoKeys(
+  platform: App.Platform
+): Promise<VideoAIKey[]> {
+  try {
+    const keysList = await platform.env.KV.get('ai_keys_list');
+    if (!keysList) return [];
+
+    const keyIds = JSON.parse(keysList);
+    const enabledKeys: VideoAIKey[] = [];
+
+    for (const keyId of keyIds) {
+      const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
+      if (keyData) {
+        const key = JSON.parse(keyData) as VideoAIKey;
+        if (key.enabled !== false && key.videoEnabled === true) {
+          enabledKeys.push(key);
+        }
+      }
+    }
+
+    return enabledKeys;
+  } catch (err) {
+    console.error('Failed to get video API keys:', err);
+    return [];
+  }
+}
+
+/**
  * Get video models available for a specific API key
  */
 export function getModelsForKey(key: VideoAIKey): VideoModel[] {

@@ -29,6 +29,12 @@
 		id: string;
 		displayName: string;
 		provider: string;
+		maxDuration?: number;
+		pricing?: {
+			estimatedCostPerSecond?: number;
+			estimatedCostPerGeneration?: number;
+			currency: string;
+		};
 	}
 
 	interface Schedule {

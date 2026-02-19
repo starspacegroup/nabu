@@ -1,10 +1,18 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 
+	interface VideoModelPricing {
+		estimatedCostPerSecond?: number;
+		estimatedCostPerGeneration?: number;
+		currency: string;
+	}
+
 	interface VideoModel {
 		id: string;
 		displayName: string;
 		provider: string;
+		maxDuration?: number;
+		pricing?: VideoModelPricing;
 	}
 
 	export let models: VideoModel[] = [];
@@ -13,24 +21,63 @@
 	let aspectRatio = '16:9';
 	let duration = 8;
 	let selectedModel = '';
+	let selectedProvider = '';
 	let generating = false;
 
 	const aspectRatios = ['16:9', '9:16', '1:1'];
 	const durations = [4, 8, 12];
 
+	const providerDisplayNames: Record<string, string> = {
+		openai: 'OpenAI (Sora)',
+		wavespeed: 'WaveSpeed AI'
+	};
+
 	const dispatch = createEventDispatcher<{
 		generate: { prompt: string; aspectRatio: string; duration: number; model: string; provider: string };
 	}>();
 
+	// Derive unique providers from models
+	$: uniqueProviders = [...new Set(models.map((m) => m.provider))];
+	$: hasMultipleProviders = uniqueProviders.length > 1;
+
+	// Auto-select first provider when models change
+	$: if (uniqueProviders.length > 0 && (!selectedProvider || !uniqueProviders.includes(selectedProvider))) {
+		selectedProvider = uniqueProviders[0];
+	}
+
+	// Filter models by selected provider
+	$: filteredModels = selectedProvider
+		? models.filter((m) => m.provider === selectedProvider)
+		: models;
+
 	$: hasModels = models.length > 0;
-	$: if (hasModels && !selectedModel) {
-		selectedModel = models[0].id;
+	$: if (filteredModels.length > 0 && (!selectedModel || !filteredModels.some((m) => m.id === selectedModel))) {
+		selectedModel = filteredModels[0].id;
 	}
 	$: canGenerate = prompt.trim().length > 0 && hasModels && !generating;
 
+	// Pricing computation
+	$: currentModel = filteredModels.find((m) => m.id === selectedModel);
+	$: hasPricing = currentModel?.pricing != null;
+	$: estimatedCost = computeEstimatedCost(currentModel, duration);
+
+	function computeEstimatedCost(model: VideoModel | undefined, dur: number): string | null {
+		if (!model?.pricing) return null;
+		const p = model.pricing;
+		let cost: number;
+		if (typeof p.estimatedCostPerSecond === 'number') {
+			cost = p.estimatedCostPerSecond * dur;
+		} else if (typeof p.estimatedCostPerGeneration === 'number') {
+			cost = p.estimatedCostPerGeneration;
+		} else {
+			return null;
+		}
+		return `$${cost.toFixed(2)}`;
+	}
+
 	function handleGenerate() {
 		if (!canGenerate) return;
-		const model = models.find((m) => m.id === selectedModel);
+		const model = filteredModels.find((m) => m.id === selectedModel);
 		if (!model) return;
 
 		generating = true;
@@ -74,6 +121,17 @@
 			</div>
 
 			<div class="form-options">
+				{#if hasMultipleProviders}
+					<div class="option-group">
+						<label class="option-label" for="provider-select">Provider</label>
+						<select id="provider-select" bind:value={selectedProvider} class="model-select" aria-label="Provider">
+							{#each uniqueProviders as prov}
+								<option value={prov}>{providerDisplayNames[prov] || prov}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
+
 				<div class="option-group">
 					<label class="option-label">Aspect Ratio</label>
 					<div class="ratio-selector" role="radiogroup" aria-label="Aspect ratio">
@@ -110,17 +168,33 @@
 					</div>
 				</div>
 
-				{#if models.length > 1}
+				{#if filteredModels.length > 1 || hasMultipleProviders}
 					<div class="option-group">
 						<label class="option-label" for="model-select">Model</label>
-						<select id="model-select" bind:value={selectedModel} class="model-select">
-							{#each models as model}
+						<select id="model-select" bind:value={selectedModel} class="model-select" aria-label="Model">
+							{#each filteredModels as model}
 								<option value={model.id}>{model.displayName}</option>
 							{/each}
 						</select>
 					</div>
 				{/if}
 			</div>
+
+			{#if hasPricing && estimatedCost}
+				<div class="pricing-preview" data-testid="pricing-preview">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="16" />
+						<line x1="8" y1="12" x2="16" y2="12" />
+					</svg>
+					<span>Estimated cost: <strong>{estimatedCost}</strong></span>
+					{#if currentModel?.pricing?.estimatedCostPerSecond}
+						<span class="pricing-detail">({duration}s &times; ${currentModel.pricing.estimatedCostPerSecond}/s)</span>
+					{:else}
+						<span class="pricing-detail">(per generation)</span>
+					{/if}
+				</div>
+			{/if}
 
 			<button
 				type="button"
@@ -270,6 +344,33 @@
 		background-color: var(--color-background);
 		color: var(--color-text);
 		font-size: 0.8rem;
+	}
+
+	.pricing-preview {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-sm) var(--spacing-md);
+		background-color: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+	}
+
+	.pricing-preview svg {
+		flex-shrink: 0;
+		color: var(--color-primary);
+	}
+
+	.pricing-preview strong {
+		color: var(--color-text);
+		font-weight: 600;
+	}
+
+	.pricing-detail {
+		font-size: 0.7rem;
+		opacity: 0.7;
 	}
 
 	.generate-btn {

@@ -11,7 +11,8 @@ vi.mock('$lib/services/video-registry', () => ({
   getEnabledVideoKey: vi.fn(),
   getVideoProvider: vi.fn(),
   getModelsForKey: vi.fn(),
-  getAllVideoModels: vi.fn()
+  getAllVideoModels: vi.fn(),
+  getAllEnabledVideoKeys: vi.fn()
 }));
 
 let mockDB: any;
@@ -739,8 +740,8 @@ describe('GET /api/video/models - Available models', () => {
   });
 
   it('should return empty models when no provider configured', async () => {
-    const { getEnabledVideoKey } = await import('$lib/services/video-registry');
-    (getEnabledVideoKey as any).mockResolvedValue(null);
+    const { getAllEnabledVideoKeys } = await import('$lib/services/video-registry');
+    (getAllEnabledVideoKeys as any).mockResolvedValue([]);
 
     const { GET } = await import('../../src/routes/api/video/models/+server.js');
     const response = await GET({
@@ -753,15 +754,17 @@ describe('GET /api/video/models - Available models', () => {
   });
 
   it('should return available models', async () => {
-    const { getEnabledVideoKey, getModelsForKey } = await import(
+    const { getAllEnabledVideoKeys, getModelsForKey } = await import(
       '$lib/services/video-registry'
     );
-    (getEnabledVideoKey as any).mockResolvedValue({
-      id: 'key-1',
-      provider: 'openai',
-      apiKey: 'test-key',
-      videoEnabled: true
-    });
+    (getAllEnabledVideoKeys as any).mockResolvedValue([
+      {
+        id: 'key-1',
+        provider: 'openai',
+        apiKey: 'test-key',
+        videoEnabled: true
+      }
+    ]);
     (getModelsForKey as any).mockReturnValue([
       {
         id: 'sora',
