@@ -406,6 +406,17 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
+	function aspectRatioToCSS(ratio: string | null): string {
+		if (!ratio) return '16 / 9';
+		const parts = ratio.split(':');
+		if (parts.length === 2) {
+			const w = parseInt(parts[0], 10);
+			const h = parseInt(parts[1], 10);
+			if (!isNaN(w) && !isNaN(h) && h > 0) return `${w} / ${h}`;
+		}
+		return '16 / 9';
+	}
+
 	onMount(() => {
 		loadAll();
 	});
@@ -541,7 +552,7 @@
 							on:click={() => openVideoDetail(video)}
 							aria-label="View details for: {video.prompt}"
 						>
-							<div class="tile-preview">
+							<div class="tile-preview" style="aspect-ratio: {aspectRatioToCSS(video.aspectRatio)}">
 								{#if video.status === 'complete' && (video.videoUrl || video.r2Key)}
 									{#if video.thumbnailUrl}
 										<img src={video.thumbnailUrl} alt={video.prompt} class="tile-thumb" />
@@ -586,8 +597,20 @@
 								<p class="tile-prompt" title={video.prompt}>{video.prompt}</p>
 								<div class="tile-meta">
 									<span class="tile-date">{formatDate(video.createdAt)}</span>
+									{#if video.model}
+										<span class="tile-model" title={video.model}>{video.model}</span>
+									{/if}
+									{#if video.cost !== null && video.cost !== undefined}
+										<span class="tile-cost">${video.cost.toFixed(4)}</span>
+									{/if}
+									{#if video.resolution}
+										<span class="tile-resolution">{video.resolution}</span>
+									{/if}
 									{#if video.aspectRatio}
-										<span class="tile-ratio">{video.aspectRatio}</span>
+										<span class="tile-ratio">
+											<span class="ratio-icon" class:landscape={video.aspectRatio === '16:9'} class:portrait={video.aspectRatio === '9:16'} class:square={video.aspectRatio === '1:1'}></span>
+											{video.aspectRatio}
+										</span>
 									{/if}
 								</div>
 							</div>
@@ -663,7 +686,7 @@
 				<div class="detail-preview">
 					{#if selectedVideo.status === 'complete' && (selectedVideo.videoUrl || selectedVideo.r2Key)}
 						<!-- svelte-ignore a11y-media-has-caption -->
-						<video src={getVideoSrc(selectedVideo)} controls class="detail-video" preload="metadata"></video>
+						<video src={getVideoSrc(selectedVideo)} controls class="detail-video" style="aspect-ratio: {aspectRatioToCSS(selectedVideo.aspectRatio)}" preload="metadata"></video>
 					{:else if selectedVideo.status === 'error'}
 						<div class="detail-error-preview">
 							<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1031,7 +1054,7 @@
 
 	.tile-preview {
 		position: relative;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 16 / 9; /* fallback, overridden by inline style */
 		background-color: var(--color-background);
 		overflow: hidden;
 	}
@@ -1151,15 +1174,58 @@
 
 	.tile-meta {
 		display: flex;
+		flex-wrap: wrap;
 		gap: var(--spacing-sm);
 		font-size: 0.7rem;
 		color: var(--color-text-secondary);
 	}
 
-	.tile-ratio {
+	.tile-model {
+		max-width: 120px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.tile-cost {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.tile-resolution {
 		padding: 1px 4px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.tile-ratio {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		padding: 1px 4px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+	}
+
+	.ratio-icon {
+		display: inline-block;
+		border: 1px solid var(--color-text-secondary);
+		border-radius: 1px;
+	}
+
+	.ratio-icon.landscape {
+		width: 10px;
+		height: 6px;
+	}
+
+	.ratio-icon.portrait {
+		width: 6px;
+		height: 10px;
+	}
+
+	.ratio-icon.square {
+		width: 8px;
+		height: 8px;
 	}
 
 	.tile-actions {
@@ -1311,7 +1377,7 @@
 	.detail-video {
 		width: 100%;
 		display: block;
-		max-height: 340px;
+		max-height: 70vh;
 		object-fit: contain;
 		background: #000;
 	}
