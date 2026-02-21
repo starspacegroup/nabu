@@ -189,7 +189,7 @@
 			<div class="header-content">
 				<div class="header-left">
 					<h1 class="brand-title">
-						{profile.brandName || 'Your Brand'}
+						Brand
 					</h1>
 					{#if profile.tagline}
 						<p class="brand-tagline">{profile.tagline}</p>

@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 
 	const dispatch = createEventDispatcher();
 
 	export let fieldKey: string;
-
-	// fieldKey is used in dispatch events and parent component binding
 	$: void fieldKey;
 	export let label: string;
 	export let value: unknown;
@@ -14,6 +12,9 @@
 	export let editValue = '';
 
 	$: hasValue = value != null && value !== '' && (!Array.isArray(value) || value.length > 0);
+
+	let inputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
+	let cancelledByEscape = false;
 
 	function formatValue(v: unknown): string {
 		if (v == null) return '';
@@ -28,58 +29,61 @@
 			dispatch('save');
 		}
 		if (e.key === 'Escape') {
+			cancelledByEscape = true;
 			dispatch('cancel');
 		}
+	}
+
+	function handleBlur() {
+		if (cancelledByEscape) {
+			cancelledByEscape = false;
+			return;
+		}
+		dispatch('save');
+	}
+
+	function handleValueClick() {
+		dispatch('edit');
+	}
+
+	function handleValueKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			dispatch('edit');
+		}
+	}
+
+	// Auto-focus the input when editing starts
+	$: if (isEditing) {
+		tick().then(() => {
+			inputEl?.focus();
+		});
 	}
 </script>
 
 <div class="field-card" class:empty={!hasValue} class:editing={isEditing}>
 	<div class="field-header">
 		<span class="field-label">{label}</span>
-		<div class="field-actions">
-			<button
-				class="action-btn history-btn"
-				on:click={() => dispatch('history')}
-				aria-label="View history for {label}"
-				title="Version history"
+		<button
+			class="action-btn history-btn"
+			on:click|stopPropagation={() => dispatch('history')}
+			aria-label="View history for {label}"
+			title="Version history"
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
 			>
-				<svg
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<polyline points="12 6 12 12 16 14" />
-				</svg>
-			</button>
-			{#if !isEditing}
-				<button
-					class="action-btn edit-btn"
-					on:click={() => dispatch('edit')}
-					aria-label="Edit {label}"
-					title="Edit"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-						<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-					</svg>
-				</button>
-			{/if}
-		</div>
+				<circle cx="12" cy="12" r="10" />
+				<polyline points="12 6 12 12 16 14" />
+			</svg>
+		</button>
 	</div>
 
 	{#if isEditing}
@@ -87,79 +91,96 @@
 			{#if type === 'text' || type === 'archetype'}
 				{#if (editValue?.length || 0) > 80}
 					<textarea
+						bind:this={inputEl}
 						bind:value={editValue}
 						on:keydown={handleKeydown}
+						on:blur={handleBlur}
 						class="edit-input textarea"
 						rows="3"
-						placeholder="Enter {label.toLowerCase()}..."
+						placeholder="{label}..."
 					/>
 				{:else}
 					<input
+						bind:this={inputEl}
 						type="text"
 						bind:value={editValue}
 						on:keydown={handleKeydown}
+						on:blur={handleBlur}
 						class="edit-input"
-						placeholder="Enter {label.toLowerCase()}..."
+						placeholder="{label}..."
 					/>
 				{/if}
 			{:else if type === 'color'}
 				<div class="color-edit">
 					<input type="color" bind:value={editValue} class="color-picker" />
 					<input
+						bind:this={inputEl}
 						type="text"
 						bind:value={editValue}
 						on:keydown={handleKeydown}
+						on:blur={handleBlur}
 						class="edit-input color-text"
 						placeholder="#000000"
 					/>
 				</div>
 			{:else if type === 'list'}
 				<textarea
+					bind:this={inputEl}
 					bind:value={editValue}
 					on:keydown={handleKeydown}
+					on:blur={handleBlur}
 					class="edit-input textarea"
 					rows="3"
 					placeholder="Comma-separated values..."
 				/>
 			{:else}
 				<textarea
+					bind:this={inputEl}
 					bind:value={editValue}
 					on:keydown={handleKeydown}
+					on:blur={handleBlur}
 					class="edit-input textarea"
 					rows="4"
 					placeholder="JSON value..."
 				/>
 			{/if}
-			<div class="edit-actions">
-				<button class="save-btn" on:click={() => dispatch('save')}>Save</button>
-				<button class="cancel-btn" on:click={() => dispatch('cancel')}>Cancel</button>
+			<div class="edit-hint">
+				<span>Enter to save · Esc to cancel</span>
 			</div>
 		</div>
-	{:else if hasValue}
-		<div class="field-value">
-			{#if type === 'color' && typeof value === 'string'}
-				<div class="color-display">
-					<span class="color-swatch" style="background-color: {value}"></span>
-					<span class="color-code">{value}</span>
-				</div>
-			{:else if type === 'list' && Array.isArray(value)}
-				<div class="tag-list">
-					{#each value as item}
-						<span class="tag">{item}</span>
-					{/each}
-				</div>
-			{:else if type === 'object' && typeof value === 'object'}
-				<pre class="object-display">{JSON.stringify(value, null, 2)}</pre>
-			{:else if type === 'archetype' && typeof value === 'string'}
-				<span class="archetype-badge">{value}</span>
-			{:else}
-				<p class="text-value">{formatValue(value)}</p>
-			{/if}
-		</div>
 	{:else}
-		<div class="empty-value">
-			<span class="empty-text">Not set</span>
-			<button class="set-btn" on:click={() => dispatch('edit')}>Set value</button>
+		<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+		<div
+			class="field-value-area"
+			class:empty={!hasValue}
+			role="button"
+			tabindex="0"
+			aria-label="Edit {label}"
+			on:click={handleValueClick}
+			on:keydown={handleValueKeydown}
+		>
+			{#if hasValue}
+				{#if type === 'color' && typeof value === 'string'}
+					<div class="color-display">
+						<span class="color-swatch" style="background-color: {value}"></span>
+						<span class="color-code">{value}</span>
+					</div>
+				{:else if type === 'list' && Array.isArray(value)}
+					<div class="tag-list">
+						{#each value as item}
+							<span class="tag">{item}</span>
+						{/each}
+					</div>
+				{:else if type === 'object' && typeof value === 'object'}
+					<pre class="object-display">{JSON.stringify(value, null, 2)}</pre>
+				{:else if type === 'archetype' && typeof value === 'string'}
+					<span class="archetype-badge">{value}</span>
+				{:else}
+					<p class="text-value">{formatValue(value)}</p>
+				{/if}
+			{:else}
+				<span class="placeholder-text">Add {label.toLowerCase()}...</span>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -169,7 +190,9 @@
 		padding: var(--spacing-sm) var(--spacing-md);
 		border-radius: var(--radius-md);
 		border: 1px solid transparent;
-		transition: border-color var(--transition-fast);
+		transition:
+			border-color var(--transition-fast),
+			background-color var(--transition-fast);
 	}
 
 	.field-card:hover {
@@ -181,54 +204,103 @@
 		background-color: var(--color-background);
 	}
 
-	.field-card.empty .field-label {
-		color: var(--color-text-secondary);
-	}
-
 	.field-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: var(--spacing-xs);
+		margin-bottom: 2px;
 	}
 
 	.field-label {
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		color: var(--color-text-secondary);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
 
-	.field-actions {
-		display: flex;
-		gap: 2px;
-		opacity: 0;
-		transition: opacity var(--transition-fast);
-	}
-
-	.field-card:hover .field-actions,
-	.field-card.editing .field-actions {
-		opacity: 1;
-	}
-
-	.action-btn {
+	/* History button - always visible but subtle */
+	.history-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 26px;
-		height: 26px;
+		width: 24px;
+		height: 24px;
 		border: none;
 		background: none;
 		color: var(--color-text-secondary);
 		cursor: pointer;
 		border-radius: var(--radius-sm);
+		opacity: 0.3;
 		transition: all var(--transition-fast);
+		flex-shrink: 0;
 	}
 
-	.action-btn:hover {
+	.field-card:hover .history-btn {
+		opacity: 0.6;
+	}
+
+	.history-btn:hover {
+		opacity: 1 !important;
 		background-color: var(--color-surface-hover);
 		color: var(--color-text);
+	}
+
+	/* Touch devices: always visible */
+	@media (hover: none) {
+		.history-btn {
+			opacity: 0.5;
+		}
+	}
+
+	/* Clickable value area */
+	.field-value-area {
+		cursor: pointer;
+		padding: var(--spacing-xs) 0;
+		border-radius: var(--radius-sm);
+		transition: background-color var(--transition-fast);
+		min-height: 32px;
+		display: flex;
+		align-items: center;
+	}
+
+	.field-value-area:hover {
+		background-color: var(--color-surface-hover);
+		margin: 0 calc(-1 * var(--spacing-xs));
+		padding-left: var(--spacing-xs);
+		padding-right: var(--spacing-xs);
+	}
+
+	.field-value-area:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
+
+	.field-value-area.empty {
+		border-bottom: 1px dashed var(--color-border);
+		border-radius: 0;
+	}
+
+	.field-value-area.empty:hover {
+		border-bottom-color: var(--color-primary);
+		background-color: transparent;
+		margin: 0;
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	/* Placeholder for empty fields */
+	.placeholder-text {
+		font-size: 0.85rem;
+		color: var(--color-text-secondary);
+		opacity: 0.5;
+		font-style: italic;
+		transition: opacity var(--transition-fast);
+	}
+
+	.field-value-area:hover .placeholder-text {
+		opacity: 0.8;
+		color: var(--color-primary);
 	}
 
 	/* Value displays */
@@ -252,6 +324,7 @@
 		height: 24px;
 		border-radius: var(--radius-sm);
 		border: 1px solid var(--color-border);
+		flex-shrink: 0;
 	}
 
 	.color-code {
@@ -299,57 +372,30 @@
 		text-transform: capitalize;
 	}
 
-	/* Empty state */
-	.empty-value {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-sm);
-	}
-
-	.empty-text {
-		font-size: 0.85rem;
-		color: var(--color-text-secondary);
-		font-style: italic;
-	}
-
-	.set-btn {
-		font-size: 0.75rem;
-		padding: 2px var(--spacing-sm);
-		border: 1px dashed var(--color-border);
-		background: none;
-		color: var(--color-primary);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.set-btn:hover {
-		border-color: var(--color-primary);
-		background-color: var(--color-surface);
-	}
-
 	/* Edit area */
 	.edit-area {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-xs);
+		gap: 4px;
 	}
 
 	.edit-input {
 		width: 100%;
 		padding: var(--spacing-xs) var(--spacing-sm);
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--color-primary);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-background);
 		color: var(--color-text);
-		font-size: 0.85rem;
+		font-size: 0.9rem;
 		font-family: inherit;
 		transition: border-color var(--transition-fast);
+		box-sizing: border-box;
 	}
 
 	.edit-input:focus {
 		outline: none;
 		border-color: var(--color-primary);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
 	}
 
 	.edit-input.textarea {
@@ -364,50 +410,48 @@
 	}
 
 	.color-picker {
-		width: 36px;
-		height: 36px;
+		width: 40px;
+		height: 40px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		padding: 2px;
+		flex-shrink: 0;
 	}
 
 	.color-text {
 		flex: 1;
 	}
 
-	.edit-actions {
+	.edit-hint {
 		display: flex;
-		gap: var(--spacing-xs);
 		justify-content: flex-end;
 	}
 
-	.save-btn,
-	.cancel-btn {
-		padding: var(--spacing-xs) var(--spacing-md);
-		border-radius: var(--radius-sm);
-		font-size: 0.8rem;
-		font-weight: 600;
-		cursor: pointer;
-		border: none;
-		transition: all var(--transition-fast);
+	.edit-hint span {
+		font-size: 0.65rem;
+		color: var(--color-text-secondary);
+		opacity: 0.6;
 	}
 
-	.save-btn {
-		background-color: var(--color-primary);
-		color: var(--color-background);
-	}
+	/* Mobile optimizations */
+	@media (max-width: 480px) {
+		.field-card {
+			padding: var(--spacing-sm);
+		}
 
-	.save-btn:hover {
-		background-color: var(--color-primary-hover);
-	}
+		.field-value-area {
+			min-height: 40px;
+			padding: var(--spacing-sm) 0;
+		}
 
-	.cancel-btn {
-		background-color: var(--color-surface-hover);
-		color: var(--color-text);
-	}
+		.edit-input {
+			font-size: 1rem;
+			padding: var(--spacing-sm);
+		}
 
-	.cancel-btn:hover {
-		background-color: var(--color-border);
+		.edit-hint {
+			display: none;
+		}
 	}
 </style>
