@@ -23,6 +23,11 @@
 		$page.url.pathname.startsWith('/setup') ||
 		$page.url.pathname.startsWith('/onboarding');
 
+	// Full-screen pages that need height-constrained main (no body scroll)
+	$: fullScreenPage =
+		$page.url.pathname.startsWith('/chat') ||
+		$page.url.pathname.startsWith('/onboarding');
+
 	// Subscribe to theme changes and apply to DOM
 	if (browser) {
 		resolvedTheme.subscribe((theme) => {
@@ -47,10 +52,10 @@
 	});
 </script>
 
-<div class="app">
+<div class="app" class:full-screen={fullScreenPage}>
 	<Navigation user={data.user} onCommandPaletteClick={toggleCommandPalette} />
 
-	<main>
+	<main class:full-screen={fullScreenPage}>
 		<slot />
 	</main>
 
@@ -68,11 +73,23 @@
 		min-height: 100vh;
 	}
 
+	.app.full-screen {
+		height: 100vh;
+		max-height: 100vh;
+		overflow: hidden;
+	}
+
 	main {
 		flex: 1;
 		width: 100%;
 		display: flex;
 		flex-direction: column;
 		padding-bottom: var(--spacing-2xl);
+	}
+
+	main.full-screen {
+		padding-bottom: 0;
+		overflow: hidden;
+		min-height: 0;
 	}
 </style>

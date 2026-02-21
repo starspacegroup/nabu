@@ -340,7 +340,7 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		min-height: calc(100vh - 60px);
+		overflow: hidden;
 		background-color: var(--color-background);
 	}
 
@@ -460,10 +460,13 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
+		overflow: hidden;
+		height: 100%;
 	}
 
 	.chat-area {
 		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
 		padding: var(--spacing-lg);
 		display: flex;
@@ -649,11 +652,8 @@
 		font-size: 0.7rem;
 	}
 
-	/* Bottom bar - sticky to bottom */
+	/* Bottom bar - pinned to bottom via flex layout */
 	.bottom-bar {
-		position: sticky;
-		bottom: 0;
-		z-index: 10;
 		background-color: var(--color-surface);
 		border-top: 1px solid var(--color-border);
 		flex-shrink: 0;
