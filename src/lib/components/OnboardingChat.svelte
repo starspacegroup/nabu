@@ -20,6 +20,7 @@
 	import { ONBOARDING_STEPS, getNextStep, STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
 	export let userId: string;
+	void userId; // Prop reserved for future use; auth handled via server session
 
 	let input = '';
 	let chatContainer: HTMLDivElement;

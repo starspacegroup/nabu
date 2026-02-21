@@ -13,6 +13,7 @@ import type {
   TargetAudience
 } from '$lib/types/onboarding';
 import type { ChatMessage } from '$lib/services/openai-chat';
+import type { D1Database } from '@cloudflare/workers-types';
 
 /**
  * Marker the AI includes at the end of its response when the current step is complete.

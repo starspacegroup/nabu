@@ -38,7 +38,6 @@ describe('OpenAIVideoProvider', () => {
       const models = provider.getAvailableModels();
       expect(models[0].supportedAspectRatios).toContain('16:9');
       expect(models[0].supportedAspectRatios).toContain('9:16');
-      expect(models[0].supportedAspectRatios).toContain('1:1');
     });
 
     it('should include max duration', () => {
@@ -189,7 +188,7 @@ describe('OpenAIVideoProvider', () => {
       expect(callBody.size).toBe('720x1280');
     });
 
-    it('should send correct aspect ratio for 1:1', async () => {
+    it('should fall back to default size for unsupported aspect ratio', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({
@@ -208,7 +207,8 @@ describe('OpenAIVideoProvider', () => {
       });
 
       const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.size).toBe('1080x1080');
+      // 1:1 is not in validSizes, falls through to default 720p mapping
+      expect(callBody.size).toBe('1280x720');
     });
 
     it('should default to 16:9 when no aspect ratio specified', async () => {

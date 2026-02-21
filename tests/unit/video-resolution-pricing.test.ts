@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
+import type { VideoModel } from '../../src/lib/services/video-provider';
 
 /**
  * Tests for resolution-aware video pricing and quality settings.
@@ -407,11 +408,12 @@ describe('VideoCreateForm — resolution/quality selector', () => {
     vi.restoreAllMocks();
   });
 
-  const openaiModels = [
+  const openaiModels: VideoModel[] = [
     {
       id: 'sora-2',
       displayName: 'Sora 2',
       provider: 'openai',
+      type: 'text-to-video',
       maxDuration: 12,
       supportedAspectRatios: ['16:9', '9:16', '1:1'],
       supportedResolutions: ['720p'],
@@ -427,6 +429,7 @@ describe('VideoCreateForm — resolution/quality selector', () => {
       id: 'sora-2-pro',
       displayName: 'Sora 2 Pro',
       provider: 'openai',
+      type: 'text-to-video',
       maxDuration: 12,
       supportedAspectRatios: ['16:9', '9:16', '1:1'],
       supportedResolutions: ['720p', '1080p'],
@@ -445,7 +448,8 @@ describe('VideoCreateForm — resolution/quality selector', () => {
     const { default: VideoCreateForm } = await import(
       '../../src/lib/components/VideoCreateForm.svelte'
     );
-    render(VideoCreateForm, { props: { models: openaiModels } });
+    // Use only the model with multiple resolutions (sora-2-pro has 720p + 1080p)
+    render(VideoCreateForm, { props: { models: [openaiModels[1]] } });
 
     // The resolution selector should be visible
     const resolutionLabel = screen.getByText('Resolution');

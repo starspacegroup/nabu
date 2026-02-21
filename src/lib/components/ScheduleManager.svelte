@@ -152,8 +152,8 @@
 					</select>
 				</div>
 				<div class="form-row">
-					<label class="form-label">Aspect Ratio</label>
-					<div class="ratio-options">
+					<span class="form-label">Aspect Ratio</span>
+					<div class="ratio-options" role="radiogroup" aria-label="Aspect ratio">
 						{#each ['16:9', '9:16', '1:1'] as ratio}
 							<button
 								type="button"

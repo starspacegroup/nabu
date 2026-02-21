@@ -557,6 +557,7 @@
 									{#if video.thumbnailUrl}
 										<img src={video.thumbnailUrl} alt={video.prompt} class="tile-thumb" />
 									{:else}
+										<!-- svelte-ignore a11y-media-has-caption -->
 										<video src={getVideoSrc(video)} class="tile-video" preload="metadata"></video>
 									{/if}
 									<div class="play-overlay">

@@ -215,7 +215,7 @@
 				{/if}
 
 				<div class="option-group">
-					<label class="option-label">Aspect Ratio</label>
+					<span class="option-label">Aspect Ratio</span>
 					<div class="ratio-selector" role="radiogroup" aria-label="Aspect ratio">
 						{#each availableAspectRatios as ratio}
 							<button
@@ -233,7 +233,7 @@
 				</div>
 
 				<div class="option-group">
-					<label class="option-label">Duration</label>
+					<span class="option-label">Duration</span>
 					<div class="ratio-selector" role="radiogroup" aria-label="Video duration">
 						{#each availableDurations as d}
 							<button
@@ -252,7 +252,7 @@
 
 				{#if hasResolutionSelector}
 					<div class="option-group">
-						<label class="option-label">Resolution</label>
+						<span class="option-label">Resolution</span>
 						<div class="ratio-selector" role="radiogroup" aria-label="Video resolution">
 							{#each availableResolutions as res}
 								<button
