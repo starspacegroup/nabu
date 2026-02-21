@@ -3,8 +3,6 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
 </script>
 
 <svelte:head>
@@ -14,7 +12,7 @@
 
 <div class="onboarding-page">
 	{#if data.hasAIProviders}
-		<OnboardingChat userId={data.userId} />
+		<OnboardingChat />
 	{:else}
 		<div class="no-ai-notice">
 			<div class="notice-content">

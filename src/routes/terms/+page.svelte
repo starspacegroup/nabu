@@ -1,7 +1,4 @@
 <script lang="ts">
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
-
 	const currentYear = new Date().getFullYear();
 	const lastUpdated = 'January 1, 2026';
 </script>

@@ -3,9 +3,6 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
-
 	let formData = {
 		clientId: '',
 		clientSecret: '',

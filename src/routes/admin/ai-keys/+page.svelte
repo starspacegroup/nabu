@@ -3,8 +3,6 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
 
 	interface ModelWithPricing {
 		id: string;

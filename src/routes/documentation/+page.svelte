@@ -1,6 +1,5 @@
 <script lang="ts">
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
+	// No script logic needed
 </script>
 
 <svelte:head>

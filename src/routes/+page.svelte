@@ -5,8 +5,6 @@ import { openCommandPalette } from '$lib/stores/commandPalette';
 import { onMount } from 'svelte';
 
 export let data: { user: App.Locals['user']; hasAIProviders: boolean };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export let params: Record<string, string> = {};
 
 let mounted = false;
 let toastMessage = '';

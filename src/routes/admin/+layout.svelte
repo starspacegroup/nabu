@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	export let params: Record<string, string> = {};
-
 	const navItems = [
 		{ path: '/admin', label: 'Dashboard', icon: 'home' },
 		{ path: '/admin/users', label: 'Users', icon: 'users' },
