@@ -1,0 +1,307 @@
+/**
+ * Tests for Brand Service (field versioning and brand management)
+ * TDD: Tests written first, then implementation
+ */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  getFieldHistory,
+  addFieldVersion,
+  updateBrandFieldWithVersion,
+  getBrandFieldsSummary,
+  revertFieldToVersion,
+  BRAND_FIELD_LABELS
+} from '$lib/services/brand';
+
+// Mock D1 database
+function createMockDB() {
+  const mockResult = { results: [], success: true, meta: {} };
+  const mockFirst = vi.fn().mockResolvedValue(null);
+  const mockAll = vi.fn().mockResolvedValue(mockResult);
+  const mockRun = vi.fn().mockResolvedValue(mockResult);
+
+  const mockBind = vi.fn().mockReturnValue({
+    first: mockFirst,
+    all: mockAll,
+    run: mockRun
+  });
+
+  const mockPrepare = vi.fn().mockReturnValue({
+    bind: mockBind,
+    first: mockFirst,
+    all: mockAll,
+    run: mockRun
+  });
+
+  return {
+    prepare: mockPrepare,
+    batch: vi.fn().mockResolvedValue([]),
+    _mockBind: mockBind,
+    _mockFirst: mockFirst,
+    _mockAll: mockAll,
+    _mockRun: mockRun
+  };
+}
+
+describe('Brand Service', () => {
+  let mockDB: ReturnType<typeof createMockDB>;
+
+  beforeEach(() => {
+    mockDB = createMockDB();
+    vi.clearAllMocks();
+  });
+
+  describe('BRAND_FIELD_LABELS', () => {
+    it('should define human-readable labels for all brand fields', () => {
+      expect(BRAND_FIELD_LABELS).toBeDefined();
+      expect(typeof BRAND_FIELD_LABELS).toBe('object');
+      expect(BRAND_FIELD_LABELS.brandName).toBe('Brand Name');
+      expect(BRAND_FIELD_LABELS.tagline).toBe('Tagline');
+      expect(BRAND_FIELD_LABELS.missionStatement).toBe('Mission Statement');
+      expect(BRAND_FIELD_LABELS.visionStatement).toBe('Vision Statement');
+      expect(BRAND_FIELD_LABELS.elevatorPitch).toBe('Elevator Pitch');
+      expect(BRAND_FIELD_LABELS.brandArchetype).toBe('Brand Archetype');
+      expect(BRAND_FIELD_LABELS.toneOfVoice).toBe('Tone of Voice');
+      expect(BRAND_FIELD_LABELS.primaryColor).toBe('Primary Color');
+      expect(BRAND_FIELD_LABELS.industry).toBe('Industry');
+    });
+  });
+
+  describe('addFieldVersion', () => {
+    it('should insert a version record', async () => {
+      // Mock getting current max version
+      mockDB._mockFirst.mockResolvedValueOnce({ max_version: 0 });
+
+      await addFieldVersion(mockDB as any, {
+        brandProfileId: 'profile-1',
+        userId: 'user-1',
+        fieldName: 'brandName',
+        oldValue: null,
+        newValue: 'My Brand',
+        changeSource: 'manual'
+      });
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+    });
+
+    it('should increment version number for subsequent changes', async () => {
+      // First call: get max version → returns 2
+      mockDB._mockFirst.mockResolvedValueOnce({ max_version: 2 });
+
+      await addFieldVersion(mockDB as any, {
+        brandProfileId: 'profile-1',
+        userId: 'user-1',
+        fieldName: 'brandName',
+        oldValue: 'Old Name',
+        newValue: 'New Name',
+        changeSource: 'ai'
+      });
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+    });
+
+    it('should accept changeSource of manual, ai, or import', async () => {
+      mockDB._mockFirst.mockResolvedValue({ max_version: 0 });
+
+      for (const source of ['manual', 'ai', 'import'] as const) {
+        await addFieldVersion(mockDB as any, {
+          brandProfileId: 'profile-1',
+          userId: 'user-1',
+          fieldName: 'tagline',
+          oldValue: null,
+          newValue: 'Test',
+          changeSource: source
+        });
+      }
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+    });
+  });
+
+  describe('getFieldHistory', () => {
+    it('should return version history for a specific field', async () => {
+      const mockVersions = [
+        {
+          id: 'v1',
+          brand_profile_id: 'profile-1',
+          user_id: 'user-1',
+          field_name: 'brandName',
+          old_value: null,
+          new_value: 'First Name',
+          change_source: 'manual',
+          change_reason: null,
+          version_number: 1,
+          created_at: '2025-01-01T00:00:00Z'
+        },
+        {
+          id: 'v2',
+          brand_profile_id: 'profile-1',
+          user_id: 'user-1',
+          field_name: 'brandName',
+          old_value: 'First Name',
+          new_value: 'Better Name',
+          change_source: 'ai',
+          change_reason: 'AI suggested improvement',
+          version_number: 2,
+          created_at: '2025-01-02T00:00:00Z'
+        }
+      ];
+
+      mockDB._mockAll.mockResolvedValueOnce({ results: mockVersions });
+
+      const history = await getFieldHistory(mockDB as any, 'profile-1', 'brandName');
+
+      expect(history).toHaveLength(2);
+      expect(history[0].fieldName).toBe('brandName');
+      expect(history[0].newValue).toBe('First Name');
+      expect(history[1].newValue).toBe('Better Name');
+      expect(history[1].changeSource).toBe('ai');
+    });
+
+    it('should return empty array when no history exists', async () => {
+      mockDB._mockAll.mockResolvedValueOnce({ results: [] });
+
+      const history = await getFieldHistory(mockDB as any, 'profile-1', 'nonExistentField');
+      expect(history).toEqual([]);
+    });
+  });
+
+  describe('updateBrandFieldWithVersion', () => {
+    it('should update the field and create a version record', async () => {
+      // Mock getting current value
+      mockDB._mockFirst
+        .mockResolvedValueOnce({ brand_name: 'Old Name' }) // getBrandProfile lookup
+        .mockResolvedValueOnce({ max_version: 1 });         // version number lookup
+
+      await updateBrandFieldWithVersion(mockDB as any, {
+        profileId: 'profile-1',
+        userId: 'user-1',
+        fieldName: 'brandName',
+        newValue: 'New Name',
+        changeSource: 'manual'
+      });
+
+      // Should have called prepare at least twice (one for update, one for version)
+      expect(mockDB.prepare.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should handle JSON fields properly', async () => {
+      mockDB._mockFirst
+        .mockResolvedValueOnce({ brand_values: '["old1","old2"]' })
+        .mockResolvedValueOnce({ max_version: 0 });
+
+      await updateBrandFieldWithVersion(mockDB as any, {
+        profileId: 'profile-1',
+        userId: 'user-1',
+        fieldName: 'brandValues',
+        newValue: ['new1', 'new2', 'new3'],
+        changeSource: 'ai',
+        changeReason: 'AI refined values'
+      });
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+    });
+  });
+
+  describe('getBrandFieldsSummary', () => {
+    it('should categorize brand fields into sections', () => {
+      const profile = {
+        id: 'profile-1',
+        userId: 'user-1',
+        status: 'in_progress' as const,
+        brandName: 'Test Brand',
+        tagline: 'Test tagline',
+        missionStatement: 'Our mission',
+        primaryColor: '#0066cc',
+        industry: 'Technology',
+        onboardingStep: 'brand_identity' as const,
+        createdAt: '2025-01-01',
+        updatedAt: '2025-01-01'
+      };
+
+      const summary = getBrandFieldsSummary(profile);
+
+      expect(summary).toBeDefined();
+      expect(Array.isArray(summary)).toBe(true);
+      expect(summary.length).toBeGreaterThan(0);
+
+      // Find the identity section
+      const identitySection = summary.find(s => s.id === 'identity');
+      expect(identitySection).toBeDefined();
+      expect(identitySection!.title).toBe('Brand Identity');
+
+      // Check the fields in identity section
+      const brandNameField = identitySection!.fields.find(f => f.key === 'brandName');
+      expect(brandNameField).toBeDefined();
+      expect(brandNameField!.value).toBe('Test Brand');
+      expect(brandNameField!.label).toBe('Brand Name');
+
+      // Find the visual section
+      const visualSection = summary.find(s => s.id === 'visual');
+      expect(visualSection).toBeDefined();
+
+      const primaryColorField = visualSection!.fields.find(f => f.key === 'primaryColor');
+      expect(primaryColorField).toBeDefined();
+      expect(primaryColorField!.value).toBe('#0066cc');
+    });
+
+    it('should mark empty fields as having no value', () => {
+      const profile = {
+        id: 'profile-1',
+        userId: 'user-1',
+        status: 'in_progress' as const,
+        brandName: 'Test Brand',
+        onboardingStep: 'welcome' as const,
+        createdAt: '2025-01-01',
+        updatedAt: '2025-01-01'
+      };
+
+      const summary = getBrandFieldsSummary(profile);
+      const identitySection = summary.find(s => s.id === 'identity');
+      const taglineField = identitySection!.fields.find(f => f.key === 'tagline');
+
+      expect(taglineField).toBeDefined();
+      expect(taglineField!.value).toBeUndefined();
+    });
+  });
+
+  describe('revertFieldToVersion', () => {
+    it('should get the value from a specific version and apply it', async () => {
+      // Mock getting the version
+      mockDB._mockFirst
+        .mockResolvedValueOnce({
+          id: 'v1',
+          brand_profile_id: 'profile-1',
+          field_name: 'brandName',
+          new_value: 'Original Name',
+          version_number: 1,
+          created_at: '2025-01-01T00:00:00Z'
+        })
+        // Mock getting current value for version tracking
+        .mockResolvedValueOnce({ brand_name: 'Current Name' })
+        // Mock getting max version
+        .mockResolvedValueOnce({ max_version: 3 });
+
+      await revertFieldToVersion(mockDB as any, {
+        profileId: 'profile-1',
+        userId: 'user-1',
+        fieldName: 'brandName',
+        versionId: 'v1'
+      });
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+    });
+
+    it('should throw if version not found', async () => {
+      mockDB._mockFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        revertFieldToVersion(mockDB as any, {
+          profileId: 'profile-1',
+          userId: 'user-1',
+          fieldName: 'brandName',
+          versionId: 'nonexistent'
+        })
+      ).rejects.toThrow('Version not found');
+    });
+  });
+});

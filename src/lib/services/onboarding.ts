@@ -401,6 +401,78 @@ export function getStepConfig(stepId: OnboardingStep): OnboardingStepConfig | un
 }
 
 /**
+ * Build a comprehensive brand context string from all known brand data.
+ * Used to give the AI full awareness of what's already filled in.
+ */
+export function buildBrandContextString(brandData: Partial<BrandProfile>): string {
+  const contextParts: string[] = [];
+
+  // Identity
+  if (brandData.brandName) contextParts.push(`Brand Name: ${brandData.brandName}`);
+  if (brandData.industry) contextParts.push(`Industry: ${brandData.industry}`);
+  if (brandData.tagline) contextParts.push(`Tagline: ${brandData.tagline}`);
+  if (brandData.missionStatement)
+    contextParts.push(`Mission: ${brandData.missionStatement}`);
+  if (brandData.visionStatement)
+    contextParts.push(`Vision: ${brandData.visionStatement}`);
+  if (brandData.elevatorPitch)
+    contextParts.push(`Elevator Pitch: ${brandData.elevatorPitch}`);
+
+  // Personality
+  if (brandData.brandArchetype)
+    contextParts.push(`Brand Archetype: ${brandData.brandArchetype}`);
+  if (brandData.toneOfVoice) contextParts.push(`Tone of Voice: ${brandData.toneOfVoice}`);
+  if (brandData.communicationStyle)
+    contextParts.push(`Communication Style: ${brandData.communicationStyle}`);
+  if (brandData.brandPersonalityTraits?.length)
+    contextParts.push(
+      `Personality Traits: ${brandData.brandPersonalityTraits.join(', ')}`
+    );
+
+  // Audience
+  if (brandData.targetAudience)
+    contextParts.push(`Target Audience: ${JSON.stringify(brandData.targetAudience)}`);
+  if (brandData.customerPainPoints?.length)
+    contextParts.push(`Customer Pain Points: ${brandData.customerPainPoints.join(', ')}`);
+  if (brandData.valueProposition)
+    contextParts.push(`Value Proposition: ${brandData.valueProposition}`);
+
+  // Visual
+  if (brandData.primaryColor) contextParts.push(`Primary Color: ${brandData.primaryColor}`);
+  if (brandData.secondaryColor)
+    contextParts.push(`Secondary Color: ${brandData.secondaryColor}`);
+  if (brandData.accentColor) contextParts.push(`Accent Color: ${brandData.accentColor}`);
+  if (brandData.colorPalette?.length)
+    contextParts.push(`Color Palette: ${brandData.colorPalette.join(', ')}`);
+  if (brandData.typographyHeading)
+    contextParts.push(`Heading Font: ${brandData.typographyHeading}`);
+  if (brandData.typographyBody)
+    contextParts.push(`Body Font: ${brandData.typographyBody}`);
+  if (brandData.logoConcept)
+    contextParts.push(`Logo Concept: ${brandData.logoConcept}`);
+
+  // Market
+  if (brandData.marketPosition)
+    contextParts.push(`Market Position: ${brandData.marketPosition}`);
+  if (brandData.competitors?.length)
+    contextParts.push(`Competitors: ${brandData.competitors.join(', ')}`);
+  if (brandData.uniqueSellingPoints?.length)
+    contextParts.push(`USPs: ${brandData.uniqueSellingPoints.join(', ')}`);
+
+  // Story
+  if (brandData.brandValues?.length)
+    contextParts.push(`Brand Values: ${brandData.brandValues.join(', ')}`);
+  if (brandData.brandPromise)
+    contextParts.push(`Brand Promise: ${brandData.brandPromise}`);
+  if (brandData.originStory)
+    contextParts.push(`Origin Story: ${brandData.originStory}`);
+
+  return contextParts.length > 0
+    ? contextParts.join('\n')
+    : '';
+}
+
+/**
  * Get the system prompt for a specific step, optionally incorporating brand data
  */
 export function getSystemPromptForStep(
@@ -414,43 +486,28 @@ export function getSystemPromptForStep(
 
   // Replace brand context placeholder
   if (brandData && prompt.includes('{BRAND_CONTEXT}')) {
-    const contextParts: string[] = [];
+    const contextStr = buildBrandContextString(brandData);
 
-    if (brandData.brandName) contextParts.push(`Brand Name: ${brandData.brandName}`);
-    if (brandData.industry) contextParts.push(`Industry: ${brandData.industry}`);
-    if (brandData.tagline) contextParts.push(`Tagline: ${brandData.tagline}`);
-    if (brandData.missionStatement)
-      contextParts.push(`Mission: ${brandData.missionStatement}`);
-    if (brandData.visionStatement)
-      contextParts.push(`Vision: ${brandData.visionStatement}`);
-    if (brandData.elevatorPitch)
-      contextParts.push(`Elevator Pitch: ${brandData.elevatorPitch}`);
-    if (brandData.brandArchetype)
-      contextParts.push(`Brand Archetype: ${brandData.brandArchetype}`);
-    if (brandData.toneOfVoice) contextParts.push(`Tone of Voice: ${brandData.toneOfVoice}`);
-    if (brandData.communicationStyle)
-      contextParts.push(`Communication Style: ${brandData.communicationStyle}`);
-    if (brandData.brandPersonalityTraits?.length)
-      contextParts.push(
-        `Personality Traits: ${brandData.brandPersonalityTraits.join(', ')}`
-      );
-    if (brandData.primaryColor) contextParts.push(`Primary Color: ${brandData.primaryColor}`);
-    if (brandData.secondaryColor)
-      contextParts.push(`Secondary Color: ${brandData.secondaryColor}`);
-    if (brandData.accentColor) contextParts.push(`Accent Color: ${brandData.accentColor}`);
-    if (brandData.valueProposition)
-      contextParts.push(`Value Proposition: ${brandData.valueProposition}`);
-    if (brandData.marketPosition)
-      contextParts.push(`Market Position: ${brandData.marketPosition}`);
-    if (brandData.brandValues?.length)
-      contextParts.push(`Brand Values: ${brandData.brandValues.join(', ')}`);
-
-    const contextStr =
-      contextParts.length > 0
-        ? `Here's what we know about the brand so far:\n${contextParts.join('\n')}\n\nBuild on this foundation.`
+    const contextBlock =
+      contextStr
+        ? `Here's what we know about the brand so far:\n${contextStr}\n\nBuild on this foundation. The user may have already set some of these fields on their Brand page — acknowledge what's filled in and offer to refine or improve any existing values.`
         : 'We are starting fresh — no brand details have been defined yet.';
 
-    prompt = prompt.replace('{BRAND_CONTEXT}', contextStr);
+    prompt = prompt.replace('{BRAND_CONTEXT}', contextBlock);
+  }
+
+  // Add brand awareness instruction to all prompts when we have data
+  if (brandData) {
+    const contextStr = buildBrandContextString(brandData);
+    if (contextStr) {
+      prompt += `
+
+BRAND FIELD AWARENESS:
+The user's brand profile currently has these fields filled in:
+${contextStr}
+
+You can reference, build upon, or suggest improvements to any of these existing values. If the user asks you to change or refine any field, do so and explicitly mention what you're updating. The system will track all changes with version history, so the user can always revert.`;
+    }
   }
 
   // Append auto-progression instruction for all steps except 'complete'

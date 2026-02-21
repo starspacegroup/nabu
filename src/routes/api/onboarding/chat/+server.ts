@@ -13,6 +13,7 @@ import {
   getNextStep,
   STEP_COMPLETE_MARKER
 } from '$lib/services/onboarding';
+import { updateBrandFieldWithVersion } from '$lib/services/brand';
 import {
   getEnabledOpenAIKey,
   streamChatCompletion

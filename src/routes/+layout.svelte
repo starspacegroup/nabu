@@ -21,7 +21,8 @@
 		$page.url.pathname.startsWith('/chat') ||
 		$page.url.pathname.startsWith('/admin') ||
 		$page.url.pathname.startsWith('/setup') ||
-		$page.url.pathname.startsWith('/onboarding');
+		$page.url.pathname.startsWith('/onboarding') ||
+		$page.url.pathname.startsWith('/brand');
 
 	// Full-screen pages that need height-constrained main (no body scroll)
 	$: fullScreenPage =
