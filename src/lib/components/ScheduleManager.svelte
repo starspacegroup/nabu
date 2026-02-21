@@ -234,22 +234,25 @@
 </div>
 
 <style>
+	/* ===== MOBILE-FIRST BASE STYLES ===== */
+
 	.schedule-manager {
 		background-color: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		padding: var(--spacing-lg);
+		padding: var(--spacing-md);
 	}
 
 	.manager-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: var(--spacing-sm);
 		margin-bottom: var(--spacing-md);
 	}
 
 	.manager-header h2 {
-		font-size: 1.1rem;
+		font-size: 1rem;
 		font-weight: 600;
 		color: var(--color-text);
 	}
@@ -258,7 +261,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--spacing-xs);
-		padding: var(--spacing-xs) var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-background);
@@ -266,12 +269,16 @@
 		font-size: 0.8rem;
 		cursor: pointer;
 		transition: all var(--transition-fast);
+		min-height: 44px;
+		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
 	.new-schedule-btn:hover {
 		background-color: var(--color-surface-hover);
 	}
 
+	/* Create schedule form — stacked on mobile */
 	.create-schedule-form {
 		display: flex;
 		flex-direction: column;
@@ -289,10 +296,11 @@
 		gap: var(--spacing-xs);
 	}
 
+	/* Inline row — stacked on mobile, row on tablet+ */
 	.form-row-inline {
 		display: flex;
-		gap: var(--spacing-md);
-		flex-wrap: wrap;
+		flex-direction: column;
+		gap: var(--spacing-sm);
 	}
 
 	.form-label {
@@ -306,13 +314,15 @@
 	.form-input,
 	.form-textarea,
 	.form-select {
-		padding: var(--spacing-xs) var(--spacing-sm);
+		padding: var(--spacing-sm);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-surface);
 		color: var(--color-text);
-		font-size: 0.85rem;
+		font-size: 0.9rem;
 		font-family: var(--font-sans);
+		min-height: 44px;
+		width: 100%;
 	}
 
 	.form-input:focus,
@@ -328,14 +338,19 @@
 	}
 
 	.ratio-chip {
-		padding: var(--spacing-xs) var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-surface);
 		color: var(--color-text);
-		font-size: 0.8rem;
+		font-size: 0.85rem;
 		cursor: pointer;
 		transition: all var(--transition-fast);
+		min-height: 44px;
+		min-width: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.ratio-chip.active {
@@ -344,9 +359,9 @@
 		border-color: var(--color-primary);
 	}
 
+	/* Create button — full-width on mobile */
 	.create-btn {
-		align-self: flex-start;
-		padding: var(--spacing-xs) var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border: none;
 		border-radius: var(--radius-sm);
 		background-color: var(--color-primary);
@@ -355,6 +370,8 @@
 		font-weight: 600;
 		cursor: pointer;
 		transition: background-color var(--transition-fast);
+		min-height: 44px;
+		width: 100%;
 	}
 
 	.create-btn:hover:not(:disabled) {
@@ -371,7 +388,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: var(--spacing-sm);
-		padding: var(--spacing-xl);
+		padding: var(--spacing-lg);
 		color: var(--color-text-secondary);
 		text-align: center;
 	}
@@ -386,11 +403,11 @@
 		gap: var(--spacing-sm);
 	}
 
+	/* Schedule items — column layout on mobile */
 	.schedule-item {
 		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: var(--spacing-md);
+		flex-direction: column;
+		gap: var(--spacing-sm);
 		padding: var(--spacing-md);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
@@ -448,18 +465,27 @@
 		text-overflow: ellipsis;
 	}
 
+	/* Actions — row at bottom of card on mobile */
 	.schedule-actions {
 		display: flex;
 		align-items: center;
+		justify-content: flex-end;
 		gap: var(--spacing-sm);
 		flex-shrink: 0;
+		padding-top: var(--spacing-xs);
+		border-top: 1px solid var(--color-border);
 	}
 
 	.toggle-btn {
 		background: none;
 		border: none;
 		cursor: pointer;
-		padding: 2px;
+		padding: var(--spacing-xs);
+		min-width: 44px;
+		min-height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.toggle-track {
@@ -501,9 +527,77 @@
 		color: var(--color-text-secondary);
 		cursor: pointer;
 		transition: color var(--transition-fast);
+		min-width: 44px;
+		min-height: 44px;
 	}
 
 	.delete-schedule-btn:hover {
 		color: var(--color-error);
+	}
+
+	/* ===== TABLET (min-width: 640px) ===== */
+	@media (min-width: 640px) {
+		.schedule-manager {
+			padding: var(--spacing-lg);
+		}
+
+		.manager-header h2 {
+			font-size: 1.1rem;
+		}
+
+		.new-schedule-btn {
+			padding: var(--spacing-xs) var(--spacing-sm);
+			min-height: 36px;
+		}
+
+		.form-row-inline {
+			flex-direction: row;
+			gap: var(--spacing-md);
+		}
+
+		.form-input,
+		.form-textarea,
+		.form-select {
+			padding: var(--spacing-xs) var(--spacing-sm);
+			font-size: 0.85rem;
+			min-height: 36px;
+		}
+
+		.ratio-chip {
+			padding: var(--spacing-xs) var(--spacing-sm);
+			font-size: 0.8rem;
+			min-height: 36px;
+			min-width: auto;
+		}
+
+		.create-btn {
+			width: auto;
+			align-self: flex-start;
+		}
+
+		/* Schedule items — row layout on tablet+ */
+		.schedule-item {
+			flex-direction: row;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: var(--spacing-md);
+		}
+
+		.schedule-actions {
+			padding-top: 0;
+			border-top: none;
+		}
+
+		.toggle-btn {
+			padding: 2px;
+			min-width: auto;
+			min-height: auto;
+		}
+
+		.delete-schedule-btn {
+			min-width: auto;
+			min-height: auto;
+			padding: var(--spacing-xs);
+		}
 	}
 </style>

@@ -596,7 +596,7 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 
 	.feature-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		grid-template-columns: 1fr;
 		gap: var(--spacing-lg);
 		margin-top: var(--spacing-lg);
 	}
@@ -689,17 +689,21 @@ const file = await platform.env.BUCKET.get('file.jpg');</code
 		color: var(--color-text-secondary);
 	}
 
-	@media (max-width: 768px) {
+	@media (min-width: 769px) {
 		.setup-flow {
-			flex-direction: column;
+			flex-direction: row;
 		}
 
 		.flow-arrow {
-			transform: rotate(90deg);
+			transform: none;
 		}
 
 		.flow-step {
-			max-width: 100%;
+			max-width: 220px;
+		}
+
+		.feature-grid {
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 		}
 	}
 

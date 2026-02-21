@@ -319,11 +319,13 @@
 </div>
 
 <style>
+	/* ===== MOBILE-FIRST BASE STYLES ===== */
+
 	.create-form {
 		background-color: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		padding: var(--spacing-lg);
+		padding: var(--spacing-md);
 	}
 
 	.no-provider {
@@ -332,7 +334,7 @@
 		align-items: center;
 		gap: var(--spacing-sm);
 		color: var(--color-text-secondary);
-		padding: var(--spacing-lg);
+		padding: var(--spacing-md);
 		text-align: center;
 	}
 
@@ -370,9 +372,10 @@
 		background-color: var(--color-background);
 		color: var(--color-text);
 		font-family: var(--font-sans);
-		font-size: 0.9rem;
+		font-size: 1rem;
 		resize: vertical;
 		transition: border-color var(--transition-fast);
+		min-height: 80px;
 	}
 
 	.prompt-input:focus {
@@ -392,11 +395,11 @@
 		color: var(--color-text-secondary);
 	}
 
+	/* Form options — stacked on mobile */
 	.form-options {
 		display: flex;
-		gap: var(--spacing-lg);
-		flex-wrap: wrap;
-		align-items: flex-end;
+		flex-direction: column;
+		gap: var(--spacing-md);
 	}
 
 	.option-group {
@@ -413,20 +416,35 @@
 		letter-spacing: 0.05em;
 	}
 
+	/* Ratio/duration/resolution selectors — scrollable on mobile */
 	.ratio-selector {
 		display: flex;
 		gap: var(--spacing-xs);
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.ratio-selector::-webkit-scrollbar {
+		display: none;
 	}
 
 	.ratio-btn {
-		padding: var(--spacing-xs) var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-background);
 		color: var(--color-text);
-		font-size: 0.8rem;
+		font-size: 0.85rem;
 		cursor: pointer;
 		transition: all var(--transition-fast);
+		white-space: nowrap;
+		min-height: 44px;
+		min-width: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
 	}
 
 	.ratio-btn.active {
@@ -440,12 +458,14 @@
 	}
 
 	.model-select {
-		padding: var(--spacing-xs) var(--spacing-sm);
+		padding: var(--spacing-sm);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background-color: var(--color-background);
 		color: var(--color-text);
-		font-size: 0.8rem;
+		font-size: 0.85rem;
+		min-height: 44px;
+		width: 100%;
 	}
 
 	.pricing-preview {
@@ -458,6 +478,7 @@
 		border-radius: var(--radius-md);
 		font-size: 0.8rem;
 		color: var(--color-text-secondary);
+		flex-wrap: wrap;
 	}
 
 	.pricing-preview svg {
@@ -475,6 +496,7 @@
 		opacity: 0.7;
 	}
 
+	/* Generate button — full-width on mobile */
 	.generate-btn {
 		display: inline-flex;
 		align-items: center;
@@ -485,11 +507,12 @@
 		border-radius: var(--radius-md);
 		background-color: var(--color-primary);
 		color: var(--color-background);
-		font-size: 0.85rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 		cursor: pointer;
 		transition: background-color var(--transition-fast);
-		align-self: flex-start;
+		width: 100%;
+		min-height: 48px;
 	}
 
 	.generate-btn:hover:not(:disabled) {
@@ -513,6 +536,51 @@
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
+		}
+	}
+
+	/* ===== TABLET (min-width: 640px) ===== */
+	@media (min-width: 640px) {
+		.create-form {
+			padding: var(--spacing-lg);
+		}
+
+		.no-provider {
+			padding: var(--spacing-lg);
+		}
+
+		.prompt-input {
+			font-size: 0.9rem;
+		}
+
+		/* Form options — row layout on tablet+ */
+		.form-options {
+			flex-direction: row;
+			flex-wrap: wrap;
+			gap: var(--spacing-lg);
+			align-items: flex-end;
+		}
+
+		.ratio-btn {
+			padding: var(--spacing-xs) var(--spacing-sm);
+			font-size: 0.8rem;
+			min-height: 36px;
+			min-width: auto;
+		}
+
+		.model-select {
+			padding: var(--spacing-xs) var(--spacing-sm);
+			font-size: 0.8rem;
+			min-height: 36px;
+			width: auto;
+		}
+
+		/* Generate button — auto-width on tablet+ */
+		.generate-btn {
+			width: auto;
+			align-self: flex-start;
+			font-size: 0.85rem;
+			min-height: 40px;
 		}
 	}
 </style>

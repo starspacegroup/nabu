@@ -1058,7 +1058,7 @@
 	/* ─── Form Fields ───────────────────────────────────────────────────────── */
 	.form-grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr;
 		gap: var(--spacing-md);
 	}
 
@@ -1234,21 +1234,9 @@
 	}
 
 	/* ─── Responsive ────────────────────────────────────────────────────────── */
-	@media (max-width: 640px) {
-		.cms-header-row {
-			flex-direction: column;
-		}
-
+	@media (min-width: 641px) {
 		.form-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.modal-overlay {
-			padding: var(--spacing-sm);
-		}
-
-		.modal-content {
-			margin: var(--spacing-sm) 0;
+			grid-template-columns: 1fr 1fr;
 		}
 	}
 </style>

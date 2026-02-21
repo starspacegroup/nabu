@@ -246,18 +246,20 @@
 	.profile-container {
 		max-width: 48rem;
 		margin: 0 auto;
-		padding: var(--spacing-xl);
+		padding: var(--spacing-md);
 	}
 
 	.profile-card {
 		background-color: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		padding: var(--spacing-xl);
+		padding: var(--spacing-md);
 	}
 
 	.profile-header {
 		display: flex;
+		flex-direction: column;
+		text-align: center;
 		align-items: center;
 		gap: var(--spacing-lg);
 		margin-bottom: var(--spacing-xl);
@@ -266,8 +268,8 @@
 	}
 
 	.avatar {
-		width: 6rem;
-		height: 6rem;
+		width: 5rem;
+		height: 5rem;
 		border-radius: var(--radius-full);
 		border: 2px solid var(--color-border);
 		object-fit: cover;
@@ -514,42 +516,33 @@
 		cursor: not-allowed;
 	}
 
-	@media (max-width: 640px) {
+	@media (min-width: 641px) {
 		.profile-container {
-			padding: var(--spacing-md);
+			padding: var(--spacing-xl);
 		}
 
 		.profile-card {
-			padding: var(--spacing-md);
+			padding: var(--spacing-xl);
 		}
 
 		.profile-header {
-			flex-direction: column;
-			text-align: center;
+			flex-direction: row;
+			text-align: left;
+			align-items: center;
 		}
 
 		.avatar,
 		.avatar-placeholder {
-			width: 5rem;
-			height: 5rem;
+			width: 6rem;
+			height: 6rem;
 		}
 
 		.profile-info h1 {
-			font-size: 1.5rem;
+			font-size: 1.75rem;
 		}
 
 		.account-item {
-			flex-direction: column;
-			gap: var(--spacing-sm);
-			align-items: stretch;
-		}
-
-		.account-info {
-			justify-content: center;
-		}
-
-		.account-actions {
-			justify-content: center;
+			flex-direction: row;
 		}
 	}
 </style>

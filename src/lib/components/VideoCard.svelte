@@ -126,7 +126,7 @@
 <style>
 	.video-card {
 		width: 100%;
-		max-width: 420px;
+		max-width: 100%;
 		border-radius: var(--radius-lg);
 		overflow: hidden;
 		background: var(--color-surface);
@@ -139,12 +139,12 @@
 
 	/* Generating state */
 	.video-placeholder {
-		padding: var(--spacing-xl);
+		padding: var(--spacing-lg);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: var(--spacing-md);
-		min-height: 200px;
+		min-height: 160px;
 		justify-content: center;
 	}
 
@@ -325,15 +325,15 @@
 		color: var(--color-primary);
 	}
 
-	/* Mobile responsive */
-	@media (max-width: 768px) {
+	/* Desktop enhancements */
+	@media (min-width: 769px) {
 		.video-card {
-			max-width: 100%;
+			max-width: 420px;
 		}
 
 		.video-placeholder {
-			min-height: 160px;
-			padding: var(--spacing-lg);
+			min-height: 200px;
+			padding: var(--spacing-xl);
 		}
 	}
 </style>

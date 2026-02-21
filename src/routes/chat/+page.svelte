@@ -63,7 +63,7 @@
 
 <style>
 	.chat-page-container {
-		height: calc(100vh - 64px);
+		height: calc(100vh - 56px);
 		width: 100%;
 		display: flex;
 		overflow: hidden;
@@ -79,8 +79,8 @@
 
 	.sidebar-toggle {
 		position: absolute;
-		top: var(--spacing-md);
-		left: var(--spacing-md);
+		top: var(--spacing-sm);
+		left: var(--spacing-sm);
 		z-index: 20;
 		display: flex;
 		align-items: center;
@@ -106,14 +106,14 @@
 		left: var(--spacing-md);
 	}
 
-	@media (max-width: 768px) {
+	@media (min-width: 769px) {
 		.chat-page-container {
-			height: calc(100vh - 56px);
+			height: calc(100vh - 64px);
 		}
 
 		.sidebar-toggle {
-			top: var(--spacing-sm);
-			left: var(--spacing-sm);
+			top: var(--spacing-md);
+			left: var(--spacing-md);
 		}
 	}
 </style>

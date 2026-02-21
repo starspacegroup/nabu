@@ -381,7 +381,7 @@
 
 	.welcome-features {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr;
 		gap: var(--spacing-md);
 		text-align: left;
 		margin-bottom: var(--spacing-xl);
@@ -469,7 +469,7 @@
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
-		padding: var(--spacing-lg);
+		padding: var(--spacing-md);
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-md);
@@ -503,7 +503,7 @@
 	.message {
 		display: flex;
 		gap: var(--spacing-sm);
-		max-width: 85%;
+		max-width: 95%;
 		animation: messageIn 0.3s ease;
 	}
 
@@ -663,9 +663,10 @@
 	/* Step navigation */
 	.step-navigation {
 		display: flex;
-		align-items: center;
+		flex-direction: column;
+		align-items: flex-start;
 		gap: var(--spacing-md);
-		padding: var(--spacing-sm) var(--spacing-lg);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border-bottom: 1px solid var(--color-border);
 	}
 
@@ -767,7 +768,7 @@
 
 	/* Input area */
 	.input-area {
-		padding: var(--spacing-md) var(--spacing-lg);
+		padding: var(--spacing-sm) var(--spacing-md);
 	}
 
 	.input-wrapper {
@@ -840,31 +841,31 @@
 	}
 
 	/* Responsive */
-	@media (max-width: 768px) {
+	@media (min-width: 769px) {
 		.welcome-features {
-			grid-template-columns: 1fr;
+			grid-template-columns: 1fr 1fr;
 		}
 
 		.welcome-content h1 {
-			font-size: 1.6rem;
+			font-size: 2rem;
 		}
 
 		.message {
-			max-width: 95%;
+			max-width: 85%;
 		}
 
 		.chat-area {
-			padding: var(--spacing-md);
+			padding: var(--spacing-lg);
 		}
 
 		.input-area {
-			padding: var(--spacing-sm) var(--spacing-md);
+			padding: var(--spacing-md) var(--spacing-lg);
 		}
 
 		.step-navigation {
-			flex-direction: column;
-			align-items: flex-start;
-			padding: var(--spacing-sm) var(--spacing-md);
+			flex-direction: row;
+			align-items: center;
+			padding: var(--spacing-sm) var(--spacing-lg);
 		}
 	}
 </style>

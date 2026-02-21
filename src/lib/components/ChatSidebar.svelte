@@ -180,8 +180,13 @@
 	.chat-sidebar {
 		display: flex;
 		flex-direction: column;
-		width: 280px;
-		min-width: 280px;
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		z-index: 100;
+		width: min(280px, 85vw);
+		min-width: 0;
 		height: 100%;
 		background: var(--color-surface);
 		border-right: 1px solid var(--color-border);
@@ -190,9 +195,7 @@
 	}
 
 	.chat-sidebar:not(.open) {
-		width: 0;
-		min-width: 0;
-		border-right: none;
+		transform: translateX(-100%);
 	}
 
 	.sidebar-header {
@@ -354,18 +357,18 @@
 		color: white;
 	}
 
-	@media (max-width: 768px) {
+	@media (min-width: 769px) {
 		.chat-sidebar {
-			position: absolute;
-			left: 0;
-			top: 0;
-			bottom: 0;
-			z-index: 100;
+			position: relative;
 			width: 280px;
+			min-width: 280px;
 		}
 
 		.chat-sidebar:not(.open) {
-			transform: translateX(-100%);
+			width: 0;
+			min-width: 0;
+			border-right: none;
+			transform: none;
 		}
 	}
 </style>

@@ -147,8 +147,8 @@
 
 <style>
 	.voice-button {
-		width: 48px;
-		height: 48px;
+		width: 46px;
+		height: 46px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -309,20 +309,11 @@
 		opacity: 0.8;
 	}
 
-	/* Mobile responsive */
-	@media (max-width: 768px) {
+	/* Mobile responsive - mobile-first base */
+	@media (min-width: 769px) {
 		.voice-button {
-			width: 46px;
-			height: 46px;
-		}
-
-		.wave-container {
-			height: 20px;
-			width: 20px;
-		}
-
-		.wave-bar {
-			width: 3px;
+			width: 48px;
+			height: 48px;
 		}
 	}
 </style>

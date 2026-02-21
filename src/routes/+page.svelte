@@ -279,7 +279,7 @@ padding: var(--spacing-2xl) 0 var(--spacing-xl);
 }
 
 .title {
-font-size: 2.5rem;
+font-size: 2rem;
 font-weight: 700;
 color: var(--color-text);
 margin: 0 0 var(--spacing-sm);
@@ -347,7 +347,7 @@ gap: var(--spacing-md);
 }
 
 .card-grid.cols-3 {
-grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+grid-template-columns: 1fr;
 }
 
 .nav-card {
@@ -469,13 +469,13 @@ transform: translateX(-50%) translateY(0);
 }
 }
 
-@media (max-width: 640px) {
+@media (min-width: 641px) {
 .title {
-font-size: 2rem;
+font-size: 2.5rem;
 }
 
 .card-grid.cols-3 {
-grid-template-columns: 1fr;
+grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 }
 </style>

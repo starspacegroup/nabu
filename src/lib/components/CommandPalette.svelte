@@ -354,76 +354,24 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-xl);
-		width: 90%;
-		max-width: 600px;
+		width: 95%;
+		max-width: none;
 		max-height: 60vh;
 		display: flex;
 		flex-direction: column;
 		animation: slideDown 0.2s ease;
 	}
 
-	@media (max-width: 768px) {
+	@media (min-width: 481px) {
 		.palette {
-			width: 95%;
 			max-width: 500px;
 		}
 	}
 
-	@media (max-width: 480px) {
+	@media (min-width: 769px) {
 		.palette {
-			width: 95%;
-			max-width: none;
-		}
-
-		.search-box {
-			padding: var(--spacing-sm);
-		}
-
-		.search-icon {
-			width: 14px;
-			height: 14px;
-		}
-
-		.search-input {
-			font-size: 0.688rem;
-		}
-
-		.command {
-			padding: var(--spacing-xs);
-			gap: var(--spacing-xs);
-		}
-
-		.command-icon {
-			font-size: 0.938rem;
-		}
-
-		.command-label {
-			font-size: 0.688rem;
-		}
-
-		.command-badge {
-			font-size: 0.563rem;
-			padding: 0.0625rem 0.25rem;
-		}
-
-		.command-description {
-			font-size: 0.625rem;
-			line-height: 1.4;
-		}
-
-		.no-results {
-			font-size: 0.688rem;
-			padding: var(--spacing-sm);
-		}
-
-		.hint {
-			font-size: 0.563rem;
-			gap: 0.188rem;
-		}
-
-		kbd {
-			font-size: 0.563rem;
-			padding: 0.0625rem 0.188rem;
+			width: 90%;
+			max-width: 600px;
 		}
 	}
 

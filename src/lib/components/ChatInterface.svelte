@@ -1220,10 +1220,10 @@
 	.chat-messages {
 		flex: 1;
 		overflow-y: auto;
-		padding: var(--spacing-lg);
+		padding: var(--spacing-md);
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-md);
 		max-width: 1200px;
 		width: 100%;
 		margin: 0 auto;
@@ -1232,7 +1232,7 @@
 	.message {
 		display: flex;
 		gap: var(--spacing-md);
-		max-width: 75%;
+		max-width: 90%;
 		animation: slideIn 0.3s ease-out;
 	}
 
@@ -1401,7 +1401,7 @@
 	}
 
 	.unified-input-area {
-		padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+		padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
 		border-top: 1px solid var(--color-border);
 		background: var(--color-surface);
 		backdrop-filter: blur(12px);
@@ -1675,31 +1675,18 @@
 		max-width: 90px;
 	}
 
-	@media (max-width: 768px) {
+	@media (min-width: 769px) {
 		.message {
-			max-width: 90%;
+			max-width: 75%;
 		}
 
 		.unified-input-area {
-			padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+			padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 		}
 
 		.chat-messages {
-			padding: var(--spacing-md);
-			gap: var(--spacing-md);
-		}
-
-		.input-container {
-			border-radius: var(--radius-lg);
-		}
-
-		.hint-text {
-			font-size: 0.688rem;
-		}
-
-		.hint-text kbd {
-			padding: 1px 4px;
-			font-size: 0.625rem;
+			padding: var(--spacing-lg);
+			gap: var(--spacing-lg);
 		}
 	}
 </style>

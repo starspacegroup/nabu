@@ -428,7 +428,7 @@
 	}
 
 	.page-header h1 {
-		font-size: 2rem;
+		font-size: 1.5rem;
 		font-weight: 700;
 		color: var(--color-text);
 		margin-bottom: var(--spacing-sm);
@@ -436,7 +436,7 @@
 
 	.page-description {
 		color: var(--color-text-secondary);
-		font-size: 1.125rem;
+		font-size: 1rem;
 	}
 
 	.page-actions {
@@ -760,5 +760,15 @@
 		margin-top: var(--spacing-xs);
 		font-size: 0.875rem;
 		color: #ef4444;
+	}
+
+	@media (min-width: 769px) {
+		.page-header h1 {
+			font-size: 2rem;
+		}
+
+		.page-description {
+			font-size: 1.125rem;
+		}
 	}
 </style>

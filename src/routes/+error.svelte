@@ -232,7 +232,7 @@
 	}
 
 	.icon-main {
-		font-size: 4rem;
+		font-size: 3rem;
 		display: block;
 		filter: drop-shadow(0 0 20px var(--color-primary));
 	}
@@ -269,7 +269,7 @@
 
 	/* Error Code */
 	.error-code {
-		font-size: 8rem;
+		font-size: 5rem;
 		font-weight: 900;
 		line-height: 1;
 		margin-bottom: var(--spacing-md);
@@ -309,14 +309,14 @@
 
 	/* Title & Message */
 	.error-title {
-		font-size: 2rem;
+		font-size: 1.5rem;
 		font-weight: 600;
 		color: var(--color-text);
 		margin-bottom: var(--spacing-sm);
 	}
 
 	.error-message {
-		font-size: 1.1rem;
+		font-size: 1rem;
 		color: var(--color-text-secondary);
 		margin-bottom: var(--spacing-xl);
 		max-width: 400px;
@@ -397,21 +397,21 @@
 	}
 
 	/* Responsive */
-	@media (max-width: 480px) {
+	@media (min-width: 481px) {
 		.error-code {
-			font-size: 5rem;
+			font-size: 8rem;
 		}
 
 		.error-title {
-			font-size: 1.5rem;
+			font-size: 2rem;
 		}
 
 		.error-message {
-			font-size: 1rem;
+			font-size: 1.1rem;
 		}
 
 		.icon-main {
-			font-size: 3rem;
+			font-size: 4rem;
 		}
 	}
 </style>

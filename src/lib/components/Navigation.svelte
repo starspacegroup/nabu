@@ -490,10 +490,13 @@
 		background: var(--color-surface-hover);
 	}
 
-	@media (max-width: 768px) {
+	.user-dropdown {
+		min-width: min(240px, 90vw);
+	}
+
+	@media (min-width: 769px) {
 		.user-dropdown {
-			right: auto;
-			left: 0;
+			min-width: 240px;
 		}
 	}
 </style>

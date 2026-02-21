@@ -433,7 +433,7 @@
 
 <style>
 	.users-page {
-		padding: var(--spacing-xl);
+		padding: var(--spacing-md);
 		max-width: 1400px;
 		margin: 0 auto;
 	}
@@ -443,7 +443,7 @@
 	}
 
 	.page-header h1 {
-		font-size: 2rem;
+		font-size: 1.5rem;
 		font-weight: 600;
 		color: var(--color-text);
 		margin: 0 0 var(--spacing-sm) 0;
@@ -870,5 +870,15 @@
 
 	.btn-primary:hover {
 		opacity: 0.9;
+	}
+
+	@media (min-width: 769px) {
+		.users-page {
+			padding: var(--spacing-xl);
+		}
+
+		.page-header h1 {
+			font-size: 2rem;
+		}
 	}
 </style>
