@@ -135,8 +135,23 @@
 		transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
-	/* ─── Steps nav (hidden on mobile, visible on tablet+) ─── */
+	/* ─── Steps nav ─── */
 	.steps {
+		display: flex;
+		align-items: flex-start;
+		padding: var(--spacing-xs) var(--spacing-sm);
+		gap: 0;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none; /* Firefox */
+	}
+
+	.steps::-webkit-scrollbar {
+		display: none; /* Chrome/Safari */
+	}
+
+	/* Mobile: smaller dots, no labels */
+	.step-label {
 		display: none;
 	}
 
@@ -166,8 +181,8 @@
 
 	/* ─── Step dot ─── */
 	.step-dot {
-		width: 32px;
-		height: 32px;
+		width: 26px;
+		height: 26px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -200,7 +215,7 @@
 	}
 
 	.step-emoji {
-		font-size: 0.85rem;
+		font-size: 0.7rem;
 		line-height: 1;
 	}
 
@@ -243,8 +258,8 @@
 		height: 2px;
 		background-color: var(--color-border);
 		align-self: center;
-		margin-bottom: 16px; /* offset for step label height */
-		min-width: 8px;
+		margin-bottom: 0;
+		min-width: 6px;
 		border-radius: 1px;
 		transition: background-color var(--transition-fast);
 	}
@@ -253,25 +268,28 @@
 		background-color: var(--color-success);
 	}
 
-	/* ─── Tablet: show step dots, hide mobile summary ─── */
+	/* ─── Tablet: hide mobile summary, more step spacing ─── */
 	@media (min-width: 640px) {
 		.mobile-summary {
 			display: none;
 		}
 
 		.steps {
-			display: flex;
-			align-items: flex-start;
 			padding: var(--spacing-sm) var(--spacing-md);
-			gap: 0;
-		}
-
-		.step-label {
-			display: none;
+			overflow-x: visible;
 		}
 
 		.step {
 			padding: var(--spacing-xs) var(--spacing-xs);
+		}
+
+		.step-dot {
+			width: 32px;
+			height: 32px;
+		}
+
+		.step-emoji {
+			font-size: 0.85rem;
 		}
 	}
 
