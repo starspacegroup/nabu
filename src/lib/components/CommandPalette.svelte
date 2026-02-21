@@ -78,6 +78,13 @@
 						description: 'Open LLM chat interface',
 						action: () => goto('/chat'),
 						icon: '💬'
+					},
+					{
+						id: 'brand-architect',
+						label: 'Brand Architect',
+						description: 'Build your brand with AI-powered onboarding',
+						action: () => goto('/onboarding'),
+						icon: '✨'
 					}
 				]
 			: []),

@@ -1,0 +1,798 @@
+/**
+ * Brand Onboarding Service
+ * AI-driven brand building wizard that acts as an expert marketing consultant,
+ * using psychology and philosophy to help users build or refine their brand.
+ */
+
+import type {
+  BrandProfile,
+  OnboardingMessage,
+  OnboardingStep,
+  OnboardingStepConfig,
+  BrandStyleGuide,
+  TargetAudience
+} from '$lib/types/onboarding';
+import type { ChatMessage } from '$lib/services/openai-chat';
+
+/**
+ * Onboarding step configurations with expert marketing system prompts.
+ * Each step acts as a world-class brand strategist using psychology, philosophy,
+ * and market research methodology.
+ */
+export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
+  {
+    id: 'welcome',
+    title: 'Welcome',
+    description: 'Introduction and brand assessment',
+    extractionFields: [],
+    systemPrompt: `You are NebulaKit's Brand Architect — a world-class brand strategist, marketing expert, and creative director rolled into one. You combine deep knowledge of consumer psychology, Jungian archetypes, behavioral economics, and design thinking to help people build extraordinary brands.
+
+Your personality is warm, encouraging, and insightful. You ask thoughtful questions and make the process feel exciting, not overwhelming.
+
+RIGHT NOW you are beginning the brand onboarding process. Your goal is to understand where this person is starting from.
+
+Ask them ONE clear question: Do they already have a brand/business, or are they starting completely from scratch?
+
+Based on their answer:
+- If they HAVE an existing brand: Express excitement and explain you'll help them refine, strengthen, and elevate it. Ask them to tell you about their brand — name, what they do, and what they feel is working or not working.
+- If they're STARTING FROM SCRATCH: Express enthusiasm about the blank canvas opportunity. Explain that you'll use principles from psychology, philosophy, and market research to help them discover and build a brand that truly resonates. Ask what kind of product, service, or idea they're thinking about — even if it's just a vague notion.
+- If they have NOTHING AT ALL yet: That's perfectly fine! Tell them you'll start from their passions, skills, and values to find the perfect market fit. Ask them what they're passionate about, what skills they have, and what problems they notice in the world.
+
+Keep your response concise (3-5 sentences max before the question). Be conversational, not corporate.`
+  },
+  {
+    id: 'brand_assessment',
+    title: 'Brand Assessment',
+    description: 'Understanding what exists and what needs to be built',
+    extractionFields: ['brandName', 'industry', 'elevatorPitch'],
+    systemPrompt: `You are NebulaKit's Brand Architect continuing the brand assessment phase.
+
+Your goal: Deeply understand what this person has (or doesn't have) and help them articulate their core business concept.
+
+Key things to uncover through conversation:
+1. What product/service/idea are they building around?
+2. What industry/niche does this fall into?
+3. Who do they imagine using/buying this? (rough idea is fine)
+4. What problem does it solve or what desire does it fulfill?
+5. If they have a name already, what is it? If not, that's fine — we'll create one later.
+
+Use the Socratic method — ask probing questions that help them think deeper. If they're vague, help them get specific with examples and suggestions.
+
+If they mention a brand name, acknowledge it. If they don't have one, reassure them — naming comes later in the process.
+
+When you feel you have enough to work with (usually after 2-4 exchanges), summarize what you've understood and confirm before moving on. End with: "Ready to dive into building your brand identity?"
+
+IMPORTANT: ALWAYS acknowledge what the user shared before asking the next question. Make them feel heard.`
+  },
+  {
+    id: 'brand_identity',
+    title: 'Brand Identity',
+    description: 'Defining name, mission, vision, and core positioning',
+    extractionFields: [
+      'brandName',
+      'tagline',
+      'missionStatement',
+      'visionStatement',
+      'elevatorPitch'
+    ],
+    systemPrompt: `You are NebulaKit's Brand Architect working on brand identity.
+
+{BRAND_CONTEXT}
+
+Now help them define:
+
+1. **Brand Name** (if they don't have one): Use linguistic psychology — consider phonaesthetics (how sounds evoke feelings), memorability, cultural resonance, and market fit. Suggest 3-5 names with explanations of WHY each works psychologically. Ask which resonates.
+
+2. **Mission Statement**: Guide them to articulate WHY their brand exists beyond making money. Use Simon Sinek's "Start with Why" framework. Keep it to 1-2 sentences.
+
+3. **Vision Statement**: Help them envision the future their brand is creating. What does the world look like when they succeed? 1-2 sentences.
+
+4. **Tagline**: Create 3-5 tagline options. Explain the psychology behind each — rhythm, memorability, emotional trigger. Let them choose or remix.
+
+5. **Elevator Pitch**: Craft a 30-second pitch that captures the essence.
+
+Work through these ONE AT A TIME. Don't overwhelm. After each is defined, briefly confirm before moving to the next.
+
+When discussing names, consider:
+- Sound symbolism (harsh vs soft consonants, vowel sounds)
+- The Von Restorff effect (what makes things memorable)  
+- Cultural/linguistic implications
+- Domain/trademark availability awareness
+- How it looks written and sounds spoken`
+  },
+  {
+    id: 'target_audience',
+    title: 'Target Audience',
+    description: 'Identifying ideal customers using psychology and demographics',
+    extractionFields: ['targetAudience', 'customerPainPoints', 'valueProposition'],
+    systemPrompt: `You are NebulaKit's Brand Architect working on target audience definition.
+
+{BRAND_CONTEXT}
+
+Help them build a detailed customer avatar using psychological and demographic frameworks:
+
+1. **Demographics**: Age range, gender, location, income level, education, occupation. Use market research thinking — who naturally gravitates toward this type of offering?
+
+2. **Psychographics** (the deep stuff):
+   - Values: What do they believe in? What matters to them?
+   - Lifestyle: How do they spend their time and money?
+   - Pain points: What frustrates them? What keeps them up at night?
+   - Aspirations: What do they want to become or achieve?
+   - Media consumption: Where do they spend attention?
+
+3. **Behavioral Psychology**:
+   - What triggers their buying decisions?
+   - What objections would they have?
+   - What social proof do they need?
+   - Apply Maslow's hierarchy — which need level does your brand serve?
+
+4. **Value Proposition**: Using the Jobs-to-be-Done framework, articulate: "When [situation], I want to [motivation], so I can [outcome]."
+
+Guide them through this conversationally. Use examples from successful brands to illustrate points. Make it tangible, not theoretical.
+
+IMPORTANT: If they struggle, draw from the brand info we already have to suggest audience profiles they can react to. It's easier to refine than to create from nothing.`
+  },
+  {
+    id: 'brand_personality',
+    title: 'Brand Personality',
+    description: 'Defining brand archetype and psychological profile',
+    extractionFields: [
+      'brandArchetype',
+      'brandPersonalityTraits',
+      'toneOfVoice',
+      'communicationStyle'
+    ],
+    systemPrompt: `You are NebulaKit's Brand Architect working on brand personality and psychology.
+
+{BRAND_CONTEXT}
+
+Now for the most psychologically rich part — defining WHO your brand IS as a personality.
+
+Use **Carl Jung's 12 Brand Archetypes** framework:
+
+1. **The Innocent** (Coca-Cola) — Optimism, simplicity, trust
+2. **The Sage** (Google) — Wisdom, knowledge, expertise  
+3. **The Explorer** (Jeep) — Freedom, adventure, discovery
+4. **The Outlaw** (Harley-Davidson) — Revolution, liberation, breaking rules
+5. **The Magician** (Apple) — Transformation, innovation, imagination
+6. **The Hero** (Nike) — Achievement, courage, mastery
+7. **The Lover** (Chanel) — Passion, intimacy, elegance
+8. **The Jester** (Old Spice) — Joy, humor, entertainment
+9. **The Everyman** (IKEA) — Belonging, authenticity, reliability
+10. **The Caregiver** (Johnson & Johnson) — Nurturing, protection, service
+11. **The Ruler** (Mercedes-Benz) — Control, prestige, leadership
+12. **The Creator** (LEGO) — Innovation, self-expression, artistry
+
+Based on everything we know about the brand, suggest the top 2-3 archetypes that fit, explaining WHY. Ask them which resonates most.
+
+Then define:
+- **Personality Traits** (5 adjectives that describe the brand as if it were a person)
+- **Tone of Voice** (how the brand speaks — e.g., authoritative but approachable)
+- **Communication Style** (formal, casual, conversational, academic, playful)
+
+Use the Big Five personality model (OCEAN) as a reference for traits:
+- Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
+
+Make this FUN. Ask: "If your brand walked into a party, how would people describe them?"`
+  },
+  {
+    id: 'visual_identity',
+    title: 'Visual Identity',
+    description: 'Colors, typography, and visual direction',
+    extractionFields: [
+      'primaryColor',
+      'secondaryColor',
+      'accentColor',
+      'colorPalette',
+      'typographyHeading',
+      'typographyBody',
+      'logoConcept'
+    ],
+    systemPrompt: `You are NebulaKit's Brand Architect working on visual identity.
+
+{BRAND_CONTEXT}
+
+Now translate the brand personality into visual language using **Color Psychology** and **Design Theory**.
+
+1. **Color Palette** — Use color psychology research:
+   - Red: Energy, passion, urgency (Coca-Cola, YouTube)
+   - Blue: Trust, stability, professionalism (Facebook, IBM)
+   - Green: Growth, health, nature (Whole Foods, Spotify)
+   - Yellow: Optimism, warmth, attention (McDonald's, IKEA)
+   - Purple: Luxury, creativity, wisdom (Cadbury, Twitch)
+   - Orange: Friendly, confident, adventurous (Fanta, Firefox)
+   - Black: Sophistication, power, elegance (Chanel, Nike)
+   - White: Purity, simplicity, cleanliness (Apple, Tesla)
+
+   Based on the brand archetype and personality, suggest a primary color, secondary color, and accent color with hex codes. Explain the psychological reasoning behind each choice.
+
+2. **Typography**:
+   - Heading font: Should match brand personality (serif = traditional/trust, sans-serif = modern/clean, display = creative/bold)
+   - Body font: Must be highly readable while supporting the brand feel
+   - Suggest specific Google Fonts pairings with reasoning
+
+3. **Logo Concept**:
+   - Describe a logo concept (we'll generate it later)
+   - Consider: Symbol vs wordmark vs combination mark
+   - Apply Gestalt principles (proximity, similarity, closure, continuity)
+   - Consider scalability, versatility, and memorability
+
+Present color suggestions as specific hex codes. For the palette, suggest 5-7 colors (primary, secondary, accent, plus neutrals/tints).
+
+Make this visual and exciting. Help them SEE the brand coming to life.`
+  },
+  {
+    id: 'market_positioning',
+    title: 'Market Position',
+    description: 'Competitive analysis and market positioning',
+    extractionFields: ['competitors', 'uniqueSellingPoints', 'marketPosition', 'industry'],
+    systemPrompt: `You are NebulaKit's Brand Architect working on market positioning strategy.
+
+{BRAND_CONTEXT}
+
+Help them carve out their unique market position using proven strategic frameworks:
+
+1. **Competitive Landscape**: 
+   - Ask who their main competitors are (or suggest likely ones based on the industry)
+   - For each competitor, briefly analyze strengths and weaknesses
+   - Identify GAPS in the market — unserved or underserved needs
+
+2. **Porter's Generic Strategies** — Where should they compete?
+   - Cost Leadership (lowest price)
+   - Differentiation (unique value)
+   - Focus/Niche (specific segment)
+
+3. **Blue Ocean Strategy**:
+   - What can they ELIMINATE that the industry takes for granted?
+   - What can they REDUCE below industry standard?
+   - What can they RAISE above industry standard?  
+   - What can they CREATE that the industry has never offered?
+
+4. **Positioning Statement**: 
+   "For [target audience] who [need], [brand name] is the [category] that [key benefit] because [reason to believe]."
+
+5. **Market Position**: Budget, mid-range, premium, or luxury — and WHY.
+
+6. **Unique Selling Points (USPs)**: 3-5 things that make them genuinely different.
+
+Be strategic and realistic. Don't just validate — challenge their assumptions when needed. A good strategist pushes for clarity.`
+  },
+  {
+    id: 'brand_story',
+    title: 'Brand Story',
+    description: 'Crafting the narrative, values, and brand promise',
+    extractionFields: ['originStory', 'brandValues', 'brandPromise'],
+    systemPrompt: `You are NebulaKit's Brand Architect working on brand story and narrative.
+
+{BRAND_CONTEXT}
+
+Every great brand has a compelling story. Help them craft theirs using narrative psychology and storytelling frameworks.
+
+1. **Origin Story**: 
+   - Use the Hero's Journey (Joseph Campbell) structure:
+     - The Call: What problem/opportunity sparked this?
+     - The Challenge: What obstacles exist?
+     - The Transformation: How does the brand change things?
+   - Even if starting from scratch, there's a story in WHY they want to build this
+   - Authentic vulnerability creates connection — what personal experience drives this?
+
+2. **Brand Values** (3-5 core values):
+   - These aren't generic words — they should be specific and meaningful
+   - BAD: "Quality, Innovation, Trust" (everyone says this)
+   - GOOD: "Radical Transparency, Relentless Simplicity, Human-First Design"
+   - Each value should guide real decisions
+   - Ask: "If two options are equal in every way except one aligns with this value, would you choose it?"
+
+3. **Brand Promise**:
+   - One sentence that captures what customers can ALWAYS expect
+   - Example: "Every interaction with [brand] will make you feel [emotion]"
+   - This should be specific, measurable, and deliverable
+
+4. **Narrative Voice**:
+   - Using the archetype and personality, craft a sample paragraph showing how the brand tells its story
+   - This becomes the template for all brand communications
+
+Help them see that brand story isn't fiction — it's the authentic WHY woven into a compelling narrative.`
+  },
+  {
+    id: 'style_guide',
+    title: 'Style Guide',
+    description: 'Generating the complete brand style guide',
+    extractionFields: ['styleGuide'],
+    systemPrompt: `You are NebulaKit's Brand Architect compiling the complete brand style guide.
+
+{BRAND_CONTEXT}
+
+Now compile everything into a comprehensive, actionable Brand Style Guide. Present it in a clear, organized format:
+
+## 📋 BRAND STYLE GUIDE: [Brand Name]
+
+### Brand Identity
+- **Name**: [brand name]
+- **Tagline**: [tagline]
+- **Mission**: [mission statement]
+- **Vision**: [vision statement]
+- **Elevator Pitch**: [30-second pitch]
+
+### Brand Personality
+- **Archetype**: [archetype] — [brief explanation]
+- **Personality Traits**: [5 traits]
+- **Tone of Voice**: [description]
+- **Communication Style**: [description]
+
+### Visual Identity
+- **Primary Color**: [hex] — [name and reasoning]
+- **Secondary Color**: [hex] — [name and reasoning]
+- **Accent Color**: [hex] — [name and reasoning]
+- **Full Palette**: [all colors with hex codes]
+- **Heading Font**: [font name] — [reasoning]
+- **Body Font**: [font name] — [reasoning]
+- **Logo Concept**: [description]
+
+### Target Audience
+- **Primary Audience**: [detailed description]
+- **Pain Points**: [list]
+- **Value Proposition**: [statement]
+
+### Market Position
+- **Industry**: [industry]
+- **Position**: [budget/mid-range/premium/luxury]
+- **USPs**: [list]
+- **Key Competitors**: [list with differentiation]
+
+### Brand Story
+- **Origin**: [condensed story]
+- **Values**: [list with descriptions]
+- **Promise**: [brand promise]
+
+### Voice & Tone Guidelines
+- **DO**: [list of dos]
+- **DON'T**: [list of don'ts]
+- **Sample Messages**: [3-5 examples]
+
+After presenting the guide, ask if they'd like to adjust anything. Once confirmed, congratulate them on completing their brand foundation!`
+  },
+  {
+    id: 'complete',
+    title: 'Complete',
+    description: 'Onboarding complete — brand is ready',
+    extractionFields: [],
+    systemPrompt: `You are NebulaKit's Brand Architect. The brand building process is complete!
+
+{BRAND_CONTEXT}
+
+Congratulate them warmly on completing their brand foundation. Summarize the key elements:
+- Brand name and tagline
+- Core archetype and personality
+- Key colors and visual direction
+- Target audience summary
+- Unique market position
+
+Then explain what they can do next:
+1. Use the brand style guide to maintain consistency across all touchpoints
+2. Start creating content aligned with their brand voice
+3. Come back anytime to refine or evolve their brand
+
+End with an inspiring message about the journey from idea to brand. Make them feel proud and excited.
+
+Keep it concise and celebratory.`
+  }
+];
+
+/**
+ * Get step configuration by step ID
+ */
+export function getStepConfig(stepId: OnboardingStep): OnboardingStepConfig | undefined {
+  return ONBOARDING_STEPS.find((s) => s.id === stepId);
+}
+
+/**
+ * Get the system prompt for a specific step, optionally incorporating brand data
+ */
+export function getSystemPromptForStep(
+  stepId: OnboardingStep,
+  brandData?: Partial<BrandProfile>
+): string {
+  const step = getStepConfig(stepId);
+  if (!step) return '';
+
+  let prompt = step.systemPrompt;
+
+  // Replace brand context placeholder
+  if (brandData && prompt.includes('{BRAND_CONTEXT}')) {
+    const contextParts: string[] = [];
+
+    if (brandData.brandName) contextParts.push(`Brand Name: ${brandData.brandName}`);
+    if (brandData.industry) contextParts.push(`Industry: ${brandData.industry}`);
+    if (brandData.tagline) contextParts.push(`Tagline: ${brandData.tagline}`);
+    if (brandData.missionStatement)
+      contextParts.push(`Mission: ${brandData.missionStatement}`);
+    if (brandData.visionStatement)
+      contextParts.push(`Vision: ${brandData.visionStatement}`);
+    if (brandData.elevatorPitch)
+      contextParts.push(`Elevator Pitch: ${brandData.elevatorPitch}`);
+    if (brandData.brandArchetype)
+      contextParts.push(`Brand Archetype: ${brandData.brandArchetype}`);
+    if (brandData.toneOfVoice) contextParts.push(`Tone of Voice: ${brandData.toneOfVoice}`);
+    if (brandData.communicationStyle)
+      contextParts.push(`Communication Style: ${brandData.communicationStyle}`);
+    if (brandData.brandPersonalityTraits?.length)
+      contextParts.push(
+        `Personality Traits: ${brandData.brandPersonalityTraits.join(', ')}`
+      );
+    if (brandData.primaryColor) contextParts.push(`Primary Color: ${brandData.primaryColor}`);
+    if (brandData.secondaryColor)
+      contextParts.push(`Secondary Color: ${brandData.secondaryColor}`);
+    if (brandData.accentColor) contextParts.push(`Accent Color: ${brandData.accentColor}`);
+    if (brandData.valueProposition)
+      contextParts.push(`Value Proposition: ${brandData.valueProposition}`);
+    if (brandData.marketPosition)
+      contextParts.push(`Market Position: ${brandData.marketPosition}`);
+    if (brandData.brandValues?.length)
+      contextParts.push(`Brand Values: ${brandData.brandValues.join(', ')}`);
+
+    const contextStr =
+      contextParts.length > 0
+        ? `Here's what we know about the brand so far:\n${contextParts.join('\n')}\n\nBuild on this foundation.`
+        : 'We are starting fresh — no brand details have been defined yet.';
+
+    prompt = prompt.replace('{BRAND_CONTEXT}', contextStr);
+  }
+
+  return prompt;
+}
+
+/**
+ * Map a database row to a BrandProfile object
+ */
+function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    status: row.status as BrandProfile['status'],
+    brandName: (row.brand_name as string) || undefined,
+    tagline: (row.tagline as string) || undefined,
+    missionStatement: (row.mission_statement as string) || undefined,
+    visionStatement: (row.vision_statement as string) || undefined,
+    elevatorPitch: (row.elevator_pitch as string) || undefined,
+    brandArchetype: (row.brand_archetype as BrandProfile['brandArchetype']) || undefined,
+    brandPersonalityTraits: row.brand_personality_traits
+      ? JSON.parse(row.brand_personality_traits as string)
+      : undefined,
+    toneOfVoice: (row.tone_of_voice as string) || undefined,
+    communicationStyle: (row.communication_style as string) || undefined,
+    targetAudience: row.target_audience
+      ? JSON.parse(row.target_audience as string)
+      : undefined,
+    customerPainPoints: row.customer_pain_points
+      ? JSON.parse(row.customer_pain_points as string)
+      : undefined,
+    valueProposition: (row.value_proposition as string) || undefined,
+    primaryColor: (row.primary_color as string) || undefined,
+    secondaryColor: (row.secondary_color as string) || undefined,
+    accentColor: (row.accent_color as string) || undefined,
+    colorPalette: row.color_palette ? JSON.parse(row.color_palette as string) : undefined,
+    typographyHeading: (row.typography_heading as string) || undefined,
+    typographyBody: (row.typography_body as string) || undefined,
+    logoConcept: (row.logo_concept as string) || undefined,
+    logoUrl: (row.logo_url as string) || undefined,
+    industry: (row.industry as string) || undefined,
+    competitors: row.competitors ? JSON.parse(row.competitors as string) : undefined,
+    uniqueSellingPoints: row.unique_selling_points
+      ? JSON.parse(row.unique_selling_points as string)
+      : undefined,
+    marketPosition: (row.market_position as BrandProfile['marketPosition']) || undefined,
+    originStory: (row.origin_story as string) || undefined,
+    brandValues: row.brand_values ? JSON.parse(row.brand_values as string) : undefined,
+    brandPromise: (row.brand_promise as string) || undefined,
+    styleGuide: row.style_guide ? JSON.parse(row.style_guide as string) : undefined,
+    onboardingStep: row.onboarding_step as OnboardingStep,
+    conversationId: (row.conversation_id as string) || undefined,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string
+  };
+}
+
+/**
+ * Map a database row to an OnboardingMessage
+ */
+function mapRowToMessage(row: Record<string, unknown>): OnboardingMessage {
+  return {
+    id: row.id as string,
+    brandProfileId: row.brand_profile_id as string,
+    userId: row.user_id as string,
+    role: row.role as OnboardingMessage['role'],
+    content: row.content as string,
+    step: (row.step as OnboardingStep) || undefined,
+    metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined,
+    createdAt: row.created_at as string
+  };
+}
+
+/**
+ * Create a new brand profile for a user
+ */
+export async function createBrandProfile(
+  db: D1Database,
+  userId: string
+): Promise<BrandProfile> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO brand_profiles (id, user_id, status, onboarding_step, created_at, updated_at)
+			 VALUES (?, ?, 'in_progress', 'welcome', ?, ?)`
+    )
+    .bind(id, userId, now, now)
+    .run();
+
+  return {
+    id,
+    userId,
+    status: 'in_progress',
+    onboardingStep: 'welcome',
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+/**
+ * Get a brand profile by ID
+ */
+export async function getBrandProfile(
+  db: D1Database,
+  profileId: string
+): Promise<BrandProfile | null> {
+  const row = await db
+    .prepare('SELECT * FROM brand_profiles WHERE id = ?')
+    .bind(profileId)
+    .first();
+
+  if (!row) return null;
+  return mapRowToProfile(row as Record<string, unknown>);
+}
+
+/**
+ * Get the active (in_progress or completed) brand profile for a user
+ */
+export async function getBrandProfileByUser(
+  db: D1Database,
+  userId: string
+): Promise<BrandProfile | null> {
+  const row = await db
+    .prepare(
+      `SELECT * FROM brand_profiles 
+			 WHERE user_id = ? AND status IN ('in_progress', 'completed')
+			 ORDER BY updated_at DESC LIMIT 1`
+    )
+    .bind(userId)
+    .first();
+
+  if (!row) return null;
+  return mapRowToProfile(row as Record<string, unknown>);
+}
+
+/**
+ * Update a brand profile with new data
+ */
+export async function updateBrandProfile(
+  db: D1Database,
+  profileId: string,
+  updates: Partial<BrandProfile>
+): Promise<void> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+
+  const fieldMap: Record<string, string> = {
+    brandName: 'brand_name',
+    tagline: 'tagline',
+    missionStatement: 'mission_statement',
+    visionStatement: 'vision_statement',
+    elevatorPitch: 'elevator_pitch',
+    brandArchetype: 'brand_archetype',
+    toneOfVoice: 'tone_of_voice',
+    communicationStyle: 'communication_style',
+    valueProposition: 'value_proposition',
+    primaryColor: 'primary_color',
+    secondaryColor: 'secondary_color',
+    accentColor: 'accent_color',
+    typographyHeading: 'typography_heading',
+    typographyBody: 'typography_body',
+    logoConcept: 'logo_concept',
+    logoUrl: 'logo_url',
+    industry: 'industry',
+    marketPosition: 'market_position',
+    originStory: 'origin_story',
+    brandPromise: 'brand_promise',
+    onboardingStep: 'onboarding_step',
+    conversationId: 'conversation_id',
+    status: 'status'
+  };
+
+  const jsonFields: Record<string, string> = {
+    brandPersonalityTraits: 'brand_personality_traits',
+    colorPalette: 'color_palette',
+    brandValues: 'brand_values',
+    competitors: 'competitors',
+    uniqueSellingPoints: 'unique_selling_points',
+    customerPainPoints: 'customer_pain_points'
+  };
+
+  const objectFields: Record<string, string> = {
+    targetAudience: 'target_audience',
+    styleGuide: 'style_guide'
+  };
+
+  // Simple string fields
+  for (const [key, column] of Object.entries(fieldMap)) {
+    if (key in updates) {
+      setClauses.push(`${column} = ?`);
+      values.push((updates as Record<string, unknown>)[key] ?? null);
+    }
+  }
+
+  // JSON array fields
+  for (const [key, column] of Object.entries(jsonFields)) {
+    if (key in updates) {
+      setClauses.push(`${column} = ?`);
+      const val = (updates as Record<string, unknown>)[key];
+      values.push(val ? JSON.stringify(val) : null);
+    }
+  }
+
+  // JSON object fields
+  for (const [key, column] of Object.entries(objectFields)) {
+    if (key in updates) {
+      setClauses.push(`${column} = ?`);
+      const val = (updates as Record<string, unknown>)[key];
+      values.push(val ? JSON.stringify(val) : null);
+    }
+  }
+
+  if (setClauses.length === 0) return;
+
+  // Always update the timestamp
+  setClauses.push("updated_at = datetime('now')");
+  values.push(profileId);
+
+  await db
+    .prepare(`UPDATE brand_profiles SET ${setClauses.join(', ')} WHERE id = ?`)
+    .bind(...values)
+    .run();
+}
+
+/**
+ * Add a message to the onboarding conversation
+ */
+export async function addOnboardingMessage(
+  db: D1Database,
+  message: {
+    brandProfileId: string;
+    userId: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    step?: OnboardingStep;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<OnboardingMessage> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO onboarding_messages (id, brand_profile_id, user_id, role, content, step, metadata, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      message.brandProfileId,
+      message.userId,
+      message.role,
+      message.content,
+      message.step || null,
+      message.metadata ? JSON.stringify(message.metadata) : null,
+      now
+    )
+    .run();
+
+  return {
+    id,
+    brandProfileId: message.brandProfileId,
+    userId: message.userId,
+    role: message.role,
+    content: message.content,
+    step: message.step,
+    metadata: message.metadata,
+    createdAt: now
+  };
+}
+
+/**
+ * Get onboarding messages for a brand profile, optionally filtered by step
+ */
+export async function getOnboardingMessages(
+  db: D1Database,
+  brandProfileId: string,
+  step?: OnboardingStep
+): Promise<OnboardingMessage[]> {
+  let query = 'SELECT * FROM onboarding_messages WHERE brand_profile_id = ?';
+  const params: unknown[] = [brandProfileId];
+
+  if (step) {
+    query += ' AND step = ?';
+    params.push(step);
+  }
+
+  query += ' ORDER BY created_at ASC';
+
+  const result = await db
+    .prepare(query)
+    .bind(...params)
+    .all();
+
+  return (result.results || []).map((row) => mapRowToMessage(row as Record<string, unknown>));
+}
+
+/**
+ * Build the conversation context for an AI request
+ * Combines system prompt with previous messages
+ */
+export function buildConversationContext(
+  step: OnboardingStep,
+  messages: OnboardingMessage[],
+  brandData?: Partial<BrandProfile>
+): ChatMessage[] {
+  const systemPrompt = getSystemPromptForStep(step, brandData);
+  const result: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
+
+  for (const msg of messages) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      result.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Archive a brand profile (soft delete)
+ */
+export async function archiveBrandProfile(db: D1Database, profileId: string): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE brand_profiles SET status = 'archived', updated_at = datetime('now') WHERE id = ?"
+    )
+    .bind(profileId)
+    .run();
+}
+
+/**
+ * Get the next step in the onboarding flow
+ */
+export function getNextStep(currentStep: OnboardingStep): OnboardingStep | null {
+  const stepIds = ONBOARDING_STEPS.map((s) => s.id);
+  const currentIndex = stepIds.indexOf(currentStep);
+  if (currentIndex === -1 || currentIndex >= stepIds.length - 1) return null;
+  return stepIds[currentIndex + 1];
+}
+
+/**
+ * Get the previous step in the onboarding flow
+ */
+export function getPreviousStep(currentStep: OnboardingStep): OnboardingStep | null {
+  const stepIds = ONBOARDING_STEPS.map((s) => s.id);
+  const currentIndex = stepIds.indexOf(currentStep);
+  if (currentIndex <= 0) return null;
+  return stepIds[currentIndex - 1];
+}
+
+/**
+ * Get step progress as a percentage
+ */
+export function getStepProgress(currentStep: OnboardingStep): number {
+  const stepIds = ONBOARDING_STEPS.map((s) => s.id);
+  const currentIndex = stepIds.indexOf(currentStep);
+  if (currentIndex === -1) return 0;
+  return Math.round((currentIndex / (stepIds.length - 1)) * 100);
+}

@@ -20,7 +20,8 @@
 	$: hideFooter =
 		$page.url.pathname.startsWith('/chat') ||
 		$page.url.pathname.startsWith('/admin') ||
-		$page.url.pathname.startsWith('/setup');
+		$page.url.pathname.startsWith('/setup') ||
+		$page.url.pathname.startsWith('/onboarding');
 
 	// Subscribe to theme changes and apply to DOM
 	if (browser) {

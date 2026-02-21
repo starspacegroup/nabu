@@ -118,6 +118,13 @@
 			<div class="nav-links" class:open={mobileMenuOpen}>
 				{#if user}
 					<a
+						href="/onboarding"
+						class:active={$page.url.pathname.startsWith('/onboarding')}
+						on:click={closeMobileMenu}
+					>
+						Brand
+					</a>
+					<a
 						href="/videos"
 						class:active={$page.url.pathname.startsWith('/videos')}
 						on:click={closeMobileMenu}
