@@ -4,6 +4,9 @@
 	import VideoCreateForm from '$lib/components/VideoCreateForm.svelte';
 	import ScheduleManager from '$lib/components/ScheduleManager.svelte';
 
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	export let params: Record<string, string> = {};
+
 	interface VideoItem {
 		id: string;
 		prompt: string;

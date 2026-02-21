@@ -1,5 +1,6 @@
 <script lang="ts">
-	// No runtime state needed
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	export let params: Record<string, string> = {};
 </script>
 
 <svelte:head>

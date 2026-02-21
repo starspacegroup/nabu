@@ -8,6 +8,8 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	export let params: Record<string, string> = {};
 
 	let contentType = data.contentType;
 	let items: any[] = data.items || [];

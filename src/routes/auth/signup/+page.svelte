@@ -1,4 +1,7 @@
 <script lang="ts">
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	export let params: Record<string, string> = {};
+
 	let name = '';
 	let email = '';
 	let password = '';
