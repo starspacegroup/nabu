@@ -1,6 +1,7 @@
 # Nabu 🎬
 
-> **Marketing automation platform with optional AI-generated content**  
+> **Just as Nabu took the chaos of oral tradition and gave it structure through writing, your Nabu takes the chaos of content creation and gives it structure through automation.**
+
 > _Named after the Babylonian god of writing and scribes_
 
 Nabu is a marketing automation platform with optional AI-generated content and AI assistance for those looking to create a new product from scratch. Part of the [Hermes](https://hermes.starspace.group) ecosystem.
