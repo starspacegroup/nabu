@@ -237,38 +237,40 @@
 				{/if}
 			</div>
 
-			<!-- Step navigation -->
-			{#if !$onboardingStore.isStreaming && $onboardingStore.messages.length > 0 && $onboardingStore.currentStep !== 'complete'}
-				<div class="step-navigation">
-					<button
-						class="next-step-btn"
-						on:click={handleNextStep}
-						title="Move to next phase of brand building"
-					>
-						Continue to next step →
-					</button>
-					{#if currentStepConfig}
-						<span class="step-hint">
-							Current: {currentStepConfig.title} — {currentStepConfig.description}
-						</span>
-					{/if}
-				</div>
-			{/if}
-
-			{#if $onboardingStore.currentStep === 'complete'}
-				<div class="completion-banner" in:fly={{ y: 20 }}>
-					<h3>🎉 Brand Foundation Complete!</h3>
-					<p>Your brand style guide is ready. You can continue chatting to refine any details.</p>
-					<div class="completion-actions">
-						<button class="secondary-btn" on:click={handleRestartOnboarding}>
-							Start New Brand
+			<!-- Bottom bar: stuck to bottom -->
+			<div class="bottom-bar">
+				<!-- Step navigation -->
+				{#if !$onboardingStore.isStreaming && $onboardingStore.messages.length > 0 && $onboardingStore.currentStep !== 'complete'}
+					<div class="step-navigation">
+						<button
+							class="next-step-btn"
+							on:click={handleNextStep}
+							title="Move to next phase of brand building"
+						>
+							Continue to next step →
 						</button>
+						{#if currentStepConfig}
+							<span class="step-hint">
+								Current: {currentStepConfig.title} — {currentStepConfig.description}
+							</span>
+						{/if}
 					</div>
-				</div>
-			{/if}
+				{/if}
 
-			<!-- Input area -->
-			<div class="input-area">
+				{#if $onboardingStore.currentStep === 'complete'}
+					<div class="completion-banner" in:fly={{ y: 20 }}>
+						<h3>🎉 Brand Foundation Complete!</h3>
+						<p>Your brand style guide is ready. You can continue chatting to refine any details.</p>
+						<div class="completion-actions">
+							<button class="secondary-btn" on:click={handleRestartOnboarding}>
+								Start New Brand
+							</button>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Input area -->
+				<div class="input-area">
 				<div class="input-wrapper" class:focused={true}>
 					<textarea
 						bind:this={textareaElement}
@@ -294,11 +296,12 @@
 						</svg>
 					</button>
 				</div>
-				{#if showCharCount}
-					<div class="char-count" class:warning={inputLength > MAX_INPUT_LENGTH * 0.95}>
-						{inputLength}/{MAX_INPUT_LENGTH}
-					</div>
-				{/if}
+					{#if showCharCount}
+						<div class="char-count" class:warning={inputLength > MAX_INPUT_LENGTH * 0.95}>
+							{inputLength}/{MAX_INPUT_LENGTH}
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -618,14 +621,23 @@
 		font-size: 0.7rem;
 	}
 
+	/* Bottom bar - sticky to bottom */
+	.bottom-bar {
+		position: sticky;
+		bottom: 0;
+		z-index: 10;
+		background-color: var(--color-surface);
+		border-top: 1px solid var(--color-border);
+		flex-shrink: 0;
+	}
+
 	/* Step navigation */
 	.step-navigation {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-md);
 		padding: var(--spacing-sm) var(--spacing-lg);
-		border-top: 1px solid var(--color-border);
-		background-color: var(--color-surface);
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.next-step-btn {
@@ -656,8 +668,7 @@
 	/* Completion banner */
 	.completion-banner {
 		padding: var(--spacing-md) var(--spacing-lg);
-		background-color: var(--color-surface);
-		border-top: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--color-border);
 		text-align: center;
 	}
 
@@ -698,8 +709,6 @@
 	/* Input area */
 	.input-area {
 		padding: var(--spacing-md) var(--spacing-lg);
-		border-top: 1px solid var(--color-border);
-		background-color: var(--color-surface);
 	}
 
 	.input-wrapper {
@@ -796,6 +805,7 @@
 		.step-navigation {
 			flex-direction: column;
 			align-items: flex-start;
+			padding: var(--spacing-sm) var(--spacing-md);
 		}
 	}
 </style>
