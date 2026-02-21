@@ -82,7 +82,7 @@ describe('Onboarding service - additional branch coverage', () => {
       run: vi.fn().mockResolvedValue({ success: true })
     };
     await updateBrandProfile(mockDB as any, 'profile-1', {
-      targetAudience: ['developers', 'designers']
+      targetAudience: ['developers', 'designers'] as any
     });
     expect(mockDB.bind).toHaveBeenCalled();
     const bindArgs = mockDB.bind.mock.calls[0];
@@ -112,7 +112,7 @@ describe('chatHistory store - updateMessage branches', () => {
   beforeEach(() => {
     vi.resetModules();
     // Mock fetch for store initialization
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ conversations: [] })
     });
@@ -120,7 +120,7 @@ describe('chatHistory store - updateMessage branches', () => {
 
   it('updateMessage without cost and media (falsy branches)', async () => {
     // Mock fetch for createConversation
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         id: 'conv-1', title: 'Test', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
@@ -130,7 +130,7 @@ describe('chatHistory store - updateMessage branches', () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
     const conv = await chatHistoryStore.createConversation('Test');
     chatHistoryStore.addMessage(conv.id, {
-      id: 'msg-1', role: 'user', content: 'hello', timestamp: new Date()
+      id: 'msg-1', role: 'user', content: 'hello'
     });
     // Update WITHOUT cost or media to cover falsy spread branches
     chatHistoryStore.updateMessage(conv.id, 'msg-1', 'updated content');
@@ -138,7 +138,7 @@ describe('chatHistory store - updateMessage branches', () => {
   });
 
   it('updateMessage with cost and media (truthy branches)', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         id: 'conv-2', title: 'Test 2', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
@@ -148,7 +148,7 @@ describe('chatHistory store - updateMessage branches', () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
     const conv = await chatHistoryStore.createConversation('Test 2');
     chatHistoryStore.addMessage(conv.id, {
-      id: 'msg-2', role: 'assistant', content: 'hi', timestamp: new Date()
+      id: 'msg-2', role: 'assistant', content: 'hi'
     });
     chatHistoryStore.updateMessage(conv.id, 'msg-2', 'updated', {
       inputTokens: 10,
@@ -494,7 +494,7 @@ describe('wavespeed-pricing - additional branches', () => {
       .mockResolvedValueOnce('invalid json {{{')  // wavespeed_pricing_cache
       .mockResolvedValueOnce(wsKey);  // ai_keys
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { pricing: [] } })
     });
@@ -535,7 +535,7 @@ describe('wavespeed-pricing - additional branches', () => {
     // Even if cache exists, force refresh should skip it
     mockPlatform.env.KV.get.mockResolvedValueOnce(wsKey); // ai_keys (cache skipped)
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { pricing: [] } })
     });
@@ -628,7 +628,7 @@ describe('Admin AI Keys models - sort branch', () => {
       .mockResolvedValueOnce(JSON.stringify({ provider: 'openai', enabled: true, apiKey: 'sk-123' }));
 
     // Mock fetch to return models including one with known pricing and one without
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         data: [
@@ -703,7 +703,7 @@ describe('Setup POST - response error re-throw', () => {
   it('POST handles 404 GitHub user not found', async () => {
     const mockPlatform = createMockPlatform();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
       text: vi.fn().mockResolvedValue('Not Found')
@@ -772,7 +772,7 @@ describe('GitHub callback - secure cookie branch', () => {
     });
 
     // Mock token exchange
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValue({ access_token: 'gho_abc123' })
@@ -802,7 +802,7 @@ describe('GitHub callback - secure cookie branch', () => {
           delete: vi.fn()
         },
         platform: mockPlatform,
-        fetch: global.fetch
+        fetch: globalThis.fetch
       } as any);
     } catch (err: any) {
       // It will redirect, which throws in SvelteKit
@@ -831,7 +831,7 @@ describe('Discord callback - DB error catch', () => {
       return Promise.resolve(null);
     });
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValue({ access_token: 'discord_token' })

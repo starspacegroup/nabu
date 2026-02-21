@@ -53,7 +53,7 @@ describe('Onboarding service - getSystemPromptForStep branch directions', () => 
       secondaryColor: '#00FF00',
       accentColor: '#0000FF',
       valueProposition: 'Best in class',
-      marketPosition: 'leader',
+      marketPosition: 'leader' as any,
       brandValues: ['Quality', 'Innovation']
     });
     expect(result).toContain('Acme');

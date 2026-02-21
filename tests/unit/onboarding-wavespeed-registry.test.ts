@@ -22,7 +22,7 @@ describe('Onboarding Store', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.restoreAllMocks();
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
     // Mock crypto.randomUUID
     vi.stubGlobal('crypto', { randomUUID: () => 'test-uuid-' + Math.random().toString(36).slice(2, 8) });
 
@@ -52,7 +52,7 @@ describe('Onboarding Store', () => {
 
     resetOnboarding();
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.profile).toBeNull();
     expect(state.messages).toEqual([]);
     expect(state.currentStep).toBe('welcome');
@@ -62,7 +62,7 @@ describe('Onboarding Store', () => {
   });
 
   it('should startOnboarding successfully', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         profile: { id: 'p1', userId: 'u1' },
@@ -72,7 +72,7 @@ describe('Onboarding Store', () => {
 
     await startOnboarding();
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.profile?.id).toBe('p1');
     expect(state.messages).toHaveLength(1);
     expect(state.messages[0].content).toBe('Welcome!');
@@ -80,30 +80,30 @@ describe('Onboarding Store', () => {
   });
 
   it('should handle startOnboarding failure', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       statusText: 'Server Error'
     } as any);
 
     await startOnboarding();
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('Failed to start onboarding');
     expect(state.isLoading).toBe(false);
   });
 
   it('should handle startOnboarding network error', async () => {
-    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network error'));
 
     await startOnboarding();
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toBe('Network error');
     expect(state.isLoading).toBe(false);
   });
 
   it('should handle startOnboarding with no message from server', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         profile: { id: 'p1', userId: 'u1' }
@@ -112,13 +112,13 @@ describe('Onboarding Store', () => {
 
     await startOnboarding();
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.profile?.id).toBe('p1');
     expect(state.messages).toHaveLength(0);
   });
 
   it('should loadExistingProfile successfully', async () => {
-    vi.mocked(global.fetch)
+    vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -138,13 +138,13 @@ describe('Onboarding Store', () => {
     const profile = await loadExistingProfile();
 
     expect(profile?.id).toBe('p1');
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.messages).toHaveLength(2);
     expect(state.currentStep).toBe('brand_identity');
   });
 
   it('should return null when no profile exists', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ profile: null })
     } as any);
@@ -152,22 +152,22 @@ describe('Onboarding Store', () => {
     const profile = await loadExistingProfile();
 
     expect(profile).toBeNull();
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.isLoading).toBe(false);
   });
 
   it('should handle loadExistingProfile failure', async () => {
-    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network fail'));
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network fail'));
 
     const profile = await loadExistingProfile();
 
     expect(profile).toBeNull();
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toBe('Network fail');
   });
 
   it('should handle loadExistingProfile with non-ok profile response', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       statusText: 'Not Found'
     } as any);
@@ -175,12 +175,12 @@ describe('Onboarding Store', () => {
     const profile = await loadExistingProfile();
 
     expect(profile).toBeNull();
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('Failed to load profile');
   });
 
   it('should handle loadExistingProfile with failed messages fetch', async () => {
-    vi.mocked(global.fetch)
+    vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -195,7 +195,7 @@ describe('Onboarding Store', () => {
     const profile = await loadExistingProfile();
 
     expect(profile?.id).toBe('p1');
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.messages).toEqual([]);
   });
 
@@ -203,7 +203,7 @@ describe('Onboarding Store', () => {
     resetOnboarding();
     await sendMessage('hello');
     // Should not have called fetch
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('should sendMessage and handle SSE', async () => {
@@ -234,14 +234,14 @@ describe('Onboarding Store', () => {
       }
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       body: stream
     } as any);
 
     await sendMessage('Hello');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.messages).toHaveLength(2); // user + assistant
     expect(state.messages[0].role).toBe('user');
     expect(state.messages[0].content).toBe('Hello');
@@ -277,14 +277,14 @@ describe('Onboarding Store', () => {
       }
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       body: stream
     } as any);
 
     await sendMessage('My brand is StarSpace');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.currentStep).toBe('brand_assessment');
     expect(state.profile?.onboardingStep).toBe('brand_assessment');
   });
@@ -313,14 +313,14 @@ describe('Onboarding Store', () => {
       }
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       body: stream
     } as any);
 
     await sendMessage('test');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toBe('Stream failed');
     expect(state.isStreaming).toBe(false);
   });
@@ -335,14 +335,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       statusText: 'Internal Server Error'
     } as any);
 
     await sendMessage('test');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('Chat failed');
     expect(state.isStreaming).toBe(false);
   });
@@ -357,14 +357,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       body: null
     } as any);
 
     await sendMessage('test');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('No response body');
   });
 
@@ -396,14 +396,14 @@ describe('Onboarding Store', () => {
       }
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       body: stream
     } as any);
 
     await sendMessage('test');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.isStreaming).toBe(false);
     // Should skip malformed and process valid chunk
     expect(state.messages[1].content).toContain('Valid chunk');
@@ -419,7 +419,7 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         profile: { id: 'p1', userId: 'u1', onboardingStep: 'brand_identity' }
@@ -428,7 +428,7 @@ describe('Onboarding Store', () => {
 
     await updateStep('brand_identity');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.currentStep).toBe('brand_identity');
     expect(state.profile?.onboardingStep).toBe('brand_identity');
   });
@@ -443,14 +443,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({})
     } as any);
 
     await updateStep('brand_assessment');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.currentStep).toBe('brand_assessment');
   });
 
@@ -464,14 +464,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       statusText: 'Server Error'
     } as any);
 
     await updateStep('brand_identity');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('Failed to update step');
   });
 
@@ -485,18 +485,18 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network error'));
 
     await updateStep('brand_identity');
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toBe('Network error');
   });
 
   it('should not updateStep when no profile', async () => {
     resetOnboarding();
     await updateStep('brand_identity');
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('should updateBrandData successfully', async () => {
@@ -509,7 +509,7 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         profile: { id: 'p1', userId: 'u1', brandName: 'New Brand' }
@@ -518,7 +518,7 @@ describe('Onboarding Store', () => {
 
     await updateBrandData({ brandName: 'New Brand' });
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.profile?.brandName).toBe('New Brand');
   });
 
@@ -532,14 +532,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       statusText: 'Error'
     } as any);
 
     await updateBrandData({ brandName: 'New' });
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toContain('Failed to update brand data');
   });
 
@@ -553,11 +553,11 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network fail'));
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network fail'));
 
     await updateBrandData({ brandName: 'New' });
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     expect(state.error).toBe('Network fail');
   });
 
@@ -571,14 +571,14 @@ describe('Onboarding Store', () => {
       error: null
     });
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({})
     } as any);
 
     await updateBrandData({ brandName: 'New' });
 
-    const state = get(onboardingStore);
+    const state = get(onboardingStore) as any;
     // Should keep existing profile
     expect(state.profile?.brandName).toBe('Old');
   });
@@ -586,7 +586,7 @@ describe('Onboarding Store', () => {
   it('should not updateBrandData when no profile', async () => {
     resetOnboarding();
     await updateBrandData({ brandName: 'New' });
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -599,7 +599,7 @@ describe('WaveSpeed Video Provider', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.restoreAllMocks();
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
 
     const mod = await import('../../src/lib/services/providers/wavespeed-video');
     WaveSpeedVideoProvider = mod.WaveSpeedVideoProvider;
@@ -618,7 +618,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should generate video successfully', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { id: 'job-1', status: 'created' }
@@ -636,7 +636,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should prefix model with wavespeed-ai/ if not present', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { id: 'job-1', status: 'processing' }
@@ -648,7 +648,7 @@ describe('WaveSpeed Video Provider', () => {
       model: 'some-model'
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('wavespeed-ai/some-model'),
       expect.any(Object)
     );
@@ -656,7 +656,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should not double-prefix wavespeed-ai/', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { id: 'job-1', status: 'processing' }
@@ -668,18 +668,18 @@ describe('WaveSpeed Video Provider', () => {
       model: 'wavespeed-ai/wan-2.1/t2v-720p'
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('wavespeed-ai/wan-2.1/t2v-720p'),
       expect.any(Object)
     );
     // Should NOT have wavespeed-ai/wavespeed-ai/
-    const calledUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string;
     expect(calledUrl).not.toContain('wavespeed-ai/wavespeed-ai/');
   });
 
   it('should pass optional params to API', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { id: 'job-1', status: 'created' }
@@ -694,7 +694,7 @@ describe('WaveSpeed Video Provider', () => {
       resolution: '1080p'
     });
 
-    const fetchCall = vi.mocked(global.fetch).mock.calls[0];
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
     const body = JSON.parse((fetchCall[1] as any).body);
     expect(body.aspect_ratio).toBe('16:9');
     expect(body.duration).toBe(10);
@@ -703,7 +703,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should handle generateVideo API error', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       status: 429,
       text: async () => 'Rate limited'
@@ -721,7 +721,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should handle generateVideo API error with text() failure', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       status: 500,
       text: async () => { throw new Error('Cannot read body'); }
@@ -738,7 +738,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus completed with video URL', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: {
@@ -756,7 +756,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus processing', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'processing' }
@@ -769,7 +769,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus pending (queued)', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'pending' }
@@ -782,7 +782,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus failed (error)', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'failed', error: 'Generation failed' }
@@ -796,7 +796,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus failed without custom error message', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'failed' }
@@ -810,7 +810,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should handle getStatus HTTP error', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       status: 404,
       text: async () => 'Not found'
@@ -823,7 +823,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should handle getStatus HTTP error with text failure', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       status: 500,
       text: async () => { throw new Error('err'); }
@@ -836,7 +836,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should getStatus complete with empty outputs', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'completed', outputs: [] }
@@ -850,7 +850,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should handle unknown status', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         data: { status: 'unknown-status' }
@@ -864,7 +864,7 @@ describe('WaveSpeed Video Provider', () => {
   it('should downloadVideo successfully', async () => {
     const provider = new WaveSpeedVideoProvider();
     const fakeBuffer = new ArrayBuffer(100);
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       arrayBuffer: async () => fakeBuffer
     } as any);
@@ -875,7 +875,7 @@ describe('WaveSpeed Video Provider', () => {
 
   it('should throw on downloadVideo failure', async () => {
     const provider = new WaveSpeedVideoProvider();
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: false,
       status: 403
     } as any);

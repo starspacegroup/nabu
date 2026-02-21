@@ -78,7 +78,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
       json: vi.fn().mockResolvedValue({ error: { message: 'Bad request' } })
@@ -98,7 +98,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
       json: vi.fn().mockRejectedValue(new Error('invalid json'))
@@ -118,7 +118,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
       json: vi.fn().mockResolvedValue({ error: { message: 'Not found' } })
@@ -133,7 +133,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
       json: vi.fn().mockRejectedValue(new Error('not json'))
@@ -148,7 +148,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ id: 'job-1' })
     });
@@ -161,7 +161,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
       aspectRatio: '9:16'
     });
 
-    const fetchCall = (global.fetch as any).mock.calls[0];
+    const fetchCall = (globalThis.fetch as any).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.size).toBe('1024x1792');
   });
@@ -170,7 +170,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ id: 'job-1' })
     });
@@ -183,7 +183,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
       aspectRatio: '9:16'
     });
 
-    const fetchCall = (global.fetch as any).mock.calls[0];
+    const fetchCall = (globalThis.fetch as any).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.size).toBe('720x1280');
   });
@@ -192,7 +192,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
     const { OpenAIVideoProvider } = await import('../../src/lib/services/providers/openai-video');
     const provider = new OpenAIVideoProvider();
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ id: 'job-1' })
     });
@@ -204,7 +204,7 @@ describe('OpenAI Video Provider - branch coverage', () => {
       aspectRatio: '16:9'
     });
 
-    const fetchCall = (global.fetch as any).mock.calls[0];
+    const fetchCall = (globalThis.fetch as any).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.size).toBe('1280x720');
   });
@@ -220,7 +220,7 @@ describe('chatHistory store - branch coverage', () => {
   it('selectConversation handles non-ok response', async () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ conversations: [{ id: 'c1', title: 'Test', updatedAt: null, createdAt: null }] })
@@ -236,7 +236,7 @@ describe('chatHistory store - branch coverage', () => {
   it('selectConversation handles messages with media and cost', async () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ conversations: [{ id: 'c1', title: 'Test', updatedAt: null, createdAt: null }] })
@@ -266,7 +266,7 @@ describe('chatHistory store - branch coverage', () => {
   it('selectConversation handles parseTimestamp with number input', async () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ conversations: [{ id: 'c1', title: 'Test', updatedAt: 12345, createdAt: null }] })
@@ -294,7 +294,7 @@ describe('chatHistory store - branch coverage', () => {
   it('updateMessage with media updates the media field', async () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ conversations: [{ id: 'c1', title: 'Test', updatedAt: null, createdAt: null }] })
@@ -329,7 +329,7 @@ describe('chatHistory store - branch coverage', () => {
   it('selectConversation handles fetch throw', async () => {
     const { chatHistoryStore } = await import('../../src/lib/stores/chatHistory');
 
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ conversations: [{ id: 'c1', title: 'Test', updatedAt: null, createdAt: null }] })
@@ -538,7 +538,7 @@ describe('wavespeed-pricing - branch coverage', () => {
     mockPlatform.env.KV.get.mockResolvedValue(null);
     mockPlatform.env.KV.put.mockRejectedValue(new Error('KV write error'));
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { pricing: [] } })
     });
@@ -563,7 +563,7 @@ describe('wavespeed-pricing - branch coverage', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(wsKeysJson);
 
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network fail'));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network fail'));
 
     const { GET } = await import('../../src/routes/api/admin/ai-keys/wavespeed-pricing/+server');
     const response = await GET({
@@ -582,7 +582,7 @@ describe('wavespeed-pricing - branch coverage', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(wsKeysJson);
 
-    global.fetch = vi.fn().mockRejectedValue('string error');
+    globalThis.fetch = vi.fn().mockRejectedValue('string error');
 
     const { GET } = await import('../../src/routes/api/admin/ai-keys/wavespeed-pricing/+server');
     const response = await GET({
@@ -617,7 +617,7 @@ describe('wavespeed-validate - branch coverage', () => {
   });
 
   it('POST returns null balance when data.balance is undefined', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: {} })
     });
@@ -639,7 +639,7 @@ describe('wavespeed-validate - branch coverage', () => {
   });
 
   it('POST handles non-Error thrown during validation', async () => {
-    global.fetch = vi.fn().mockRejectedValue('unexpected string error');
+    globalThis.fetch = vi.fn().mockRejectedValue('unexpected string error');
 
     const { POST } = await import('../../src/routes/api/admin/ai-keys/wavespeed-validate/+server');
     const response = await POST({
@@ -690,7 +690,7 @@ describe('admin/cms/[type] page server - branch coverage', () => {
       fetch: mockFetch
     } as any);
 
-    expect(result.items).toEqual([]);
+    expect((result as any).items).toEqual([]);
   });
 
   it('load handles content type with hasTags and missing tags response', async () => {
@@ -723,7 +723,7 @@ describe('admin/cms/[type] page server - branch coverage', () => {
       fetch: mockFetch
     } as any);
 
-    expect(result.tags).toEqual([]);
+    expect((result as any).tags).toEqual([]);
   });
 
   it('load handles hasTags with tags fetch failure', async () => {
@@ -749,7 +749,7 @@ describe('admin/cms/[type] page server - branch coverage', () => {
       fetch: mockFetch
     } as any);
 
-    expect(result.tags).toEqual([]);
+    expect((result as any).tags).toEqual([]);
   });
 
   it('load handles itemsRes not ok', async () => {
@@ -770,7 +770,7 @@ describe('admin/cms/[type] page server - branch coverage', () => {
       fetch: mockFetch
     } as any);
 
-    expect(result.items).toEqual([]);
+    expect((result as any).items).toEqual([]);
   });
 });
 
@@ -1027,11 +1027,11 @@ describe('Onboarding store - branch coverage', () => {
     const { sendMessage, onboardingStore } = await import('../../src/lib/stores/onboarding');
 
     // Default state has profile: null so sendMessage should return early
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
     await sendMessage('Hello');
 
     // fetch should NOT be called because profile is null
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
 
