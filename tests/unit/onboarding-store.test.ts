@@ -161,6 +161,53 @@ describe('Brand Onboarding Store', () => {
       // Should have: welcome message + user message + assistant streaming response
       expect(state.messages.length).toBeGreaterThanOrEqual(2);
     });
+
+    it('should auto-advance step when stepAdvance event is received', async () => {
+      // Setup a profile first
+      const mockProfile = {
+        id: 'bp-123',
+        userId: 'user-123',
+        status: 'in_progress',
+        onboardingStep: 'welcome'
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ profile: mockProfile, message: { id: 'msg-1', content: 'Hi', role: 'assistant', step: 'welcome' } })
+      });
+
+      const { startOnboarding, sendMessage, onboardingStore } = await import('$lib/stores/onboarding');
+      await startOnboarding();
+
+      // Mock the SSE stream with a stepAdvance event
+      const mockReader = {
+        read: vi.fn()
+          .mockResolvedValueOnce({
+            done: false,
+            value: new TextEncoder().encode('data: {"content":"Great, let me summarize..."}\n\n')
+          })
+          .mockResolvedValueOnce({
+            done: false,
+            value: new TextEncoder().encode('data: {"stepAdvance":"brand_assessment"}\n\n')
+          })
+          .mockResolvedValueOnce({
+            done: false,
+            value: new TextEncoder().encode('data: [DONE]\n\n')
+          })
+          .mockResolvedValueOnce({ done: true, value: undefined })
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: { getReader: () => mockReader }
+      });
+
+      await sendMessage('I have a brand already');
+
+      const state = get(onboardingStore);
+      expect(state.currentStep).toBe('brand_assessment');
+      expect(state.profile?.onboardingStep).toBe('brand_assessment');
+    });
   });
 
   describe('updateStep', () => {

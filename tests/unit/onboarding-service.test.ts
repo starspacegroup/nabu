@@ -14,7 +14,8 @@ import {
   getSystemPromptForStep,
   ONBOARDING_STEPS,
   buildConversationContext,
-  archiveBrandProfile
+  archiveBrandProfile,
+  STEP_COMPLETE_MARKER
 } from '$lib/services/onboarding';
 import type { BrandProfile, OnboardingStep } from '$lib/types/onboarding';
 
@@ -99,6 +100,19 @@ describe('Brand Onboarding Service', () => {
     });
   });
 
+  describe('STEP_COMPLETE_MARKER', () => {
+    it('should be a non-empty string', () => {
+      expect(STEP_COMPLETE_MARKER).toBeDefined();
+      expect(typeof STEP_COMPLETE_MARKER).toBe('string');
+      expect(STEP_COMPLETE_MARKER.length).toBeGreaterThan(0);
+    });
+
+    it('should be a distinctive marker unlikely to appear in normal text', () => {
+      expect(STEP_COMPLETE_MARKER).toContain('<<');
+      expect(STEP_COMPLETE_MARKER).toContain('>>');
+    });
+  });
+
   describe('getStepConfig', () => {
     it('should return step config for a valid step', () => {
       const config = getStepConfig('welcome');
@@ -145,6 +159,18 @@ describe('Brand Onboarding Service', () => {
       const prompt = getSystemPromptForStep('target_audience', brandData);
       expect(prompt).toContain('TestBrand');
       expect(prompt).toContain('Technology');
+    });
+
+    it('should include auto-progression instruction for non-complete steps', () => {
+      const prompt = getSystemPromptForStep('welcome');
+      expect(prompt).toContain(STEP_COMPLETE_MARKER);
+      expect(prompt).toContain('AUTOMATIC STEP PROGRESSION');
+    });
+
+    it('should NOT include auto-progression instruction for complete step', () => {
+      const prompt = getSystemPromptForStep('complete');
+      expect(prompt).not.toContain(STEP_COMPLETE_MARKER);
+      expect(prompt).not.toContain('AUTOMATIC STEP PROGRESSION');
     });
   });
 

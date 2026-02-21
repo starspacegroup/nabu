@@ -17,7 +17,7 @@
 		resetOnboarding
 	} from '$lib/stores/onboarding';
 	import type { OnboardingStep } from '$lib/types/onboarding';
-	import { ONBOARDING_STEPS, getNextStep } from '$lib/services/onboarding';
+	import { ONBOARDING_STEPS, getNextStep, STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
 	export let userId: string;
 
@@ -26,6 +26,23 @@
 	let textareaElement: HTMLTextAreaElement;
 	let initialized = false;
 	let showWelcomeScreen = true;
+	let stepTransition: { from: string; to: string } | null = null;
+	let previousStep: OnboardingStep | null = null;
+
+	// Watch for step changes to show transition notification
+	$: {
+		const current = $onboardingStore.currentStep;
+		if (previousStep && previousStep !== current && initialized) {
+			const fromConfig = ONBOARDING_STEPS.find(s => s.id === previousStep);
+			const toConfig = ONBOARDING_STEPS.find(s => s.id === current);
+			stepTransition = {
+				from: fromConfig?.title || '',
+				to: toConfig?.title || ''
+			};
+			setTimeout(() => { stepTransition = null; }, 4000);
+		}
+		previousStep = current;
+	}
 
 	const MAX_INPUT_LENGTH = 4000;
 	$: inputLength = input.length;
@@ -108,6 +125,8 @@
 	 */
 	function formatMessage(content: string): string {
 		return content
+			// Strip step completion marker if it leaked into display
+			.replace(STEP_COMPLETE_MARKER, '')
 			// Bold
 			.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
 			// Italic
@@ -226,6 +245,15 @@
 					</div>
 				{/each}
 
+				{#if stepTransition}
+					<div class="step-transition" in:fly={{ y: 20, duration: 400 }} out:fade={{ duration: 300 }}>
+						<span class="transition-icon">✅</span>
+						<span class="transition-text">
+							<strong>{stepTransition.from}</strong> complete — moving to <strong>{stepTransition.to}</strong>
+						</span>
+					</div>
+				{/if}
+
 				{#if $onboardingStore.error}
 					<div class="error-message" in:fade>
 						<span>⚠️</span>
@@ -239,21 +267,21 @@
 
 			<!-- Bottom bar: stuck to bottom -->
 			<div class="bottom-bar">
-				<!-- Step navigation -->
+				<!-- Step info + manual skip -->
 				{#if !$onboardingStore.isStreaming && $onboardingStore.messages.length > 0 && $onboardingStore.currentStep !== 'complete'}
 					<div class="step-navigation">
-						<button
-							class="next-step-btn"
-							on:click={handleNextStep}
-							title="Move to next phase of brand building"
-						>
-							Continue to next step →
-						</button>
 						{#if currentStepConfig}
 							<span class="step-hint">
-								Current: {currentStepConfig.title} — {currentStepConfig.description}
+								{currentStepConfig.title} — {currentStepConfig.description}
 							</span>
 						{/if}
+						<button
+							class="skip-step-btn"
+							on:click={handleNextStep}
+							title="Skip to next step"
+						>
+							Skip →
+						</button>
 					</div>
 				{/if}
 
@@ -640,29 +668,59 @@
 		border-bottom: 1px solid var(--color-border);
 	}
 
-	.next-step-btn {
-		padding: var(--spacing-xs) var(--spacing-md);
-		background-color: var(--color-secondary);
-		color: var(--color-background);
-		border: none;
+	.skip-step-btn {
+		padding: 4px var(--spacing-sm);
+		background: none;
+		color: var(--color-text-secondary);
+		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
-		font-size: 0.75rem;
-		font-weight: 600;
+		font-size: 0.65rem;
+		font-weight: 500;
 		cursor: pointer;
-		transition: background-color var(--transition-fast);
+		transition: all var(--transition-fast);
 		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
-	.next-step-btn:hover {
-		background-color: var(--color-secondary-hover);
+	.skip-step-btn:hover {
+		border-color: var(--color-text-secondary);
+		color: var(--color-text);
 	}
 
 	.step-hint {
+		flex: 1;
 		font-size: 0.65rem;
 		color: var(--color-text-secondary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	/* Step transition notification */
+	.step-transition {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
+		margin: var(--spacing-sm) var(--spacing-lg);
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-success);
+		border-radius: var(--radius-md);
+		font-size: 0.75rem;
+		color: var(--color-success);
+	}
+
+	.transition-icon {
+		font-size: 1rem;
+		flex-shrink: 0;
+	}
+
+	.transition-text {
+		color: var(--color-text-secondary);
+	}
+
+	.transition-text strong {
+		color: var(--color-text);
 	}
 
 	/* Completion banner */

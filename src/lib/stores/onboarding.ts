@@ -5,6 +5,7 @@
 
 import { writable, get } from 'svelte/store';
 import type { BrandProfile, OnboardingMessage, OnboardingStep } from '$lib/types/onboarding';
+import { STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
 interface OnboardingState {
   profile: BrandProfile | null;
@@ -203,6 +204,22 @@ export async function sendMessage(content: string): Promise<void> {
                   ? { ...m, content: m.content + json.content }
                   : m
               )
+            }));
+          }
+
+          if (json.stepAdvance) {
+            // AI signaled step completion — strip the marker from the message and advance
+            onboardingStore.update((s) => ({
+              ...s,
+              messages: s.messages.map((m) =>
+                m.id === assistantMessageId
+                  ? { ...m, content: m.content.replace(STEP_COMPLETE_MARKER, '').trimEnd() }
+                  : m
+              ),
+              currentStep: json.stepAdvance as OnboardingStep,
+              profile: s.profile
+                ? { ...s.profile, onboardingStep: json.stepAdvance as OnboardingStep }
+                : s.profile
             }));
           }
 

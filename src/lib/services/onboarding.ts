@@ -15,10 +15,23 @@ import type {
 import type { ChatMessage } from '$lib/services/openai-chat';
 
 /**
- * Onboarding step configurations with expert marketing system prompts.
- * Each step acts as a world-class brand strategist using psychology, philosophy,
- * and market research methodology.
+ * Marker the AI includes at the end of its response when the current step is complete.
+ * This is stripped before display/storage and triggers automatic step advancement.
  */
+export const STEP_COMPLETE_MARKER = '<<STEP_COMPLETE>>';
+
+/**
+ * Instruction appended to every step's system prompt to enable automatic step progression.
+ */
+const STEP_PROGRESSION_INSTRUCTION = `
+
+AUTOMATIC STEP PROGRESSION:
+When you are confident that you have gathered enough information for this step and are ready to move to the next phase, include the exact marker ${STEP_COMPLETE_MARKER} at the very END of your message (after your final sentence, on its own line). Only include this marker when:
+1. You have asked the key questions for this step AND received adequate answers
+2. You have summarized or confirmed what was discussed
+3. You are transitioning naturally to the next topic
+
+Do NOT include the marker on your first message in a step — always have at least one exchange with the user first. If the user seems to want to discuss more, continue the conversation without the marker.`;
 export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
   {
     id: 'welcome',
@@ -437,6 +450,11 @@ export function getSystemPromptForStep(
         : 'We are starting fresh — no brand details have been defined yet.';
 
     prompt = prompt.replace('{BRAND_CONTEXT}', contextStr);
+  }
+
+  // Append auto-progression instruction for all steps except 'complete'
+  if (stepId !== 'complete') {
+    prompt += STEP_PROGRESSION_INSTRUCTION;
   }
 
   return prompt;

@@ -9,7 +9,9 @@ import {
   getBrandProfile,
   getOnboardingMessages,
   buildConversationContext,
-  updateBrandProfile
+  updateBrandProfile,
+  getNextStep,
+  STEP_COMPLETE_MARKER
 } from '$lib/services/onboarding';
 import {
   getEnabledOpenAIKey,
@@ -102,18 +104,43 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
           }
         }
 
+        // Check for step completion marker
+        const shouldAdvance = fullContent.includes(STEP_COMPLETE_MARKER);
+        const cleanContent = fullContent.replace(STEP_COMPLETE_MARKER, '').trimEnd();
+
+        // Send step advance event before [DONE] so client can handle it
+        if (shouldAdvance) {
+          const nextStep = getNextStep(step as OnboardingStep);
+          if (nextStep) {
+            const advanceData = `data: ${JSON.stringify({ stepAdvance: nextStep })}\n\n`;
+            controller.enqueue(encoder.encode(advanceData));
+          }
+        }
+
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
 
-        // Persist assistant message (non-blocking)
-        if (fullContent && platform?.context) {
+        // Persist assistant message with cleaned content (non-blocking)
+        if (cleanContent && platform?.context) {
           platform.context.waitUntil(
-            addOnboardingMessage(platform.env.DB, {
-              brandProfileId: profileId,
-              userId: locals.user!.id,
-              role: 'assistant',
-              content: fullContent,
-              step: step as OnboardingStep
-            })
+            (async () => {
+              await addOnboardingMessage(platform!.env.DB, {
+                brandProfileId: profileId,
+                userId: locals.user!.id,
+                role: 'assistant',
+                content: cleanContent,
+                step: step as OnboardingStep
+              });
+
+              // Auto-advance to next step if marker was present
+              if (shouldAdvance) {
+                const nextStep = getNextStep(step as OnboardingStep);
+                if (nextStep) {
+                  await updateBrandProfile(platform!.env.DB, profileId, {
+                    onboardingStep: nextStep
+                  });
+                }
+              }
+            })()
           );
         }
       } catch (err) {
