@@ -12,6 +12,8 @@ import {
 } from '$lib/services/ai-media-generation';
 import { createBrandMedia } from '$lib/services/brand-assets';
 import { logMediaActivity, createMediaRevision } from '$lib/services/media-history';
+import { getEnabledVideoKey } from '$lib/services/video-registry';
+import type { AIGenerationProvider } from '$lib/types/brand-assets';
 
 /**
  * GET /api/brand/assets/generate
@@ -54,15 +56,15 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   if (!brandProfileId) throw error(400, 'brandProfileId required');
   if (!prompt) throw error(400, 'prompt required');
 
-  // Get API key from KV
-  const apiKey = await getOpenAIKey(platform);
-  if (!apiKey) {
-    throw error(400, 'No AI API key configured. Add one in Settings.');
-  }
-
   let generation;
 
   if (type === 'image') {
+    // Image generation requires an OpenAI key
+    const apiKey = await getOpenAIKey(platform);
+    if (!apiKey) {
+      throw error(400, 'No OpenAI API key configured. Add one in Admin → AI Keys.');
+    }
+
     generation = await generateImage(platform.env.DB, {
       brandProfileId,
       prompt,
@@ -197,6 +199,12 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     }
 
   } else if (type === 'audio') {
+    // Audio generation requires an OpenAI key
+    const apiKey = await getOpenAIKey(platform);
+    if (!apiKey) {
+      throw error(400, 'No OpenAI API key configured. Add one in Admin → AI Keys.');
+    }
+
     generation = await generateAudio(platform.env.DB, {
       brandProfileId,
       prompt,
@@ -313,12 +321,19 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     }
 
   } else {
-    // Video — save the generation record, actual generation uses existing video pipeline
+    // Video — validate that a video-capable key exists for the requested provider
+    const videoKey = await getEnabledVideoKey(platform, body.provider || undefined);
+    if (!videoKey) {
+      throw error(400, 'No video API key configured. Add one in Admin → AI Keys and enable Video Generation.');
+    }
+    const videoProvider = videoKey.provider as AIGenerationProvider;
+
+    // Save the generation record — actual generation uses existing video pipeline
     generation = await requestAIVideoGeneration(platform.env.DB, {
       brandProfileId,
       prompt,
       model: body.model,
-      provider: body.provider,
+      provider: videoProvider,
       aspectRatio: body.aspectRatio,
       duration: body.duration,
       resolution: body.resolution,

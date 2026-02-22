@@ -37,6 +37,16 @@ function mapStatus(wsStatus: string): 'queued' | 'processing' | 'complete' | 'er
 }
 
 /**
+ * Map of base model IDs to their resolution-specific API variants.
+ * When a model appears here, the resolution suffix is appended to the API path.
+ * e.g., 'wan-2.1/t2v' + '720p' → API path 'wavespeed-ai/wan-2.1/t2v-720p'
+ */
+const RESOLUTION_MODEL_VARIANTS: Record<string, string[]> = {
+  'wan-2.1/t2v': ['480p', '720p'],
+  'wan-2.2/t2v': ['720p']
+};
+
+/**
  * Curated list of popular WaveSpeed video models
  * These are the most commonly used models available via WaveSpeed's API
  *
@@ -47,47 +57,53 @@ function mapStatus(wsStatus: string): 'queued' | 'processing' | 'complete' | 'er
  * @see https://wavespeed.ai/pricing
  */
 const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
-  // Wan 2.1 Models
+  // Wan 2.1
   {
-    id: 'wan-2.1/t2v-720p',
-    displayName: 'Wan 2.1 Text-to-Video 720p',
+    id: 'wan-2.1/t2v',
+    displayName: 'Wan 2.1',
     provider: 'wavespeed',
     type: 'text-to-video',
     supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    pricing: { estimatedCostPerGeneration: 0.03, currency: 'USD' }
+    supportedResolutions: ['480p', '720p'],
+    pricing: {
+      estimatedCostPerGeneration: 0.03,
+      pricingByResolution: {
+        '480p': { estimatedCostPerGeneration: 0.02 },
+        '720p': { estimatedCostPerGeneration: 0.03 }
+      },
+      currency: 'USD'
+    }
   },
   {
     id: 'wan-2.1/i2v-720p',
-    displayName: 'Wan 2.1 Image-to-Video 720p',
+    displayName: 'Wan 2.1 Image-to-Video',
     provider: 'wavespeed',
     type: 'image-to-video',
     supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
   },
+  // Wan 2.2
   {
-    id: 'wan-2.1/t2v-480p',
-    displayName: 'Wan 2.1 Text-to-Video 480p',
+    id: 'wan-2.2/t2v',
+    displayName: 'Wan 2.2',
     provider: 'wavespeed',
     type: 'text-to-video',
     supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    pricing: { estimatedCostPerGeneration: 0.02, currency: 'USD' }
-  },
-  // Wan 2.2 Models
-  {
-    id: 'wan-2.2/t2v-720p',
-    displayName: 'Wan 2.2 Text-to-Video 720p',
-    provider: 'wavespeed',
-    type: 'text-to-video',
-    supportedDurations: [5, 8],
-    supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    pricing: { estimatedCostPerGeneration: 0.04, currency: 'USD' }
+    supportedResolutions: ['720p'],
+    pricing: {
+      estimatedCostPerGeneration: 0.04,
+      pricingByResolution: {
+        '720p': { estimatedCostPerGeneration: 0.04 }
+      },
+      currency: 'USD'
+    }
   },
   {
     id: 'wan-2.2/i2v-480p',
-    displayName: 'Wan 2.2 Image-to-Video 480p',
+    displayName: 'Wan 2.2 Image-to-Video',
     provider: 'wavespeed',
     type: 'image-to-video',
     supportedDurations: [5, 8],
@@ -111,20 +127,20 @@ const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.015, currency: 'USD' }
   },
-  // Hunyuan Video Models
+  // Hunyuan Video
   {
     id: 'hunyuan-video/t2v',
-    displayName: 'Hunyuan Video Text-to-Video',
+    displayName: 'Hunyuan Video',
     provider: 'wavespeed',
     type: 'text-to-video',
     supportedDurations: [5, 8],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     pricing: { estimatedCostPerGeneration: 0.05, currency: 'USD' }
   },
-  // LTX Video Models
+  // LTX Video
   {
     id: 'ltx-video/ltx-2-19b-text-to-video',
-    displayName: 'LTX 2 Text-to-Video',
+    displayName: 'LTX 2',
     provider: 'wavespeed',
     type: 'text-to-video',
     supportedDurations: [5, 8],
@@ -143,7 +159,7 @@ const WAVESPEED_VIDEO_MODELS: VideoModel[] = [
   // Framepack
   {
     id: 'framepack/framepack-f1',
-    displayName: 'Framepack',
+    displayName: 'FramePack',
     provider: 'wavespeed',
     type: 'image-to-video',
     supportedDurations: [5, 8],
@@ -163,12 +179,20 @@ export class WaveSpeedVideoProvider implements VideoProvider {
     apiKey: string,
     request: VideoGenerationRequest
   ): Promise<VideoGenerationResult> {
-    // The model ID maps to a WaveSpeed API URL path segment.
-    // IDs may contain slashes for sub-paths (e.g., "wan-2.1/t2v-720p").
+    // Resolve the API model path.
+    // For models with resolution variants (e.g., 'wan-2.1/t2v'), append the
+    // resolution suffix to get the correct API path ('wan-2.1/t2v-720p').
+    let resolvedModel = request.model;
+    const variants = RESOLUTION_MODEL_VARIANTS[resolvedModel];
+    if (variants) {
+      const res = request.resolution || variants[variants.length - 1]; // default to highest
+      resolvedModel = `${resolvedModel}-${res}`;
+    }
+
     // Always prefix with "wavespeed-ai/" unless already present.
-    const modelPath = request.model.startsWith('wavespeed-ai/')
-      ? request.model
-      : `wavespeed-ai/${request.model}`;
+    const modelPath = resolvedModel.startsWith('wavespeed-ai/')
+      ? resolvedModel
+      : `wavespeed-ai/${resolvedModel}`;
 
     const response = await fetch(`${WAVESPEED_API_BASE}/${modelPath}`, {
       method: 'POST',

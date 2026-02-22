@@ -39,6 +39,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
           supportedDurations: m.supportedDurations,
           supportedAspectRatios: m.supportedAspectRatios,
           supportedResolutions: m.supportedResolutions,
+          validSizes: m.validSizes || undefined,
           pricing: m.pricing || null
         });
       }

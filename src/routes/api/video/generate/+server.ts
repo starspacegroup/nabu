@@ -61,8 +61,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   // Generate a generation ID for tracking
   const generationId = crypto.randomUUID();
 
-  // Validate duration — OpenAI Sora accepts '4', '8', or '12' seconds
-  const validDurations = [4, 8, 12];
+  // Validate duration — allow reasonable video durations (provider will enforce its own limits)
+  const validDurations = [4, 5, 8, 10, 12];
   const videoDuration = duration && validDurations.includes(duration) ? duration : undefined;
 
   // Start video generation

@@ -200,10 +200,9 @@
 	// WaveSpeed video/image model options
 	// Fallback pricing from https://wavespeed.ai/pricing — overridden by live API data when available
 	const wavespeedModelOptions = [
-		{ id: 'wan-2.1/t2v-720p', displayName: 'Wan 2.1 T2V 720p', description: 'Text-to-video, 720p quality', category: 'video', fallbackPrice: 0.03 },
+		{ id: 'wan-2.1/t2v', displayName: 'Wan 2.1 T2V', description: 'Text-to-video, 480p–720p quality', category: 'video', fallbackPrice: 0.03 },
 		{ id: 'wan-2.1/i2v-720p', displayName: 'Wan 2.1 I2V 720p', description: 'Image-to-video, 720p quality', category: 'video', fallbackPrice: 0.04 },
-		{ id: 'wan-2.1/t2v-480p', displayName: 'Wan 2.1 T2V 480p', description: 'Text-to-video, fast 480p', category: 'video', fallbackPrice: 0.02 },
-		{ id: 'wan-2.2/t2v-720p', displayName: 'Wan 2.2 T2V 720p', description: 'Latest Wan text-to-video', category: 'video', fallbackPrice: 0.04 },
+		{ id: 'wan-2.2/t2v', displayName: 'Wan 2.2 T2V', description: 'Latest Wan text-to-video', category: 'video', fallbackPrice: 0.04 },
 		{ id: 'wan-2.2/i2v-480p', displayName: 'Wan 2.2 I2V 480p', description: 'Latest Wan image-to-video', category: 'video', fallbackPrice: 0.03 },
 		{ id: 'hunyuan-video/t2v', displayName: 'HunYuan Video', description: 'Tencent HunYuan text-to-video', category: 'video', fallbackPrice: 0.05 },
 		{ id: 'ltx-video/ltx-2-19b-text-to-video', displayName: 'LTX 2 T2V', description: 'Lightricks text-to-video', category: 'video', fallbackPrice: 0.03 },
@@ -251,7 +250,7 @@
 	/**
 	 * Look up base_price for a local model ID.
 	 * Checks live API pricing data first, then falls back to the local fallback price.
-	 * Local IDs like "wan-2.1/t2v-720p" map to API model_ids like "wavespeed-ai/wan-2.1/t2v-720p".
+	 * Local IDs like "wan-2.1/t2v" map to API model_ids like "wavespeed-ai/wan-2.1/t2v-720p".
 	 * Performs normalized matching (strips prefix, replaces / with -).
 	 */
 	function getWaveSpeedPrice(localModelId: string): number | null {

@@ -483,6 +483,86 @@ describe('Video Registry', () => {
       expect(models.length).toBeGreaterThan(0);
       expect(models.some((m) => m.id === 'sora-2')).toBe(true);
     });
+
+    it('should include WaveSpeed models', async () => {
+      const { getAllVideoModels } = await import(
+        '../../src/lib/services/video-registry'
+      );
+      const models = getAllVideoModels();
+      const wavespeedModels = models.filter((m) => m.provider === 'wavespeed');
+      expect(wavespeedModels.length).toBeGreaterThan(0);
+      expect(wavespeedModels.some((m) => m.id === 'wan-2.1/t2v')).toBe(true);
+    });
+
+    it('should include WaveSpeed text-to-video models', async () => {
+      const { getAllVideoModels } = await import(
+        '../../src/lib/services/video-registry'
+      );
+      const models = getAllVideoModels();
+      const wsT2V = models.filter((m) => m.provider === 'wavespeed' && m.type === 'text-to-video');
+      expect(wsT2V.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  describe('getModelsForKey - WaveSpeed', () => {
+    it('should return WaveSpeed models for a wavespeed key', async () => {
+      const { getModelsForKey } = await import(
+        '../../src/lib/services/video-registry'
+      );
+      const key = {
+        id: 'ws-key-1',
+        name: 'WaveSpeed Key',
+        provider: 'wavespeed',
+        apiKey: 'ws-test-key',
+        enabled: true,
+        videoEnabled: true,
+        videoModels: ['wan-2.1/t2v', 'wan-2.2/t2v']
+      };
+      const models = getModelsForKey(key);
+      expect(models).toHaveLength(2);
+      expect(models[0].provider).toBe('wavespeed');
+      expect(models.some((m) => m.id === 'wan-2.1/t2v')).toBe(true);
+      expect(models.some((m) => m.id === 'wan-2.2/t2v')).toBe(true);
+    });
+
+    it('should handle legacy resolution-specific model IDs via backwards compatibility', async () => {
+      const { getModelsForKey } = await import(
+        '../../src/lib/services/video-registry'
+      );
+      // Simulates a user who saved old model IDs before consolidation
+      const key = {
+        id: 'ws-legacy-key',
+        name: 'WaveSpeed Legacy Key',
+        provider: 'wavespeed',
+        apiKey: 'ws-test-key',
+        enabled: true,
+        videoEnabled: true,
+        videoModels: ['wan-2.1/t2v-720p', 'wan-2.2/t2v-720p']
+      };
+      const models = getModelsForKey(key);
+      // Old IDs should map to consolidated models
+      expect(models).toHaveLength(2);
+      expect(models.some((m) => m.id === 'wan-2.1/t2v')).toBe(true);
+      expect(models.some((m) => m.id === 'wan-2.2/t2v')).toBe(true);
+    });
+
+    it('should return all WaveSpeed models when no specific models configured', async () => {
+      const { getModelsForKey } = await import(
+        '../../src/lib/services/video-registry'
+      );
+      const key = {
+        id: 'ws-key-2',
+        name: 'WaveSpeed Key All',
+        provider: 'wavespeed',
+        apiKey: 'ws-test-key',
+        enabled: true,
+        videoEnabled: true,
+        videoModels: []
+      };
+      const models = getModelsForKey(key);
+      expect(models.length).toBeGreaterThan(0);
+      expect(models.every((m) => m.provider === 'wavespeed')).toBe(true);
+    });
   });
 
   describe('getEnabledVideoKey', () => {

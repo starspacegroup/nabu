@@ -250,6 +250,30 @@ describe('AI Media Generation Service', () => {
       expect(params?.aspectRatio).toBe('9:16');
       expect(params?.duration).toBe(8);
     });
+
+    it('should use wavespeed provider when specified', async () => {
+      const result = await requestAIVideoGeneration(mockDB as any, {
+        brandProfileId: 'brand-1',
+        prompt: 'A brand intro video',
+        provider: 'wavespeed',
+        model: 'wan-2.1/t2v-720p',
+        aspectRatio: '16:9',
+        duration: 5
+      });
+
+      expect(result.provider).toBe('wavespeed');
+      expect(result.model).toBe('wan-2.1/t2v-720p');
+    });
+
+    it('should default provider to openai when not specified', async () => {
+      const result = await requestAIVideoGeneration(mockDB as any, {
+        brandProfileId: 'brand-1',
+        prompt: 'A brand intro video'
+      });
+
+      expect(result.provider).toBe('openai');
+      expect(result.model).toBe('sora-2');
+    });
   });
 
   // ─── Generation CRUD ──────────────────────────────────

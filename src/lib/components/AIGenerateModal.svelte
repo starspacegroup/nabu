@@ -1,5 +1,22 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
+
+	interface VideoModelOption {
+		id: string;
+		displayName: string;
+		provider: string;
+		maxDuration?: number;
+		supportedDurations?: number[];
+		supportedAspectRatios?: string[];
+		supportedResolutions?: string[];
+		validSizes?: Record<string, Record<string, string>>;
+		pricing?: {
+			estimatedCostPerSecond?: number;
+			estimatedCostPerGeneration?: number;
+			pricingByResolution?: Record<string, { estimatedCostPerSecond?: number; estimatedCostPerGeneration?: number }>;
+			currency: string;
+		};
+	}
 
 	const dispatch = createEventDispatcher<{
 		generate: {
@@ -36,10 +53,84 @@
 	let audioModel = 'tts-1';
 	let audioSpeed = 1.0;
 
-	// Video options
-	let videoModel = 'sora-2';
+	// Video options — loaded dynamically from API
+	let videoModels: VideoModelOption[] = [];
+	let videoModelsLoaded = false;
+	let videoModel = '';
+	let selectedVideoProvider = '';
 	let videoAspectRatio: '16:9' | '9:16' | '1:1' = '16:9';
 	let videoDuration = 8;
+	let videoResolution = '720p';
+
+	const providerDisplayNames: Record<string, string> = {
+		openai: 'OpenAI (Sora)',
+		wavespeed: 'WaveSpeed AI'
+	};
+
+	// Derive unique providers from loaded video models
+	$: videoProviders = [...new Set(videoModels.map((m) => m.provider))];
+	$: hasMultipleVideoProviders = videoProviders.length > 1;
+
+	// Auto-select first provider when models load
+	$: if (videoProviders.length > 0 && (!selectedVideoProvider || !videoProviders.includes(selectedVideoProvider))) {
+		selectedVideoProvider = videoProviders[0];
+	}
+
+	// Filter models by selected provider
+	$: filteredVideoModels = selectedVideoProvider
+		? videoModels.filter((m) => m.provider === selectedVideoProvider)
+		: videoModels;
+
+	// Auto-select first model when provider changes
+	$: if (filteredVideoModels.length > 0 && (!videoModel || !filteredVideoModels.some((m) => m.id === videoModel))) {
+		videoModel = filteredVideoModels[0].id;
+	}
+
+	// Current model for deriving available options
+	$: currentVideoModel = filteredVideoModels.find((m) => m.id === videoModel);
+
+	// Available aspect ratios from current model
+	$: videoAspectRatios = currentVideoModel?.supportedAspectRatios || ['16:9', '9:16', '1:1'];
+	$: if (videoAspectRatios.length > 0 && !videoAspectRatios.includes(videoAspectRatio)) {
+		videoAspectRatio = videoAspectRatios[0] as '16:9' | '9:16' | '1:1';
+	}
+
+	// Available durations from current model
+	$: videoDurations = currentVideoModel?.supportedDurations || [5, 8];
+	$: if (videoDurations.length > 0 && !videoDurations.includes(videoDuration)) {
+		videoDuration = videoDurations[0];
+	}
+
+	// Resolution / quality support: derive from validSizes, supportedResolutions, or hide
+	$: videoResolutions = (() => {
+		if (currentVideoModel?.validSizes) {
+			const ratioSizes = currentVideoModel.validSizes[videoAspectRatio];
+			return ratioSizes ? Object.keys(ratioSizes) : [];
+		}
+		return currentVideoModel?.supportedResolutions || [];
+	})();
+	$: hasQualitySelector = videoResolutions.length > 0;
+	$: if (videoResolutions.length > 0 && !videoResolutions.includes(videoResolution)) {
+		videoResolution = videoResolutions[videoResolutions.length - 1]; // default to highest
+	}
+
+	async function loadVideoModels() {
+		try {
+			const res = await fetch('/api/video/models');
+			if (res.ok) {
+				const data = await res.json();
+				videoModels = data.models || [];
+			}
+		} catch {
+			// Models not available — the no-models state handles this
+		}
+		videoModelsLoaded = true;
+	}
+
+	// Load video models when modal opens for video generation
+	$: if (open && generationType === 'video' && !videoModelsLoaded) {
+		loadVideoModels();
+	}
 
 	$: typeLabel = generationType === 'image' ? 'Image' : generationType === 'audio' ? 'Audio' : 'Video';
 
@@ -53,11 +144,36 @@
 		selectedCategory = defaultCategories[0];
 	}
 
+	$: videoEstimatedCost = (() => {
+		if (!currentVideoModel?.pricing) return '~$0.04-0.50/sec';
+		const p = currentVideoModel.pricing;
+
+		// Check resolution-specific pricing first
+		const resPricing = p.pricingByResolution?.[videoResolution];
+		if (resPricing) {
+			if (resPricing.estimatedCostPerGeneration != null) {
+				return `~$${resPricing.estimatedCostPerGeneration.toFixed(2)}/gen`;
+			}
+			if (resPricing.estimatedCostPerSecond != null) {
+				const total = resPricing.estimatedCostPerSecond * videoDuration;
+				return `~$${total.toFixed(2)}`;
+			}
+		}
+
+		// Fall back to top-level pricing
+		if (p.estimatedCostPerGeneration) return `~$${p.estimatedCostPerGeneration.toFixed(2)}/gen`;
+		if (p.estimatedCostPerSecond) {
+			const total = p.estimatedCostPerSecond * videoDuration;
+			return `~$${total.toFixed(2)}`;
+		}
+		return '~$0.04-0.50/sec';
+	})();
+
 	$: estimatedCost = generationType === 'image'
 		? (imageModel === 'dall-e-3' ? (imageQuality === 'hd' ? '$0.08' : '$0.04') : '$0.02')
 		: generationType === 'audio'
 			? (audioModel === 'tts-1-hd' ? '~$0.03/1K chars' : '~$0.015/1K chars')
-			: '~$0.04-0.50/sec';
+			: videoEstimatedCost;
 
 	function handleClose() {
 		if (!generating) {
@@ -97,8 +213,12 @@
 			options.speed = audioSpeed;
 		} else {
 			options.model = videoModel;
+			options.provider = selectedVideoProvider;
 			options.aspectRatio = videoAspectRatio;
 			options.duration = videoDuration;
+			if (hasQualitySelector) {
+				options.resolution = videoResolution;
+			}
 		}
 
 		try {
@@ -282,31 +402,58 @@
 						</div>
 					</div>
 				{:else}
-					<div class="options-grid">
+					{#if videoModels.length === 0 && videoModelsLoaded}
+						<div class="no-video-models">
+							<p>No video models available. Go to <a href="/admin/ai-keys">Admin &rarr; AI Keys</a> and enable Video Generation on an API key.</p>
+						</div>
+					{:else}
+						{#if hasMultipleVideoProviders}
+							<div class="field">
+								<label for="ai-vid-provider">Provider</label>
+								<select id="ai-vid-provider" bind:value={selectedVideoProvider}>
+									{#each videoProviders as prov}
+										<option value={prov}>{providerDisplayNames[prov] || prov}</option>
+									{/each}
+								</select>
+							</div>
+						{/if}
 						<div class="field">
 							<label for="ai-vid-model">Model</label>
 							<select id="ai-vid-model" bind:value={videoModel}>
-								<option value="sora-2">Sora 2</option>
-								<option value="sora-2-pro">Sora 2 Pro</option>
+								{#each filteredVideoModels as m}
+									<option value={m.id}>{m.displayName}</option>
+								{/each}
 							</select>
 						</div>
-						<div class="field">
-							<label for="ai-vid-aspect">Aspect Ratio</label>
-							<select id="ai-vid-aspect" bind:value={videoAspectRatio}>
-								<option value="16:9">16:9 Landscape</option>
-								<option value="9:16">9:16 Portrait</option>
-								<option value="1:1">1:1 Square</option>
-							</select>
+						<div class="options-grid">
+							<div class="field">
+								<label for="ai-vid-aspect">Aspect Ratio</label>
+								<select id="ai-vid-aspect" bind:value={videoAspectRatio}>
+									{#each videoAspectRatios as ratio}
+										<option value={ratio}>{ratio === '16:9' ? '16:9 Landscape' : ratio === '9:16' ? '9:16 Portrait' : '1:1 Square'}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="field">
+								<label for="ai-vid-duration">Duration</label>
+								<select id="ai-vid-duration" bind:value={videoDuration}>
+									{#each videoDurations as d}
+										<option value={d}>{d} seconds</option>
+									{/each}
+								</select>
+							</div>
+							{#if hasQualitySelector}
+								<div class="field">
+									<label for="ai-vid-quality">Quality</label>
+									<select id="ai-vid-quality" bind:value={videoResolution}>
+										{#each videoResolutions as res}
+											<option value={res}>{res}</option>
+										{/each}
+									</select>
+								</div>
+							{/if}
 						</div>
-						<div class="field">
-							<label for="ai-vid-duration">Duration</label>
-							<select id="ai-vid-duration" bind:value={videoDuration}>
-								<option value={4}>4 seconds</option>
-								<option value={8}>8 seconds</option>
-								<option value={12}>12 seconds</option>
-							</select>
-						</div>
-					</div>
+					{/if}
 				{/if}
 
 				<!-- Cost estimate -->
@@ -490,6 +637,17 @@
 		gap: var(--spacing-sm);
 	}
 
+	.no-video-models {
+		padding: var(--spacing-md);
+		text-align: center;
+		color: var(--color-text-secondary);
+		font-size: 0.875rem;
+	}
+
+	.no-video-models a {
+		color: var(--color-primary);
+	}
+
 	.cost-estimate {
 		display: flex;
 		align-items: center;
@@ -575,5 +733,35 @@
 
 	@keyframes spin {
 		to { transform: rotate(360deg); }
+	}
+
+	/* Mobile responsive */
+	@media (max-width: 600px) {
+		.modal-backdrop {
+			padding: 0;
+			align-items: flex-end;
+		}
+
+		.modal {
+			max-width: 100%;
+			max-height: 95vh;
+			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+		}
+
+		.modal-header {
+			padding: var(--spacing-md);
+		}
+
+		.modal-body {
+			padding: var(--spacing-md);
+		}
+
+		.options-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.modal-footer {
+			padding: var(--spacing-md);
+		}
 	}
 </style>

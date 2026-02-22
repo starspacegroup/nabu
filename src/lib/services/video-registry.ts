@@ -106,6 +106,18 @@ export async function getAllEnabledVideoKeys(
 }
 
 /**
+ * Legacy model ID mapping for backwards compatibility.
+ * When resolution-specific model IDs were consolidated (e.g., wan-2.1/t2v-720p +
+ * wan-2.1/t2v-480p → wan-2.1/t2v), users may still have old IDs saved in KV.
+ * This map ensures those old IDs still match the consolidated model.
+ */
+const LEGACY_MODEL_IDS: Record<string, string> = {
+  'wan-2.1/t2v-720p': 'wan-2.1/t2v',
+  'wan-2.1/t2v-480p': 'wan-2.1/t2v',
+  'wan-2.2/t2v-720p': 'wan-2.2/t2v'
+};
+
+/**
  * Get video models available for a specific API key
  */
 export function getModelsForKey(key: VideoAIKey): VideoModel[] {
@@ -116,7 +128,12 @@ export function getModelsForKey(key: VideoAIKey): VideoModel[] {
 
   // If specific models are configured, filter to those
   if (key.videoModels && key.videoModels.length > 0) {
-    return allModels.filter((m) => key.videoModels!.includes(m.id));
+    // Normalize configured model IDs through the legacy map so old saved
+    // IDs like "wan-2.1/t2v-720p" still match the consolidated "wan-2.1/t2v"
+    const normalizedIds = new Set(
+      key.videoModels.map((id) => LEGACY_MODEL_IDS[id] || id)
+    );
+    return allModels.filter((m) => normalizedIds.has(m.id));
   }
 
   return allModels;

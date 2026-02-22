@@ -187,7 +187,7 @@
 				<line x1="12" y1="16" x2="12.01" y2="16" />
 			</svg>
 			<p>No video provider configured.</p>
-			<p class="no-provider-hint">Go to <a href="/admin/ai-keys">Admin &rarr; AI Keys</a>, edit your OpenAI key, and enable the <strong>Video Generation</strong> toggle with a Sora model selected.</p>
+			<p class="no-provider-hint">Go to <a href="/admin/ai-keys">Admin &rarr; AI Keys</a>, edit your API key (OpenAI or WaveSpeed), and enable the <strong>Video Generation</strong> toggle with a model selected.</p>
 		</div>
 	{:else}
 		<div class="form-body">
