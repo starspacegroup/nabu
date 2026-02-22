@@ -1204,7 +1204,8 @@ describe('Onboarding profile API - branch coverage', () => {
 
     const response = await GET({
       platform: mockPlatform,
-      locals: mockLocals
+      locals: mockLocals,
+      url: new URL('http://localhost/api/onboarding/profile')
     } as any);
 
     const data = await response.json();

@@ -1,5 +1,7 @@
 /**
  * GET /api/onboarding/profile - Get current user's brand profile
+ *   ?id=<profileId> - Get a specific brand profile (verified ownership)
+ *   (no id)         - Get the most recently updated active profile
  * POST /api/onboarding/profile - Create a new brand profile
  * PATCH /api/onboarding/profile - Update brand profile
  */
@@ -12,9 +14,22 @@ import {
   updateBrandProfile
 } from '$lib/services/onboarding';
 
-export const GET: RequestHandler = async ({ locals, platform }) => {
+export const GET: RequestHandler = async ({ locals, platform, url }) => {
   if (!locals.user) {
     throw error(401, 'Unauthorized');
+  }
+
+  const profileId = url.searchParams.get('id');
+
+  if (profileId) {
+    const profile = await getBrandProfile(platform!.env.DB, profileId);
+    if (!profile) {
+      throw error(404, 'Profile not found');
+    }
+    if (profile.userId !== locals.user.id) {
+      throw error(403, 'Forbidden');
+    }
+    return json({ profile });
   }
 
   const profile = await getBrandProfileByUser(platform!.env.DB, locals.user.id);

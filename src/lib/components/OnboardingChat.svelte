@@ -19,6 +19,9 @@
 	import type { OnboardingStep } from '$lib/types/onboarding';
 	import { ONBOARDING_STEPS, getNextStep, STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
+	/** Optional brand profile ID to load a specific brand for continued onboarding */
+	export let brandId: string | undefined = undefined;
+
 	let input = '';
 	let chatContainer: HTMLDivElement;
 	let textareaElement: HTMLTextAreaElement;
@@ -48,8 +51,8 @@
 	$: showCharCount = inputLength > MAX_INPUT_LENGTH * 0.8;
 
 	onMount(async () => {
-		// Check if user already has a profile
-		const existingProfile = await loadExistingProfile();
+		// Check if user already has a profile (or load specific brand)
+		const existingProfile = await loadExistingProfile(brandId);
 		if (existingProfile) {
 			showWelcomeScreen = false;
 			initialized = true;

@@ -88,7 +88,8 @@ describe('Onboarding API Endpoints', () => {
       const { GET } = await import('../../src/routes/api/onboarding/profile/+server');
       const event = {
         locals: {},
-        platform: mockPlatform
+        platform: mockPlatform,
+        url: new URL('http://localhost/api/onboarding/profile')
       };
 
       try {
@@ -114,7 +115,8 @@ describe('Onboarding API Endpoints', () => {
       const { GET } = await import('../../src/routes/api/onboarding/profile/+server');
       const event = {
         locals: { user: createMockUser() },
-        platform: mockPlatform
+        platform: mockPlatform,
+        url: new URL('http://localhost/api/onboarding/profile')
       };
 
       const response = await GET(event as any);
@@ -131,7 +133,8 @@ describe('Onboarding API Endpoints', () => {
       const { GET } = await import('../../src/routes/api/onboarding/profile/+server');
       const event = {
         locals: { user: createMockUser() },
-        platform: mockPlatform
+        platform: mockPlatform,
+        url: new URL('http://localhost/api/onboarding/profile')
       };
 
       const response = await GET(event as any);

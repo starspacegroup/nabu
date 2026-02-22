@@ -68,13 +68,18 @@ export async function startOnboarding(): Promise<void> {
 }
 
 /**
- * Load an existing brand profile and its messages
+ * Load an existing brand profile and its messages.
+ * If brandId is provided, loads that specific brand profile.
+ * Otherwise, loads the most recently updated active profile (backward compatible).
  */
-export async function loadExistingProfile(): Promise<BrandProfile | null> {
+export async function loadExistingProfile(brandId?: string): Promise<BrandProfile | null> {
   onboardingStore.update((s) => ({ ...s, isLoading: true, error: null }));
 
   try {
-    const profileRes = await fetch('/api/onboarding/profile');
+    const profileUrl = brandId
+      ? `/api/onboarding/profile?id=${brandId}`
+      : '/api/onboarding/profile';
+    const profileRes = await fetch(profileUrl);
     if (!profileRes.ok) {
       throw new Error('Failed to load profile');
     }

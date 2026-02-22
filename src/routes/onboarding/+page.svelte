@@ -1,8 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import OnboardingChat from '$lib/components/OnboardingChat.svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
+
+	// Get optional brand ID from query parameter for continuing onboarding on a specific brand
+	$: brandId = $page.url.searchParams.get('brand') || undefined;
 </script>
 
 <svelte:head>
@@ -12,7 +16,7 @@
 
 <div class="onboarding-page">
 	{#if data.hasAIProviders}
-		<OnboardingChat />
+		<OnboardingChat {brandId} />
 	{:else}
 		<div class="no-ai-notice">
 			<div class="notice-content">

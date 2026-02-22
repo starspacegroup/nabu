@@ -1,11 +1,13 @@
 /**
  * Brand Service
- * Manages brand profile field versioning, retrieval, and structured summaries.
+ * Manages brand profile field versioning, retrieval, structured summaries,
+ * and multi-brand management (listing, duplicating, ownership verification).
  * Complements the onboarding service with direct brand management capabilities.
  */
 
 import type { BrandProfile } from '$lib/types/onboarding';
 import type { D1Database } from '@cloudflare/workers-types';
+import { mapRowToProfile } from '$lib/services/onboarding';
 
 /** A single version record for a brand field */
 export interface BrandFieldVersion {
@@ -416,4 +418,162 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
       ]
     }
   ];
+}
+
+// ─── Multi-Brand Management ──────────────────────────────────────────
+
+/**
+ * Get all non-archived brand profiles for a user, ordered by most recently updated.
+ */
+export async function getAllBrandProfilesByUser(
+  db: D1Database,
+  userId: string
+): Promise<BrandProfile[]> {
+  const result = await db
+    .prepare(
+      `SELECT * FROM brand_profiles 
+       WHERE user_id = ? AND status IN ('in_progress', 'completed')
+       ORDER BY updated_at DESC`
+    )
+    .bind(userId)
+    .all();
+
+  return (result.results || []).map((row) =>
+    mapRowToProfile(row as Record<string, unknown>)
+  );
+}
+
+/**
+ * Get a specific brand profile, verified to belong to the given user.
+ * Returns null if not found or belongs to a different user.
+ */
+export async function getBrandProfileForUser(
+  db: D1Database,
+  profileId: string,
+  userId: string
+): Promise<BrandProfile | null> {
+  const row = await db
+    .prepare('SELECT * FROM brand_profiles WHERE id = ? AND user_id = ?')
+    .bind(profileId, userId)
+    .first();
+
+  if (!row) return null;
+  return mapRowToProfile(row as Record<string, unknown>);
+}
+
+/**
+ * Duplicate an existing brand profile, creating a new copy with "(Copy)" appended to the name.
+ * The copy starts in 'in_progress' status but preserves all brand data.
+ */
+export async function duplicateBrandProfile(
+  db: D1Database,
+  sourceProfileId: string,
+  userId: string
+): Promise<BrandProfile> {
+  // Get and verify the source profile
+  const sourceRow = await db
+    .prepare('SELECT * FROM brand_profiles WHERE id = ? AND user_id = ?')
+    .bind(sourceProfileId, userId)
+    .first();
+
+  if (!sourceRow) {
+    throw new Error('Source profile not found');
+  }
+
+  const source = sourceRow as Record<string, unknown>;
+  const newId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Build the brand name for the copy
+  const sourceName = (source.brand_name as string) || 'Untitled';
+  const copyName = `${sourceName} (Copy)`;
+
+  await db
+    .prepare(
+      `INSERT INTO brand_profiles (
+        id, user_id, status,
+        brand_name, tagline, mission_statement, vision_statement, elevator_pitch,
+        brand_archetype, brand_personality_traits, tone_of_voice, communication_style,
+        target_audience, customer_pain_points, value_proposition,
+        primary_color, secondary_color, accent_color, color_palette,
+        typography_heading, typography_body, logo_concept, logo_url,
+        industry, competitors, unique_selling_points, market_position,
+        origin_story, brand_values, brand_promise, style_guide,
+        onboarding_step, created_at, updated_at
+      ) VALUES (
+        ?, ?, 'in_progress',
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?
+      )`
+    )
+    .bind(
+      newId, userId,
+      copyName,
+      source.tagline ?? null,
+      source.mission_statement ?? null,
+      source.vision_statement ?? null,
+      source.elevator_pitch ?? null,
+      source.brand_archetype ?? null,
+      source.brand_personality_traits ?? null,
+      source.tone_of_voice ?? null,
+      source.communication_style ?? null,
+      source.target_audience ?? null,
+      source.customer_pain_points ?? null,
+      source.value_proposition ?? null,
+      source.primary_color ?? null,
+      source.secondary_color ?? null,
+      source.accent_color ?? null,
+      source.color_palette ?? null,
+      source.typography_heading ?? null,
+      source.typography_body ?? null,
+      source.logo_concept ?? null,
+      source.logo_url ?? null,
+      source.industry ?? null,
+      source.competitors ?? null,
+      source.unique_selling_points ?? null,
+      source.market_position ?? null,
+      source.origin_story ?? null,
+      source.brand_values ?? null,
+      source.brand_promise ?? null,
+      source.style_guide ?? null,
+      source.onboarding_step ?? 'complete',
+      now,
+      now
+    )
+    .run();
+
+  return {
+    id: newId,
+    userId,
+    status: 'in_progress',
+    brandName: copyName,
+    tagline: (source.tagline as string) || undefined,
+    missionStatement: (source.mission_statement as string) || undefined,
+    visionStatement: (source.vision_statement as string) || undefined,
+    elevatorPitch: (source.elevator_pitch as string) || undefined,
+    brandArchetype: (source.brand_archetype as BrandProfile['brandArchetype']) || undefined,
+    toneOfVoice: (source.tone_of_voice as string) || undefined,
+    communicationStyle: (source.communication_style as string) || undefined,
+    valueProposition: (source.value_proposition as string) || undefined,
+    primaryColor: (source.primary_color as string) || undefined,
+    secondaryColor: (source.secondary_color as string) || undefined,
+    accentColor: (source.accent_color as string) || undefined,
+    industry: (source.industry as string) || undefined,
+    marketPosition: (source.market_position as BrandProfile['marketPosition']) || undefined,
+    originStory: (source.origin_story as string) || undefined,
+    brandPromise: (source.brand_promise as string) || undefined,
+    logoConcept: (source.logo_concept as string) || undefined,
+    logoUrl: (source.logo_url as string) || undefined,
+    typographyHeading: (source.typography_heading as string) || undefined,
+    typographyBody: (source.typography_body as string) || undefined,
+    onboardingStep: (source.onboarding_step as BrandProfile['onboardingStep']) || 'complete',
+    createdAt: now,
+    updatedAt: now
+  };
 }

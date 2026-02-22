@@ -521,7 +521,7 @@ You can reference, build upon, or suggest improvements to any of these existing 
 /**
  * Map a database row to a BrandProfile object
  */
-function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
+export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
   return {
     id: row.id as string,
     userId: row.user_id as string,
