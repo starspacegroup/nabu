@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	import type { BrandProfile } from '$lib/types/onboarding';
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
+	import MediaGallery from '$lib/components/MediaGallery.svelte';
 
 	export let data: PageData;
+
+	// ─── Types ───────────────────────────────────────────────
 
 	interface BrandFieldItem {
 		key: string;
@@ -21,18 +24,112 @@
 		fields: BrandFieldItem[];
 	}
 
+	interface TextAsset {
+		id: string;
+		brandProfileId: string;
+		category: string;
+		key: string;
+		label: string;
+		value: string;
+		language: string;
+		sortOrder: number;
+		createdAt: string;
+		updatedAt: string;
+	}
+
+	interface MediaAsset {
+		id: string;
+		brandProfileId: string;
+		mediaType: 'image' | 'audio' | 'video';
+		category: string;
+		name: string;
+		description?: string;
+		url?: string;
+		r2Key?: string;
+		mimeType?: string;
+		fileSize?: number;
+		width?: number;
+		height?: number;
+		durationSeconds?: number;
+		tags?: string[];
+		isPrimary: boolean;
+		createdAt: string;
+		updatedAt: string;
+	}
+
+	interface AssetSummary {
+		textCount: number;
+		imageCount: number;
+		audioCount: number;
+		videoCount: number;
+		videoGenerationsCount: number;
+		totalCount: number;
+	}
+
+	interface VideoItem {
+		id: string;
+		prompt: string;
+		provider: string;
+		model: string;
+		status: string;
+		videoUrl: string | null;
+		thumbnailUrl: string | null;
+		r2Key: string | null;
+		duration: number | null;
+		aspectRatio: string | null;
+		cost: number | null;
+		error: string | null;
+		createdAt: string;
+		completedAt: string | null;
+	}
+
+	// ─── State ───────────────────────────────────────────────
+
 	let profile: BrandProfile | null = null;
 	let sections: BrandSection[] = [];
 	let isLoading = true;
 	let error: string | null = null;
 
+	// Tab navigation
+	let activeTab: 'profile' | 'text' | 'images' | 'audio' | 'videos' = 'profile';
+
 	// Field history modal
 	let historyFieldKey: string | null = null;
 	let historyFieldLabel: string | null = null;
 
-	// Editing state
+	// Editing state (profile fields)
 	let editingField: string | null = null;
 	let editValue = '';
+
+	// Asset state
+	let assetSummary: AssetSummary | null = null;
+	let textAssets: TextAsset[] = [];
+	let imageAssets: MediaAsset[] = [];
+	let audioAssets: MediaAsset[] = [];
+	let videoAssets: MediaAsset[] = [];
+	let brandVideos: VideoItem[] = [];
+	let assetsLoading = false;
+
+	// Text asset creation
+	let showAddText = false;
+	let newTextCategory = 'names';
+	let newTextKey = '';
+	let newTextLabel = '';
+	let newTextValue = '';
+
+	// Text editing
+	let editingTextId: string | null = null;
+	let editTextValue = '';
+
+	// Text categories config
+	const textCategoryInfo: Record<string, { label: string; icon: string; description: string }> = {
+		names: { label: 'Names', icon: '🏷️', description: 'Brand name, legal name, DBA, abbreviation' },
+		messaging: { label: 'Messaging', icon: '💬', description: 'Tagline, slogan, elevator pitch, value proposition' },
+		descriptions: { label: 'Descriptions', icon: '📝', description: 'Short bio, long bio, boilerplate, about us' },
+		legal: { label: 'Legal', icon: '⚖️', description: 'Copyright notice, trademark text, disclaimers' },
+		social: { label: 'Social', icon: '📱', description: 'Social media bios — Twitter, Instagram, LinkedIn' },
+		voice: { label: 'Voice', icon: '🎤', description: 'Tone guidelines, vocabulary, key phrases' }
+	};
 
 	// Completion stats
 	$: filledFields = sections.reduce((count, section) => {
@@ -43,8 +140,16 @@
 
 	$: completionPercent = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
 
+	// Group text assets by category
+	$: textsByCategory = textAssets.reduce((groups, text) => {
+		if (!groups[text.category]) groups[text.category] = [];
+		groups[text.category].push(text);
+		return groups;
+	}, {} as Record<string, TextAsset[]>);
+
 	onMount(async () => {
 		await loadProfile();
+		loadAssetSummary();
 	});
 
 	async function loadProfile() {
@@ -163,6 +268,149 @@
 			error = err instanceof Error ? err.message : 'Failed to revert';
 		}
 	}
+
+	// ─── Asset Management Functions ─────────────────────────
+
+	async function loadAssetSummary() {
+		try {
+			const res = await fetch(`/api/brand/assets/summary?brandProfileId=${data.brandId}`);
+			if (res.ok) {
+				const result = await res.json();
+				assetSummary = result.summary;
+			}
+		} catch {
+			// Non-critical
+		}
+	}
+
+	async function loadTabAssets(tab: string) {
+		assetsLoading = true;
+		try {
+			if (tab === 'text') {
+				const res = await fetch(`/api/brand/assets/texts?brandProfileId=${data.brandId}`);
+				if (res.ok) {
+					const result = await res.json();
+					textAssets = result.texts;
+				}
+			} else if (tab === 'images') {
+				const res = await fetch(`/api/brand/assets/media?brandProfileId=${data.brandId}&mediaType=image`);
+				if (res.ok) {
+					const result = await res.json();
+					imageAssets = result.media;
+				}
+			} else if (tab === 'audio') {
+				const res = await fetch(`/api/brand/assets/media?brandProfileId=${data.brandId}&mediaType=audio`);
+				if (res.ok) {
+					const result = await res.json();
+					audioAssets = result.media;
+				}
+			} else if (tab === 'videos') {
+				const res = await fetch(`/api/brand/assets/media?brandProfileId=${data.brandId}&mediaType=video`);
+				if (res.ok) {
+					const result = await res.json();
+					videoAssets = result.media;
+				}
+				// Also load AI-generated videos for this brand
+				const vRes = await fetch(`/api/video?brandProfileId=${data.brandId}`);
+				if (vRes.ok) {
+					const vResult = await vRes.json();
+					brandVideos = vResult.videos || [];
+				}
+			}
+		} catch {
+			// Handle silently
+		} finally {
+			assetsLoading = false;
+		}
+	}
+
+	function switchTab(tab: typeof activeTab) {
+		activeTab = tab;
+		if (tab !== 'profile') {
+			loadTabAssets(tab);
+		}
+	}
+
+	// Text CRUD
+
+	async function addTextAsset() {
+		if (!newTextKey || !newTextLabel || !newTextValue) return;
+		try {
+			const res = await fetch('/api/brand/assets/texts', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					brandProfileId: data.brandId,
+					category: newTextCategory,
+					key: newTextKey.toLowerCase().replace(/\s+/g, '_'),
+					label: newTextLabel,
+					value: newTextValue
+				})
+			});
+			if (res.ok) {
+				showAddText = false;
+				newTextKey = '';
+				newTextLabel = '';
+				newTextValue = '';
+				await loadTabAssets('text');
+				loadAssetSummary();
+			}
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to add text';
+		}
+	}
+
+	function startEditingText(text: TextAsset) {
+		editingTextId = text.id;
+		editTextValue = text.value;
+	}
+
+	function cancelEditingText() {
+		editingTextId = null;
+		editTextValue = '';
+	}
+
+	async function saveTextAsset(textId: string) {
+		try {
+			const res = await fetch('/api/brand/assets/texts', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: textId, value: editTextValue })
+			});
+			if (res.ok) {
+				editingTextId = null;
+				editTextValue = '';
+				await loadTabAssets('text');
+			}
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to save';
+		}
+	}
+
+	async function deleteTextAsset(textId: string) {
+		try {
+			const res = await fetch(`/api/brand/assets/texts?id=${textId}`, { method: 'DELETE' });
+			if (res.ok) {
+				await loadTabAssets('text');
+				loadAssetSummary();
+			}
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to delete';
+		}
+	}
+
+	async function refreshMediaAssets() {
+		await loadTabAssets(activeTab);
+		loadAssetSummary();
+	}
+
+	function formatDate(dateStr: string): string {
+		return new Date(dateStr).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
+	}
 </script>
 
 <svelte:head>
@@ -240,34 +488,234 @@
 			</div>
 		{/if}
 
-		<!-- Sections -->
-		<div class="sections-grid">
-			{#each sections as section}
-				<section class="brand-section">
-					<div class="section-header">
-						<span class="section-icon">{section.icon}</span>
-						<h2 class="section-title">{section.title}</h2>
-					</div>
-
-					<div class="fields-list">
-						{#each section.fields as field}
-							<BrandFieldCard
-								fieldKey={field.key}
-								label={field.label}
-								value={field.value}
-								type={field.type}
-								isEditing={editingField === field.key}
-								bind:editValue
-								on:edit={() => startEditing(field.key, field.value)}
-								on:save={() => saveField(field.key, field.type)}
-								on:cancel={cancelEditing}
-								on:history={() => openHistory(field.key, field.label)}
-							/>
-						{/each}
-					</div>
-				</section>
-			{/each}
+		<!-- Tab Navigation -->
+		<div class="tab-nav" role="tablist">
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'profile'}
+				on:click={() => switchTab('profile')}
+				role="tab"
+				aria-selected={activeTab === 'profile'}
+			>
+				<span class="tab-icon">📋</span>
+				<span class="tab-label">Profile</span>
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'text'}
+				on:click={() => switchTab('text')}
+				role="tab"
+				aria-selected={activeTab === 'text'}
+			>
+				<span class="tab-icon">📝</span>
+				<span class="tab-label">Text</span>
+				{#if assetSummary && assetSummary.textCount > 0}
+					<span class="tab-badge">{assetSummary.textCount}</span>
+				{/if}
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'images'}
+				on:click={() => switchTab('images')}
+				role="tab"
+				aria-selected={activeTab === 'images'}
+			>
+				<span class="tab-icon">🖼️</span>
+				<span class="tab-label">Images</span>
+				{#if assetSummary && assetSummary.imageCount > 0}
+					<span class="tab-badge">{assetSummary.imageCount}</span>
+				{/if}
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'audio'}
+				on:click={() => switchTab('audio')}
+				role="tab"
+				aria-selected={activeTab === 'audio'}
+			>
+				<span class="tab-icon">🔊</span>
+				<span class="tab-label">Audio</span>
+				{#if assetSummary && assetSummary.audioCount > 0}
+					<span class="tab-badge">{assetSummary.audioCount}</span>
+				{/if}
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'videos'}
+				on:click={() => switchTab('videos')}
+				role="tab"
+				aria-selected={activeTab === 'videos'}
+			>
+				<span class="tab-icon">🎬</span>
+				<span class="tab-label">Videos</span>
+				{#if assetSummary && (assetSummary.videoCount + assetSummary.videoGenerationsCount) > 0}
+					<span class="tab-badge">{assetSummary.videoCount + assetSummary.videoGenerationsCount}</span>
+				{/if}
+			</button>
 		</div>
+
+		<!-- ═══ Profile Tab ═══ -->
+		{#if activeTab === 'profile'}
+			<div class="sections-grid">
+				{#each sections as section}
+					<section class="brand-section">
+						<div class="section-header">
+							<span class="section-icon">{section.icon}</span>
+							<h2 class="section-title">{section.title}</h2>
+						</div>
+
+						<div class="fields-list">
+							{#each section.fields as field}
+								<BrandFieldCard
+									fieldKey={field.key}
+									label={field.label}
+									value={field.value}
+									type={field.type}
+									isEditing={editingField === field.key}
+									bind:editValue
+									on:edit={() => startEditing(field.key, field.value)}
+									on:save={() => saveField(field.key, field.type)}
+									on:cancel={cancelEditing}
+									on:history={() => openHistory(field.key, field.label)}
+								/>
+							{/each}
+						</div>
+					</section>
+				{/each}
+			</div>
+
+		<!-- ═══ Text Tab ═══ -->
+		{:else if activeTab === 'text'}
+			<div class="asset-tab">
+				<div class="asset-tab-header">
+					<h2 class="asset-tab-title">Brand Text Assets</h2>
+					<button class="add-asset-btn" on:click={() => (showAddText = !showAddText)}>
+						{showAddText ? '✕ Cancel' : '+ Add Text'}
+					</button>
+				</div>
+
+				{#if showAddText}
+					<div class="add-text-form">
+						<div class="form-row">
+							<label class="form-label">
+								Category
+								<select bind:value={newTextCategory} class="form-input">
+									{#each Object.entries(textCategoryInfo) as [key, info]}
+										<option value={key}>{info.label}</option>
+									{/each}
+								</select>
+							</label>
+							<label class="form-label">
+								Key
+								<input type="text" bind:value={newTextKey} placeholder="e.g. primary_name" class="form-input" />
+							</label>
+							<label class="form-label">
+								Label
+								<input type="text" bind:value={newTextLabel} placeholder="e.g. Primary Brand Name" class="form-input" />
+							</label>
+						</div>
+						<label class="form-label">
+							Value
+							<textarea bind:value={newTextValue} placeholder="Enter text content..." class="form-textarea" rows="3"></textarea>
+						</label>
+						<button class="save-btn" on:click={addTextAsset} disabled={!newTextKey || !newTextLabel || !newTextValue}>
+							Save Text Asset
+						</button>
+					</div>
+				{/if}
+
+				{#if assetsLoading}
+					<div class="loading-state small">
+						<div class="spinner"></div>
+					</div>
+				{:else if textAssets.length === 0}
+					<div class="empty-state">
+						<span class="empty-icon">📝</span>
+						<p>No text assets yet</p>
+						<p class="empty-hint">Add brand names, taglines, bios, legal copy, and more.</p>
+					</div>
+				{:else}
+					{#each Object.entries(textCategoryInfo) as [catKey, catInfo]}
+						{@const catTexts = textsByCategory[catKey]}
+						{#if catTexts && catTexts.length > 0}
+							<div class="asset-category-group">
+								<div class="asset-category-header">
+									<span>{catInfo.icon}</span>
+									<h3>{catInfo.label}</h3>
+									<span class="category-count">{catTexts.length}</span>
+								</div>
+								<div class="text-assets-list">
+									{#each catTexts as text}
+										<div class="text-asset-card">
+											<div class="text-asset-header">
+												<span class="text-asset-label">{text.label}</span>
+												<span class="text-asset-key">{text.key}</span>
+												{#if text.language !== 'en'}
+													<span class="lang-badge">{text.language}</span>
+												{/if}
+											</div>
+											{#if editingTextId === text.id}
+												<textarea
+													bind:value={editTextValue}
+													class="form-textarea"
+													rows="3"
+												></textarea>
+												<div class="text-asset-actions">
+													<button class="save-btn small" on:click={() => saveTextAsset(text.id)}>Save</button>
+													<button class="cancel-btn small" on:click={cancelEditingText}>Cancel</button>
+												</div>
+											{:else}
+												<p class="text-asset-value">{text.value}</p>
+												<div class="text-asset-actions">
+													<button class="edit-btn" on:click={() => startEditingText(text)}>Edit</button>
+													<button class="delete-btn" on:click={() => deleteTextAsset(text.id)}>Delete</button>
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{/each}
+				{/if}
+			</div>
+
+		<!-- ═══ Images Tab ═══ -->
+		{:else if activeTab === 'images'}
+			<div class="asset-tab">
+				<MediaGallery
+					brandProfileId={data.brandId}
+					mediaType="image"
+					assets={imageAssets}
+					loading={assetsLoading}
+					on:refresh={refreshMediaAssets}
+				/>
+			</div>
+
+		<!-- ═══ Audio Tab ═══ -->
+		{:else if activeTab === 'audio'}
+			<div class="asset-tab">
+				<MediaGallery
+					brandProfileId={data.brandId}
+					mediaType="audio"
+					assets={audioAssets}
+					loading={assetsLoading}
+					on:refresh={refreshMediaAssets}
+				/>
+			</div>
+
+		<!-- ═══ Videos Tab ═══ -->
+		{:else if activeTab === 'videos'}
+			<div class="asset-tab">
+				<MediaGallery
+					brandProfileId={data.brandId}
+					mediaType="video"
+					assets={videoAssets}
+					loading={assetsLoading}
+					on:refresh={refreshMediaAssets}
+				/>
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Field History Modal -->
@@ -284,7 +732,7 @@
 
 <style>
 	.brand-page {
-		max-width: 960px;
+		max-width: 1060px;
 		margin: 0 auto;
 		padding: var(--spacing-lg) var(--spacing-md);
 		min-height: calc(100vh - 60px);
@@ -298,6 +746,10 @@
 		justify-content: center;
 		min-height: 400px;
 		gap: var(--spacing-md);
+	}
+
+	.loading-state.small {
+		min-height: 200px;
 	}
 
 	.spinner {
@@ -345,7 +797,7 @@
 
 	/* Header */
 	.brand-header {
-		margin-bottom: var(--spacing-xl);
+		margin-bottom: var(--spacing-lg);
 	}
 
 	.header-content {
@@ -465,7 +917,59 @@
 		padding: 0 var(--spacing-xs);
 	}
 
-	/* Sections grid */
+	/* ─── Tab Navigation ─────────────────────────────────── */
+
+	.tab-nav {
+		display: flex;
+		gap: var(--spacing-xs);
+		margin-bottom: var(--spacing-lg);
+		border-bottom: 1px solid var(--color-border);
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.tab-btn {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: var(--spacing-sm) var(--spacing-md);
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		color: var(--color-text-secondary);
+		font-size: 0.85rem;
+		font-weight: 500;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: all var(--transition-fast);
+	}
+
+	.tab-btn:hover {
+		color: var(--color-text);
+	}
+
+	.tab-btn.active {
+		color: var(--color-primary);
+		border-bottom-color: var(--color-primary);
+	}
+
+	.tab-icon {
+		font-size: 1rem;
+	}
+
+	.tab-badge {
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		font-size: 0.7rem;
+		font-weight: 700;
+		padding: 1px 6px;
+		border-radius: 10px;
+		min-width: 18px;
+		text-align: center;
+	}
+
+	/* ─── Profile Sections Grid ──────────────────────────── */
+
 	.sections-grid {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -509,6 +1013,295 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-sm);
+	}
+
+	/* ─── Asset Tabs (shared) ────────────────────────────── */
+
+	.asset-tab {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-lg);
+	}
+
+	.asset-tab-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.asset-tab-title {
+		font-size: 1.2rem;
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0;
+	}
+
+	.add-asset-btn {
+		padding: var(--spacing-xs) var(--spacing-md);
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		border: none;
+		border-radius: var(--radius-md);
+		font-weight: 600;
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+	}
+
+	.add-asset-btn:hover {
+		background-color: var(--color-primary-hover);
+	}
+
+	/* Empty state */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-2xl) var(--spacing-md);
+		text-align: center;
+		color: var(--color-text-secondary);
+		background-color: var(--color-surface);
+		border: 1px dashed var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+
+	.empty-icon {
+		font-size: 2.5rem;
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.empty-state p {
+		margin: 0;
+		font-size: 0.95rem;
+	}
+
+	.empty-hint {
+		font-size: 0.8rem !important;
+		margin-top: var(--spacing-xs) !important;
+		color: var(--color-text-secondary);
+	}
+
+	/* ─── Category Groups ────────────────────────────────── */
+
+	.asset-category-group {
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-lg);
+	}
+
+	.asset-category-header {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		margin-bottom: var(--spacing-md);
+		padding-bottom: var(--spacing-sm);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.asset-category-header h3 {
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0;
+		flex: 1;
+	}
+
+	.category-count {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+		background-color: var(--color-border);
+		padding: 1px 8px;
+		border-radius: 10px;
+	}
+
+	/* ─── Text Assets ────────────────────────────────────── */
+
+	.add-text-form {
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-lg);
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md);
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr;
+		gap: var(--spacing-md);
+	}
+
+	.form-label {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+	}
+
+	.form-input,
+	.form-textarea {
+		background-color: var(--color-background);
+		color: var(--color-text);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-sm);
+		font-size: 0.85rem;
+		font-family: inherit;
+		transition: border-color var(--transition-fast);
+	}
+
+	.form-input:focus,
+	.form-textarea:focus {
+		outline: none;
+		border-color: var(--color-primary);
+	}
+
+	.form-textarea {
+		resize: vertical;
+	}
+
+	.text-assets-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.text-asset-card {
+		background-color: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		padding: var(--spacing-md);
+	}
+
+	.text-asset-header {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		margin-bottom: var(--spacing-xs);
+	}
+
+	.text-asset-label {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--color-text);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.text-asset-key {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		font-family: monospace;
+	}
+
+	.lang-badge {
+		font-size: 0.65rem;
+		font-weight: 600;
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		padding: 1px 5px;
+		border-radius: 3px;
+		text-transform: uppercase;
+	}
+
+	.text-asset-value {
+		font-size: 0.9rem;
+		color: var(--color-text);
+		margin: 0 0 var(--spacing-sm);
+		line-height: 1.5;
+		white-space: pre-wrap;
+	}
+
+	.text-asset-actions {
+		display: flex;
+		gap: var(--spacing-xs);
+	}
+
+	/* ─── Buttons ─────────────────────────────────────────── */
+
+	.save-btn,
+	.edit-btn,
+	.cancel-btn,
+	.delete-btn {
+		padding: var(--spacing-xs) var(--spacing-sm);
+		border: none;
+		border-radius: var(--radius-sm);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+	}
+
+	.save-btn {
+		background-color: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.save-btn:hover {
+		background-color: var(--color-primary-hover);
+	}
+
+	.save-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.edit-btn {
+		background-color: var(--color-border);
+		color: var(--color-text);
+	}
+
+	.edit-btn:hover {
+		background-color: var(--color-text-secondary);
+		color: var(--color-background);
+	}
+
+	.cancel-btn {
+		background-color: var(--color-border);
+		color: var(--color-text);
+	}
+
+	.cancel-btn:hover {
+		background-color: var(--color-text-secondary);
+		color: var(--color-background);
+	}
+
+	.delete-btn {
+		background-color: transparent;
+		color: var(--color-text-secondary);
+	}
+
+	.delete-btn:hover {
+		background-color: var(--color-error);
+		color: var(--color-background);
+	}
+
+	.save-btn.small,
+	.cancel-btn.small {
+		padding: 2px 8px;
+		font-size: 0.7rem;
+	}
+
+	/* ─── Responsive ──────────────────────────────────────── */
+
+	@media (max-width: 768px) {
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.tab-label {
+			display: none;
+		}
+
+		.tab-icon {
+			font-size: 1.2rem;
+		}
 	}
 
 	@media (max-width: 480px) {

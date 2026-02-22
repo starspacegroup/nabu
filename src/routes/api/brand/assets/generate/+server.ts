@@ -1,0 +1,375 @@
+import type { RequestHandler } from './$types';
+import { json, error } from '@sveltejs/kit';
+import {
+  generateImage,
+  generateAudio,
+  requestAIVideoGeneration,
+  getAIGeneration,
+  getAIGenerationsByBrand,
+  updateAIGenerationStatus,
+  AI_IMAGE_MODELS,
+  AI_AUDIO_MODELS
+} from '$lib/services/ai-media-generation';
+import { createBrandMedia } from '$lib/services/brand-assets';
+import { logMediaActivity, createMediaRevision } from '$lib/services/media-history';
+
+/**
+ * GET /api/brand/assets/generate
+ * List AI generations for a brand, or get a specific generation by ID.
+ */
+export const GET: RequestHandler = async ({ url, platform, locals }) => {
+  if (!locals.user) throw error(401, 'Unauthorized');
+  if (!platform?.env?.DB) throw error(500, 'Platform not available');
+
+  const generationId = url.searchParams.get('id');
+  if (generationId) {
+    const generation = await getAIGeneration(platform.env.DB, generationId);
+    if (!generation) throw error(404, 'Generation not found');
+    return json({ generation });
+  }
+
+  const brandProfileId = url.searchParams.get('brandProfileId');
+  if (!brandProfileId) throw error(400, 'brandProfileId required');
+
+  const type = url.searchParams.get('type') as 'image' | 'audio' | 'video' | null;
+  const generations = await getAIGenerationsByBrand(platform.env.DB, brandProfileId, type || undefined);
+
+  return json({ generations });
+};
+
+/**
+ * POST /api/brand/assets/generate
+ * Start an AI generation job (image, audio, or video).
+ */
+export const POST: RequestHandler = async ({ request, platform, locals }) => {
+  if (!locals.user) throw error(401, 'Unauthorized');
+  if (!platform?.env?.DB || !platform?.env?.KV) throw error(500, 'Platform not available');
+
+  const body = await request.json();
+  const { type, brandProfileId, prompt } = body;
+
+  if (!type || !['image', 'audio', 'video'].includes(type)) {
+    throw error(400, 'Valid type required (image, audio, video)');
+  }
+  if (!brandProfileId) throw error(400, 'brandProfileId required');
+  if (!prompt) throw error(400, 'prompt required');
+
+  // Get API key from KV
+  const apiKey = await getOpenAIKey(platform);
+  if (!apiKey) {
+    throw error(400, 'No AI API key configured. Add one in Settings.');
+  }
+
+  let generation;
+
+  if (type === 'image') {
+    generation = await generateImage(platform.env.DB, {
+      brandProfileId,
+      prompt,
+      negativePrompt: body.negativePrompt,
+      model: body.model,
+      size: body.size,
+      style: body.style,
+      quality: body.quality,
+      category: body.category || 'brand_elements',
+      name: body.name || 'AI Generated Image'
+    });
+
+    // Actually call OpenAI DALL-E API
+    try {
+      const model = body.model || 'dall-e-3';
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          prompt,
+          n: 1,
+          size: body.size || '1024x1024',
+          style: body.style || 'vivid',
+          quality: body.quality || 'standard',
+          response_format: 'url'
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        const errMsg = (err as Record<string, Record<string, string>>)?.error?.message || `API error: ${response.status}`;
+        await updateAIGenerationStatus(platform.env.DB, generation.id, {
+          status: 'failed',
+          errorMessage: errMsg
+        });
+        return json({ generation: { ...generation, status: 'failed', errorMessage: errMsg } }, { status: 200 });
+      }
+
+      const data = await response.json() as {
+        data: Array<{ url: string; revised_prompt?: string; }>;
+      };
+
+      const imageUrl = data.data[0]?.url;
+      if (!imageUrl) {
+        await updateAIGenerationStatus(platform.env.DB, generation.id, {
+          status: 'failed',
+          errorMessage: 'No image URL in response'
+        });
+        return json({ generation: { ...generation, status: 'failed' } });
+      }
+
+      // Download and store in R2
+      const imageResponse = await fetch(imageUrl);
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const r2Key = `brands/${brandProfileId}/image/${generation.id}.png`;
+
+      await platform.env.BUCKET.put(r2Key, imageBuffer, {
+        httpMetadata: { contentType: 'image/png' }
+      });
+
+      // Estimate cost
+      const cost = model === 'dall-e-3'
+        ? (body.quality === 'hd' ? 0.08 : 0.04)
+        : 0.02;
+
+      // Create the brand media asset
+      const assetName = body.name || 'AI Generated Image';
+      const media = await createBrandMedia(platform.env.DB, {
+        brandProfileId,
+        mediaType: 'image',
+        category: body.category || 'brand_elements',
+        name: assetName,
+        description: `AI-generated: ${prompt}`,
+        r2Key,
+        mimeType: 'image/png',
+        fileSize: imageBuffer.byteLength,
+        width: parseInt((body.size || '1024x1024').split('x')[0]),
+        height: parseInt((body.size || '1024x1024').split('x')[1]),
+        metadata: { aiGenerated: true, prompt, model, revisedPrompt: data.data[0]?.revised_prompt }
+      });
+
+      // Update generation status
+      await updateAIGenerationStatus(platform.env.DB, generation.id, {
+        status: 'complete',
+        resultUrl: imageUrl,
+        r2Key,
+        brandMediaId: media.id,
+        cost,
+        progress: 100
+      });
+
+      // Create revision
+      await createMediaRevision(platform.env.DB, {
+        brandMediaId: media.id,
+        r2Key,
+        mimeType: 'image/png',
+        fileSize: imageBuffer.byteLength,
+        width: parseInt((body.size || '1024x1024').split('x')[0]),
+        height: parseInt((body.size || '1024x1024').split('x')[1]),
+        source: 'ai_generated',
+        userId: locals.user.id,
+        changeNote: `AI generated with ${model}: ${prompt.substring(0, 100)}`
+      });
+
+      // Log activity
+      await logMediaActivity(platform.env.DB, {
+        brandProfileId,
+        brandMediaId: media.id,
+        userId: locals.user.id,
+        action: 'ai_generated',
+        description: `AI generated image: ${assetName}`,
+        details: { model, prompt, cost, size: body.size || '1024x1024' },
+        source: 'ai_generated'
+      });
+
+      return json({
+        generation: { ...generation, status: 'complete', r2Key, brandMediaId: media.id, cost },
+        media
+      }, { status: 201 });
+
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      await updateAIGenerationStatus(platform.env.DB, generation.id, {
+        status: 'failed',
+        errorMessage: errMsg
+      });
+      return json({ generation: { ...generation, status: 'failed', errorMessage: errMsg } });
+    }
+
+  } else if (type === 'audio') {
+    generation = await generateAudio(platform.env.DB, {
+      brandProfileId,
+      prompt,
+      model: body.model,
+      voice: body.voice,
+      speed: body.speed,
+      responseFormat: body.responseFormat,
+      category: body.category || 'voiceover',
+      name: body.name || 'AI Generated Audio'
+    });
+
+    // Call OpenAI TTS API
+    try {
+      const model = body.model || 'tts-1';
+      const voice = body.voice || 'alloy';
+      const responseFormat = body.responseFormat || 'mp3';
+
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          input: prompt,
+          voice,
+          speed: body.speed || 1.0,
+          response_format: responseFormat
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        const errMsg = (err as Record<string, Record<string, string>>)?.error?.message || `API error: ${response.status}`;
+        await updateAIGenerationStatus(platform.env.DB, generation.id, {
+          status: 'failed',
+          errorMessage: errMsg
+        });
+        return json({ generation: { ...generation, status: 'failed', errorMessage: errMsg } });
+      }
+
+      const audioBuffer = await response.arrayBuffer();
+      const mimeType = responseFormat === 'mp3' ? 'audio/mpeg'
+        : responseFormat === 'opus' ? 'audio/opus'
+          : responseFormat === 'aac' ? 'audio/aac'
+            : responseFormat === 'flac' ? 'audio/flac'
+              : 'audio/wav';
+
+      const r2Key = `brands/${brandProfileId}/audio/${generation.id}.${responseFormat}`;
+      await platform.env.BUCKET.put(r2Key, audioBuffer, {
+        httpMetadata: { contentType: mimeType }
+      });
+
+      // Estimate cost (per 1M chars at $15/1M for tts-1, $30/1M for tts-1-hd)
+      const charCount = prompt.length;
+      const cost = model === 'tts-1-hd'
+        ? (charCount / 1_000_000) * 30
+        : (charCount / 1_000_000) * 15;
+
+      const assetName = body.name || 'AI Generated Audio';
+      const media = await createBrandMedia(platform.env.DB, {
+        brandProfileId,
+        mediaType: 'audio',
+        category: body.category || 'voiceover',
+        name: assetName,
+        description: `AI-generated TTS: ${prompt.substring(0, 200)}`,
+        r2Key,
+        mimeType,
+        fileSize: audioBuffer.byteLength,
+        metadata: { aiGenerated: true, prompt, model, voice }
+      });
+
+      await updateAIGenerationStatus(platform.env.DB, generation.id, {
+        status: 'complete',
+        r2Key,
+        brandMediaId: media.id,
+        cost,
+        progress: 100
+      });
+
+      await createMediaRevision(platform.env.DB, {
+        brandMediaId: media.id,
+        r2Key,
+        mimeType,
+        fileSize: audioBuffer.byteLength,
+        source: 'ai_generated',
+        userId: locals.user.id,
+        changeNote: `AI generated with ${model} (${voice}): ${prompt.substring(0, 100)}`
+      });
+
+      await logMediaActivity(platform.env.DB, {
+        brandProfileId,
+        brandMediaId: media.id,
+        userId: locals.user.id,
+        action: 'ai_generated',
+        description: `AI generated audio: ${assetName}`,
+        details: { model, voice, prompt, cost },
+        source: 'ai_generated'
+      });
+
+      return json({
+        generation: { ...generation, status: 'complete', r2Key, brandMediaId: media.id, cost },
+        media
+      }, { status: 201 });
+
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      await updateAIGenerationStatus(platform.env.DB, generation.id, {
+        status: 'failed',
+        errorMessage: errMsg
+      });
+      return json({ generation: { ...generation, status: 'failed', errorMessage: errMsg } });
+    }
+
+  } else {
+    // Video — save the generation record, actual generation uses existing video pipeline
+    generation = await requestAIVideoGeneration(platform.env.DB, {
+      brandProfileId,
+      prompt,
+      model: body.model,
+      provider: body.provider,
+      aspectRatio: body.aspectRatio,
+      duration: body.duration,
+      resolution: body.resolution,
+      category: body.category || 'brand',
+      name: body.name || 'AI Generated Video'
+    });
+
+    await logMediaActivity(platform.env.DB, {
+      brandProfileId,
+      userId: locals.user.id,
+      action: 'ai_generated',
+      description: `Requested AI video generation: ${body.name || 'AI Generated Video'}`,
+      details: { prompt, model: body.model, provider: body.provider },
+      source: 'ai_generated'
+    });
+
+    return json({ generation }, { status: 201 });
+  }
+};
+
+/**
+ * Get available AI generation models
+ */
+export const PUT: RequestHandler = async ({ platform, locals }) => {
+  if (!locals.user) throw error(401, 'Unauthorized');
+
+  return json({
+    imageModels: AI_IMAGE_MODELS,
+    audioModels: AI_AUDIO_MODELS
+  });
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+async function getOpenAIKey(platform: App.Platform): Promise<string | null> {
+  try {
+    const keysList = await platform.env.KV.get('ai_keys_list');
+    if (!keysList) return null;
+
+    const keyIds = JSON.parse(keysList);
+    for (const keyId of keyIds) {
+      const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
+      if (keyData) {
+        const key = JSON.parse(keyData);
+        if (key.enabled !== false && key.provider === 'openai') {
+          return key.apiKey;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

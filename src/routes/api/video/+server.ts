@@ -17,6 +17,7 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
   const offset = parseInt(url.searchParams.get('offset') || '0');
   const status = url.searchParams.get('status'); // 'complete', 'error', 'processing'
+  const brandProfileId = url.searchParams.get('brandProfileId');
 
   let query = `SELECT id, prompt, provider, provider_job_id, model, status, video_url, thumbnail_url,
 	                    r2_key, duration_seconds, aspect_ratio, resolution, cost, error,
@@ -28,6 +29,11 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
   if (status) {
     query += ' AND status = ?';
     params.push(status);
+  }
+
+  if (brandProfileId) {
+    query += ' AND brand_profile_id = ?';
+    params.push(brandProfileId);
   }
 
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -64,6 +70,10 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
   if (status) {
     countQuery += ' AND status = ?';
     countParams.push(status);
+  }
+  if (brandProfileId) {
+    countQuery += ' AND brand_profile_id = ?';
+    countParams.push(brandProfileId);
   }
   const countResult = await platform.env.DB.prepare(countQuery)
     .bind(...countParams)
