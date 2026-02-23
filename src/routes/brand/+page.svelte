@@ -227,7 +227,7 @@
 							</span>
 						</div>
 
-						<h2 class="brand-name">{brand.brandName || 'Untitled Brand'}</h2>
+						<h2 class="brand-name">{brand.brandName || 'New Brand'}</h2>
 
 						{#if brand.tagline}
 							<p class="brand-tagline">{brand.tagline}</p>

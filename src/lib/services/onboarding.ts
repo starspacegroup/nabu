@@ -662,6 +662,36 @@ function mapRowToMessage(row: Record<string, unknown>): OnboardingMessage {
   };
 }
 
+/** Adjectives for placeholder brand names */
+const PLACEHOLDER_ADJECTIVES = [
+  'Amber', 'Azure', 'Bold', 'Bright', 'Cedar', 'Cobalt', 'Coral', 'Crimson',
+  'Crystal', 'Dusk', 'Ember', 'Fern', 'Frost', 'Golden', 'Harbor', 'Indigo',
+  'Iron', 'Ivory', 'Jade', 'Lunar', 'Maple', 'Midnight', 'Noble', 'Opal',
+  'Pearl', 'Pine', 'Prism', 'Quartz', 'Radiant', 'Raven', 'Rustic', 'Sable',
+  'Sage', 'Scarlet', 'Shadow', 'Silver', 'Solar', 'Sterling', 'Stone', 'Summit',
+  'Swift', 'Velvet', 'Verdant', 'Vivid', 'Wild', 'Zenith'
+];
+
+/** Nouns for placeholder brand names */
+const PLACEHOLDER_NOUNS = [
+  'Anchor', 'Arrow', 'Atlas', 'Aurora', 'Beacon', 'Bloom', 'Bridge', 'Canyon',
+  'Crest', 'Crown', 'Dawn', 'Echo', 'Edge', 'Ember', 'Falcon', 'Fable',
+  'Forge', 'Fox', 'Grove', 'Harbor', 'Haven', 'Horizon', 'Iris', 'Lark',
+  'Lotus', 'Lynx', 'Mesa', 'Moss', 'Nexus', 'Nova', 'Orbit', 'Osprey',
+  'Peak', 'Phoenix', 'Plume', 'Pulse', 'Reef', 'Ridge', 'River', 'Root',
+  'Sequoia', 'Spark', 'Spire', 'Tide', 'Vale', 'Vortex', 'Wave', 'Wren'
+];
+
+/**
+ * Generate a creative placeholder brand name (e.g. "Cobalt Phoenix").
+ * Used to identify new brand profiles until the user chooses a real name.
+ */
+export function generatePlaceholderBrandName(): string {
+  const adjIdx = Math.floor(Math.random() * PLACEHOLDER_ADJECTIVES.length);
+  const nounIdx = Math.floor(Math.random() * PLACEHOLDER_NOUNS.length);
+  return `${PLACEHOLDER_ADJECTIVES[adjIdx]} ${PLACEHOLDER_NOUNS[nounIdx]}`;
+}
+
 /**
  * Create a new brand profile for a user
  */
@@ -671,18 +701,20 @@ export async function createBrandProfile(
 ): Promise<BrandProfile> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const placeholderName = generatePlaceholderBrandName();
 
   await db
     .prepare(
-      `INSERT INTO brand_profiles (id, user_id, status, onboarding_step, created_at, updated_at)
-			 VALUES (?, ?, 'in_progress', 'welcome', ?, ?)`
+      `INSERT INTO brand_profiles (id, user_id, brand_name, status, onboarding_step, created_at, updated_at)
+			 VALUES (?, ?, ?, 'in_progress', 'welcome', ?, ?)`
     )
-    .bind(id, userId, now, now)
+    .bind(id, userId, placeholderName, now, now)
     .run();
 
   return {
     id,
     userId,
+    brandName: placeholderName,
     status: 'in_progress',
     onboardingStep: 'welcome',
     createdAt: now,

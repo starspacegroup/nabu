@@ -326,7 +326,7 @@
 
 	$: currentStepConfig = ONBOARDING_STEPS.find(s => s.id === $onboardingStore.currentStep);
 	$: canGoBack = getPreviousStep($onboardingStore.currentStep) !== null;
-	$: brandName = $onboardingStore.profile?.brandName || ($onboardingStore.profile ? 'Untitled Brand' : '');
+	$: brandName = $onboardingStore.profile?.brandName || ($onboardingStore.profile ? 'New Brand' : '');
 
 	async function handlePreviousStep() {
 		const prev = getPreviousStep($onboardingStore.currentStep);

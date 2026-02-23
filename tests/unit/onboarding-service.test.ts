@@ -19,7 +19,8 @@ import {
   getNextStep,
   getPreviousStep,
   getStepProgress,
-  buildBrandContentContextString
+  buildBrandContentContextString,
+  generatePlaceholderBrandName
 } from '$lib/services/onboarding';
 import type { BrandContentContext } from '$lib/services/onboarding';
 import type { BrandProfile, OnboardingStep } from '$lib/types/onboarding';
@@ -179,6 +180,42 @@ describe('Brand Onboarding Service', () => {
     });
   });
 
+  describe('generatePlaceholderBrandName', () => {
+    it('should return a non-empty string', () => {
+      const name = generatePlaceholderBrandName();
+      expect(name).toBeDefined();
+      expect(typeof name).toBe('string');
+      expect(name.length).toBeGreaterThan(0);
+    });
+
+    it('should follow "Adjective Noun" format (two words)', () => {
+      const name = generatePlaceholderBrandName();
+      const words = name.split(' ');
+      expect(words.length).toBe(2);
+      // Both words should be capitalized
+      for (const word of words) {
+        expect(word[0]).toBe(word[0].toUpperCase());
+      }
+    });
+
+    it('should generate different names across multiple calls', () => {
+      const names = new Set<string>();
+      // Generate 20 names; with large word lists, duplicates should be rare
+      for (let i = 0; i < 20; i++) {
+        names.add(generatePlaceholderBrandName());
+      }
+      // At least some should be unique (probabilistic but very reliable)
+      expect(names.size).toBeGreaterThan(5);
+    });
+
+    it('should only contain alphabetic characters and a single space', () => {
+      for (let i = 0; i < 10; i++) {
+        const name = generatePlaceholderBrandName();
+        expect(name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+      }
+    });
+  });
+
   describe('createBrandProfile', () => {
     it('should create a new brand profile', async () => {
       const result = await createBrandProfile(mockDB as any, 'user-123');
@@ -196,6 +233,23 @@ describe('Brand Onboarding Service', () => {
       const result2 = await createBrandProfile(mockDB as any, 'user-123');
 
       expect(result1.id).not.toBe(result2.id);
+    });
+
+    it('should assign a placeholder brand name', async () => {
+      const result = await createBrandProfile(mockDB as any, 'user-123');
+
+      expect(result.brandName).toBeDefined();
+      expect(typeof result.brandName).toBe('string');
+      expect(result.brandName!.length).toBeGreaterThan(0);
+      // Should follow "Adjective Noun" pattern
+      expect(result.brandName).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    });
+
+    it('should include brand_name in the INSERT query', async () => {
+      await createBrandProfile(mockDB as any, 'user-123');
+
+      const prepareCall = mockDB.prepare.mock.calls[0][0] as string;
+      expect(prepareCall).toContain('brand_name');
     });
   });
 
