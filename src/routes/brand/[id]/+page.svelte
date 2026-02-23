@@ -963,7 +963,7 @@
 				<AITextQuickGenerate
 					brandProfileId={data.brandId}
 					on:close={() => (showAITextGenerate = false)}
-					on:saved={() => { showAITextGenerate = false; loadTabAssets('text'); }}
+					on:saved={() => { showAITextGenerate = false; loadTabAssets('text'); loadProfile(); }}
 				/>
 			{/if}
 

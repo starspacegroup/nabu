@@ -11,7 +11,9 @@ import {
   revertFieldToVersion,
   BRAND_FIELD_LABELS,
   FIELD_TO_TEXT_MAPPING,
-  getTextSuggestionsForField
+  getTextSuggestionsForField,
+  getMatchingProfileField,
+  getProfileFieldValue
 } from '$lib/services/brand';
 
 // Mock D1 database
@@ -407,6 +409,117 @@ describe('Brand Service', () => {
 
       expect(mockDB.prepare).toHaveBeenCalledWith(
         expect.stringContaining('category = ?')
+      );
+    });
+  });
+
+  describe('getMatchingProfileField', () => {
+    it('should return field info for a known text key that maps to a profile field', () => {
+      const result = getMatchingProfileField('messaging', 'tagline');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('tagline');
+      expect(result!.fieldLabel).toBe('Tagline');
+    });
+
+    it('should return field info for value_proposition key', () => {
+      const result = getMatchingProfileField('messaging', 'value_proposition');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('valueProposition');
+      expect(result!.fieldLabel).toBe('Value Proposition');
+    });
+
+    it('should return field info for elevator_pitch key', () => {
+      const result = getMatchingProfileField('messaging', 'elevator_pitch');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('elevatorPitch');
+      expect(result!.fieldLabel).toBe('Elevator Pitch');
+    });
+
+    it('should return field info for brand_name in names category', () => {
+      const result = getMatchingProfileField('names', 'brand_name');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('brandName');
+      expect(result!.fieldLabel).toBe('Brand Name');
+    });
+
+    it('should return field info for tone_guidelines in voice category', () => {
+      const result = getMatchingProfileField('voice', 'tone_guidelines');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('toneOfVoice');
+      expect(result!.fieldLabel).toBe('Tone of Voice');
+    });
+
+    it('should return field info for origin_story in descriptions category', () => {
+      const result = getMatchingProfileField('descriptions', 'origin_story');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('originStory');
+      expect(result!.fieldLabel).toBe('Origin Story');
+    });
+
+    it('should return null for a key that does not map to any profile field', () => {
+      const result = getMatchingProfileField('social', 'twitter_bio');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for a key in wrong category', () => {
+      // tagline maps to messaging, not names
+      const result = getMatchingProfileField('names', 'tagline');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for completely unknown keys', () => {
+      const result = getMatchingProfileField('messaging', 'random_unknown_key');
+      expect(result).toBeNull();
+    });
+
+    it('should match slogan to tagline field', () => {
+      const result = getMatchingProfileField('messaging', 'slogan');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('tagline');
+    });
+
+    it('should match mission to missionStatement field', () => {
+      const result = getMatchingProfileField('messaging', 'mission');
+      expect(result).toBeDefined();
+      expect(result!.fieldName).toBe('missionStatement');
+    });
+  });
+
+  describe('getProfileFieldValue', () => {
+    it('should return the current value of a profile field', async () => {
+      mockDB._mockFirst.mockResolvedValueOnce({ tagline: 'Existing tagline' });
+
+      const value = await getProfileFieldValue(mockDB as any, 'profile-1', 'tagline');
+      expect(value).toBe('Existing tagline');
+    });
+
+    it('should return null when the field is empty', async () => {
+      mockDB._mockFirst.mockResolvedValueOnce({ tagline: null });
+
+      const value = await getProfileFieldValue(mockDB as any, 'profile-1', 'tagline');
+      expect(value).toBeNull();
+    });
+
+    it('should return null when profile is not found', async () => {
+      mockDB._mockFirst.mockResolvedValueOnce(null);
+
+      const value = await getProfileFieldValue(mockDB as any, 'nonexistent', 'tagline');
+      expect(value).toBeNull();
+    });
+
+    it('should throw for unknown field names', async () => {
+      await expect(
+        getProfileFieldValue(mockDB as any, 'profile-1', 'unknownField')
+      ).rejects.toThrow('Unknown field');
+    });
+
+    it('should query the correct column for camelCase field names', async () => {
+      mockDB._mockFirst.mockResolvedValueOnce({ value_proposition: 'Our value' });
+
+      const value = await getProfileFieldValue(mockDB as any, 'profile-1', 'valueProposition');
+      expect(value).toBe('Our value');
+      expect(mockDB.prepare).toHaveBeenCalledWith(
+        expect.stringContaining('value_proposition')
       );
     });
   });

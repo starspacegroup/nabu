@@ -255,4 +255,246 @@ describe('AITextQuickGenerate', () => {
     await fireEvent.input(textarea, { target: { value: 'Edited tagline' } });
     expect((textarea as HTMLTextAreaElement).value).toBe('Edited tagline');
   });
+
+  // ─── Profile Field Auto-Set ─────────────────────────────────
+
+  describe('profile field auto-set on save', () => {
+    /** Creates a mock fetch where field-status returns a given response */
+    function createFieldStatusMockFetch(fieldStatus: {
+      matchesField: boolean;
+      fieldName?: string;
+      fieldLabel?: string;
+      currentValue?: string | null;
+    }) {
+      return vi.fn((url: string | URL | Request, options?: RequestInit): Promise<Response> => {
+        const urlStr = typeof url === 'string' ? url : url.toString();
+        const method = (options?.method || 'GET').toUpperCase();
+
+        if (urlStr.includes('/api/brand/assets/texts/field-status')) {
+          return Promise.resolve(new Response(JSON.stringify(fieldStatus), { status: 200 }));
+        }
+        if (urlStr.includes('/api/brand/assets/generate-text') && method !== 'POST') {
+          return Promise.resolve(new Response(JSON.stringify({
+            presets: [
+              { key: 'tagline', label: 'Tagline', promptTemplate: 'Write a tagline' },
+              { key: 'slogan', label: 'Slogan', promptTemplate: 'Write a slogan' }
+            ]
+          }), { status: 200 }));
+        }
+        if (urlStr.includes('/api/brand/assets/generate-text') && method === 'POST') {
+          return Promise.resolve(new Response(JSON.stringify(
+            { text: 'AI generated tagline', model: 'gpt-4o-mini', tokensUsed: 42 }
+          ), { status: 200 }));
+        }
+        if (urlStr.includes('/api/brand/assets/texts') && method === 'POST') {
+          return Promise.resolve(new Response(JSON.stringify(
+            { text: { id: 'text-1' } }
+          ), { status: 200 }));
+        }
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }) as unknown as typeof fetch;
+    }
+
+    it('should check field status after generating text', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: null
+      });
+
+      const result = render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+
+      // Should have called field-status API
+      expect(statusFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/brand/assets/texts/field-status'),
+      );
+    });
+
+    it('should show auto-set notice when profile field is empty', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: null
+      });
+
+      const { container } = render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll();
+
+      // Should show notice that it will auto-set the field
+      await waitFor(() => {
+        const notice = container.querySelector('.field-notice.auto-set');
+        expect(notice).toBeTruthy();
+        expect(notice!.textContent).toMatch(/will also set.*tagline/i);
+      });
+    });
+
+    it('should show toggle when profile field already has a value', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: 'Existing tagline value'
+      });
+
+      render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll(); // Extra flush for chained field-status fetch
+
+      // Should show a toggle option (not auto-set notice)
+      const toggle = screen.getByRole('checkbox', { name: /update.*tagline/i });
+      expect(toggle).toBeTruthy();
+      // Default should be unchecked
+      expect((toggle as HTMLInputElement).checked).toBe(false);
+    });
+
+    it('should not show any field notice when text does not map to a profile field', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: false
+      });
+
+      const { container } = render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll(); // Extra flush for chained field-status fetch
+
+      // Should not show any field-related UI
+      expect(container.querySelector('.field-notice')).toBeNull();
+      expect(container.querySelector('.field-toggle')).toBeNull();
+    });
+
+    it('should send setAsProfileField=true when saving with empty field', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: null
+      });
+
+      render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll(); // Extra flush for chained field-status fetch
+
+      const saveBtn = screen.getByRole('button', { name: /save/i });
+      await fireEvent.click(saveBtn);
+      await flushAll();
+
+      // Find the POST to /api/brand/assets/texts
+      const textPostCall = statusFetch.mock.calls.find(
+        ([url, opts]: [string | URL | Request, RequestInit?]) => {
+          const u = typeof url === 'string' ? url : url.toString();
+          return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';
+        }
+      );
+      expect(textPostCall).toBeDefined();
+      const body = JSON.parse(textPostCall![1]!.body as string);
+      expect(body.setAsProfileField).toBe(true);
+      expect(body.profileFieldName).toBe('tagline');
+    });
+
+    it('should send setAsProfileField=false when toggle is off for filled field', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: 'Existing tagline'
+      });
+
+      render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll(); // Extra flush for chained field-status fetch
+
+      // Don't toggle - leave default (off)
+      const saveBtn = screen.getByRole('button', { name: /save/i });
+      await fireEvent.click(saveBtn);
+      await flushAll();
+
+      const textPostCall = statusFetch.mock.calls.find(
+        ([url, opts]: [string | URL | Request, RequestInit?]) => {
+          const u = typeof url === 'string' ? url : url.toString();
+          return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';
+        }
+      );
+      expect(textPostCall).toBeDefined();
+      const body = JSON.parse(textPostCall![1]!.body as string);
+      expect(body.setAsProfileField).toBeFalsy();
+    });
+
+    it('should send setAsProfileField=true when toggle is turned on for filled field', async () => {
+      const statusFetch = createFieldStatusMockFetch({
+        matchesField: true,
+        fieldName: 'tagline',
+        fieldLabel: 'Tagline',
+        currentValue: 'Existing tagline'
+      });
+
+      render(AITextQuickGenerate, {
+        props: { brandProfileId: 'brand-1', fetchFn: statusFetch }
+      });
+      await flushAll();
+
+      const generateBtns = screen.getAllByRole('button', { name: /generate/i });
+      await fireEvent.click(generateBtns[0]);
+      await flushAll();
+      await flushAll(); // Extra flush for chained field-status fetch
+
+      // Toggle ON
+      const toggle = screen.getByRole('checkbox', { name: /update.*tagline/i });
+      await fireEvent.click(toggle);
+      await flushAll();
+
+      const saveBtn = screen.getByRole('button', { name: /save/i });
+      await fireEvent.click(saveBtn);
+      await flushAll();
+
+      const textPostCall = statusFetch.mock.calls.find(
+        ([url, opts]: [string | URL | Request, RequestInit?]) => {
+          const u = typeof url === 'string' ? url : url.toString();
+          return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';
+        }
+      );
+      expect(textPostCall).toBeDefined();
+      const body = JSON.parse(textPostCall![1]!.body as string);
+      expect(body.setAsProfileField).toBe(true);
+      expect(body.profileFieldName).toBe('tagline');
+    });
+  });
 });

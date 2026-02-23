@@ -42,6 +42,15 @@
 	let customPromptText = '';
 	let customLabel = '';
 
+	// Profile field auto-set state
+	let fieldStatus: {
+		matchesField: boolean;
+		fieldName?: string;
+		fieldLabel?: string;
+		currentValue?: string | null;
+	} | null = null;
+	let setAsProfileField = false;
+
 	// Category config
 	const categories: Array<{ key: string; label: string; icon: string }> = [
 		{ key: 'names', label: 'Names', icon: '🏷️' },
@@ -82,10 +91,32 @@
 		error = null;
 		showCustomPrompt = false;
 		customPromptText = '';
+		fieldStatus = null;
+		setAsProfileField = false;
 		loadPresets(category);
 	}
 
 	// ─── AI Generation ──────────────────────────────────────
+
+	/** Check if a text key maps to a brand profile field and its current status */
+	async function checkFieldStatus(category: string, key: string) {
+		fieldStatus = null;
+		setAsProfileField = false;
+		try {
+			const res = await fetchFn(
+				`/api/brand/assets/texts/field-status?brandProfileId=${brandProfileId}&category=${category}&key=${key}`
+			);
+			if (res.ok) {
+				fieldStatus = await res.json();
+				// Auto-enable when field is empty
+				if (fieldStatus?.matchesField && !fieldStatus.currentValue) {
+					setAsProfileField = true;
+				}
+			}
+		} catch {
+			// Non-critical — just won't show field status UI
+		}
+	}
 
 	async function generateFromPreset(preset: Preset) {
 		generating = true;
@@ -109,6 +140,8 @@
 			if (res.ok) {
 				const result = await res.json();
 				generatedText = result.text;
+				// Check if this text maps to a profile field
+				await checkFieldStatus(selectedCategory, preset.key);
 			} else {
 				const err = await res.json().catch(() => ({ message: 'Generation failed' }));
 				error = err.message || 'Failed to generate text';
@@ -146,6 +179,8 @@
 			if (res.ok) {
 				const result = await res.json();
 				generatedText = result.text;
+				// Check if this text maps to a profile field
+				await checkFieldStatus(selectedCategory, key);
 			} else {
 				const err = await res.json().catch(() => ({ message: 'Generation failed' }));
 				error = err.message || 'Failed to generate text';
@@ -169,16 +204,24 @@
 		if (!generatedText || !generatedPreset) return;
 
 		try {
+			const saveBody: Record<string, unknown> = {
+				brandProfileId,
+				category: selectedCategory,
+				key: generatedPreset.key,
+				label: generatedPreset.label,
+				value: generatedText
+			};
+
+			// Include profile field update if applicable
+			if (setAsProfileField && fieldStatus?.matchesField && fieldStatus.fieldName) {
+				saveBody.setAsProfileField = true;
+				saveBody.profileFieldName = fieldStatus.fieldName;
+			}
+
 			const res = await fetchFn('/api/brand/assets/texts', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					brandProfileId,
-					category: selectedCategory,
-					key: generatedPreset.key,
-					label: generatedPreset.label,
-					value: generatedText
-				})
+				body: JSON.stringify(saveBody)
 			});
 
 			if (res.ok) {
@@ -186,6 +229,8 @@
 				// Reset for next generation
 				generatedText = '';
 				generatedPreset = null;
+				fieldStatus = null;
+				setAsProfileField = false;
 			} else {
 				const err = await res.json().catch(() => ({ message: 'Save failed' }));
 				error = err.message || 'Failed to save text';
@@ -242,6 +287,33 @@
 					bind:value={generatedText}
 					rows="4"
 				></textarea>
+
+				<!-- Profile field auto-set notice or toggle -->
+				{#if fieldStatus?.matchesField && fieldStatus.fieldLabel}
+					{#if !fieldStatus.currentValue}
+						<!-- Field is empty — will auto-set -->
+						<div class="field-notice auto-set">
+							<span class="field-notice-icon">📌</span>
+							<span class="field-notice-text">
+								Saving will also set your <strong>{fieldStatus.fieldLabel}</strong> on the brand profile.
+							</span>
+						</div>
+					{:else}
+						<!-- Field has a value — show toggle (default off) -->
+						<label class="field-toggle">
+							<input
+								type="checkbox"
+								bind:checked={setAsProfileField}
+								aria-label="Update {fieldStatus.fieldLabel} on profile"
+							/>
+							<span class="field-toggle-text">
+								Also update <strong>{fieldStatus.fieldLabel}</strong> on profile
+								<span class="field-toggle-current">(current: "{fieldStatus.currentValue}")</span>
+							</span>
+						</label>
+					{/if}
+				{/if}
+
 				<div class="result-actions">
 					<button class="btn primary" on:click={saveGeneratedText} aria-label="Save text">
 						💾 Save
@@ -545,6 +617,72 @@
 		display: flex;
 		gap: var(--spacing-xs);
 		justify-content: flex-end;
+	}
+
+	/* Profile field notice */
+	.field-notice {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		font-size: 0.78rem;
+		line-height: 1.4;
+		color: var(--color-text);
+	}
+
+	.field-notice.auto-set {
+		background-color: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.field-notice-icon {
+		flex-shrink: 0;
+		font-size: 0.85rem;
+	}
+
+	.field-notice-text {
+		flex: 1;
+	}
+
+	.field-toggle {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background-color: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		font-size: 0.78rem;
+		cursor: pointer;
+		transition: border-color var(--transition-fast);
+	}
+
+	.field-toggle:hover {
+		border-color: var(--color-primary);
+	}
+
+	.field-toggle input[type="checkbox"] {
+		margin-top: 2px;
+		flex-shrink: 0;
+		accent-color: var(--color-primary);
+	}
+
+	.field-toggle-text {
+		flex: 1;
+		line-height: 1.4;
+		color: var(--color-text);
+	}
+
+	.field-toggle-current {
+		display: block;
+		color: var(--color-text-secondary);
+		font-size: 0.72rem;
+		margin-top: 2px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 100%;
 	}
 
 	/* Buttons */

@@ -158,6 +158,48 @@ export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: str
 };
 
 /**
+ * Reverse mapping: given a text category + key, find the matching brand profile field.
+ * Returns { fieldName, fieldLabel } if the text key maps to a profile field, or null.
+ */
+export function getMatchingProfileField(
+  category: string,
+  key: string
+): { fieldName: string; fieldLabel: string; } | null {
+  for (const [fieldName, mapping] of Object.entries(FIELD_TO_TEXT_MAPPING)) {
+    if (mapping.category === category && mapping.keys.includes(key)) {
+      return {
+        fieldName,
+        fieldLabel: BRAND_FIELD_LABELS[fieldName] || fieldName
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Get the current value of a single profile field.
+ * Returns the raw value (string or null) from the brand_profiles table.
+ */
+export async function getProfileFieldValue(
+  db: D1Database,
+  profileId: string,
+  fieldName: string
+): Promise<string | null> {
+  const column = FIELD_TO_COLUMN[fieldName];
+  if (!column) {
+    throw new Error(`Unknown field: ${fieldName}`);
+  }
+
+  const row = await db
+    .prepare(`SELECT ${column} FROM brand_profiles WHERE id = ?`)
+    .bind(profileId)
+    .first<Record<string, unknown>>();
+
+  if (!row) return null;
+  return (row[column] as string) ?? null;
+}
+
+/**
  * Get text asset suggestions that could populate a brand profile field.
  * Returns all text assets from the matching category for that field,
  * so the user can pick any saved text — not just exact key matches.

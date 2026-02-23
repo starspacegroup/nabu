@@ -7,6 +7,7 @@ import {
   updateBrandText,
   deleteBrandText
 } from '$lib/services/brand-assets';
+import { updateBrandFieldWithVersion } from '$lib/services/brand';
 
 /**
  * GET /api/brand/assets/texts
@@ -30,14 +31,16 @@ export const GET: RequestHandler = async ({ url, platform, locals }) => {
 
 /**
  * POST /api/brand/assets/texts
- * Create a text asset
+ * Create a text asset.
+ * If setAsProfileField=true and profileFieldName is provided,
+ * also updates the corresponding brand_profiles field with version tracking.
  */
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
   if (!locals.user) throw error(401, 'Unauthorized');
   if (!platform?.env?.DB) throw error(500, 'Platform not available');
 
   const body = await request.json();
-  const { brandProfileId, category, key, label, value, language } = body;
+  const { brandProfileId, category, key, label, value, language, setAsProfileField, profileFieldName } = body;
 
   if (!brandProfileId || !category || !key || !label || !value) {
     throw error(400, 'Missing required fields');
@@ -52,7 +55,25 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     language
   });
 
-  return json({ text }, { status: 201 });
+  // Optionally set the profile field to this value
+  let profileFieldUpdated = false;
+  if (setAsProfileField && profileFieldName) {
+    try {
+      await updateBrandFieldWithVersion(platform.env.DB, {
+        profileId: brandProfileId,
+        userId: locals.user.id,
+        fieldName: profileFieldName,
+        newValue: value,
+        changeSource: 'ai',
+        changeReason: `Set from generated text asset: ${label}`
+      });
+      profileFieldUpdated = true;
+    } catch {
+      // Non-fatal: text was still saved, just field update failed
+    }
+  }
+
+  return json({ text, profileFieldUpdated }, { status: 201 });
 };
 
 /**
