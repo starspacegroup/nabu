@@ -231,6 +231,27 @@ export async function sendMessage(content: string, attachments?: OnboardingAttac
             }));
           }
 
+          if (json.brandDataExtracted) {
+            // AI extracted brand data from the conversation — update the profile in the store
+            onboardingStore.update((s) => {
+              if (!s.profile) return s;
+              const updates: Partial<BrandProfile> = {};
+              for (const [key, value] of Object.entries(json.brandDataExtracted)) {
+                if (value != null && value !== '') {
+                  (updates as Record<string, unknown>)[key] = value;
+                }
+              }
+              // If brandName was extracted, mark it as confirmed
+              if (updates.brandName) {
+                updates.brandNameConfirmed = true;
+              }
+              return {
+                ...s,
+                profile: { ...s.profile, ...updates }
+              };
+            });
+          }
+
           if (json.error) {
             throw new Error(json.error);
           }

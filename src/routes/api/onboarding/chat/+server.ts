@@ -11,14 +11,17 @@ import {
   buildConversationContext,
   updateBrandProfile,
   getNextStep,
-  STEP_COMPLETE_MARKER
+  STEP_COMPLETE_MARKER,
+  buildExtractionPrompt,
+  parseExtractionResponse
 } from '$lib/services/onboarding';
 import type { BrandContentContext } from '$lib/services/onboarding';
 import { updateBrandFieldWithVersion } from '$lib/services/brand';
 import { getBrandTexts, getBrandAssetSummary } from '$lib/services/brand-assets';
 import {
   getEnabledOpenAIKey,
-  streamChatCompletion
+  streamChatCompletion,
+  chatCompletion
 } from '$lib/services/openai-chat';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
 import type { OnboardingStep } from '$lib/types/onboarding';
@@ -137,9 +140,43 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
           }
         }
 
+        // Extract brand data from the conversation using a lightweight AI call
+        // Do this BEFORE [DONE] so we can send results to the client
+        let extracted: Record<string, unknown> | null = null;
+        try {
+          const recentMessages = previousMessages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .slice(-6)
+            .map(m => ({ role: m.role, content: m.content }));
+          recentMessages.push({ role: 'user', content: message });
+          recentMessages.push({ role: 'assistant', content: cleanContent });
+
+          const extractionPrompt = buildExtractionPrompt(
+            step as OnboardingStep,
+            recentMessages
+          );
+
+          if (extractionPrompt) {
+            const extractionResponse = await chatCompletion(
+              aiKey.apiKey,
+              [{ role: 'system', content: extractionPrompt }],
+              { model: 'gpt-4o-mini', temperature: 0.1, maxTokens: 512, jsonMode: true }
+            );
+
+            extracted = parseExtractionResponse(extractionResponse);
+            if (extracted) {
+              // Send extracted data to client so it can update the store
+              const extractedData = `data: ${JSON.stringify({ brandDataExtracted: extracted })}\n\n`;
+              controller.enqueue(encoder.encode(extractedData));
+            }
+          }
+        } catch (extractionErr) {
+          console.error('Brand data extraction failed:', extractionErr);
+        }
+
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
 
-        // Persist assistant message with cleaned content (non-blocking)
+        // Persist assistant message and extracted data (non-blocking)
         if (cleanContent && platform?.context) {
           platform.context.waitUntil(
             (async () => {
@@ -158,6 +195,24 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
                   await updateBrandProfile(platform!.env.DB, profileId, {
                     onboardingStep: nextStep
                   });
+                }
+              }
+
+              // Persist extracted brand data with version tracking
+              if (extracted) {
+                try {
+                  for (const [fieldName, value] of Object.entries(extracted)) {
+                    await updateBrandFieldWithVersion(platform!.env.DB, {
+                      profileId,
+                      userId: locals.user!.id,
+                      fieldName,
+                      newValue: value,
+                      changeSource: 'ai',
+                      changeReason: `Extracted from onboarding chat (${step} step)`
+                    });
+                  }
+                } catch (dbErr) {
+                  console.error('Failed to persist extracted brand data:', dbErr);
                 }
               }
             })()

@@ -80,6 +80,54 @@ export async function getEnabledOpenAIKey(platform: App.Platform): Promise<AIKey
 }
 
 /**
+ * Non-streaming chat completion for quick extraction calls.
+ * Uses JSON response format for structured output.
+ * Returns the response content string.
+ */
+export async function chatCompletion(
+	apiKey: string,
+	messages: ChatMessage[],
+	options: {
+		model?: string;
+		temperature?: number;
+		maxTokens?: number;
+		jsonMode?: boolean;
+	} = {}
+): Promise<string> {
+	const { model = 'gpt-4o-mini', temperature = 0.1, maxTokens = 1024, jsonMode = false } = options;
+
+	const body: Record<string, unknown> = {
+		model,
+		messages,
+		temperature,
+		max_tokens: maxTokens
+	};
+
+	if (jsonMode) {
+		body.response_format = { type: 'json_object' };
+	}
+
+	const response = await fetch('https://api.openai.com/v1/chat/completions', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${apiKey}`
+		},
+		body: JSON.stringify(body)
+	});
+
+	if (!response.ok) {
+		throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+	}
+
+	const json = await response.json() as {
+		choices: Array<{ message: { content: string; }; }>;
+	};
+
+	return json.choices?.[0]?.message?.content || '';
+}
+
+/**
  * Stream chat completion from OpenAI API
  * Yields content chunks and finally a usage chunk with token counts
  */

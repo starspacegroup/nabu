@@ -1025,3 +1025,110 @@ export function getStepProgress(currentStep: OnboardingStep): number {
   if (currentIndex === -1) return 0;
   return Math.round((currentIndex / (stepIds.length - 1)) * 100);
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// Brand Data Extraction from Conversation
+// ──────────────────────────────────────────────────────────────────────────
+
+/** All brand profile fields that can be extracted from conversations */
+const KNOWN_EXTRACTION_FIELDS = new Set([
+  'brandName', 'industry', 'elevatorPitch', 'tagline',
+  'missionStatement', 'visionStatement', 'brandArchetype',
+  'brandPersonalityTraits', 'toneOfVoice', 'communicationStyle',
+  'targetAudience', 'customerPainPoints', 'valueProposition',
+  'primaryColor', 'secondaryColor', 'accentColor', 'colorPalette',
+  'typographyHeading', 'typographyBody', 'logoConcept',
+  'competitors', 'uniqueSellingPoints', 'marketPosition',
+  'originStory', 'brandValues', 'brandPromise'
+]);
+
+/** Type for extracted brand fields */
+export type ExtractedFields = Partial<Record<string, string | string[] | Record<string, unknown>>>;
+
+/**
+ * Build an extraction prompt that asks a lightweight AI model to extract
+ * structured brand data from the recent conversation.
+ *
+ * Returns an empty string for the 'complete' step (nothing to extract).
+ */
+export function buildExtractionPrompt(
+  step: OnboardingStep,
+  conversationMessages: Array<{ role: string; content: string; }>
+): string {
+  if (step === 'complete') return '';
+
+  const stepConfig = getStepConfig(step);
+  // Always include brandName; merge with the step's declared fields
+  const fieldsSet = new Set<string>(['brandName']);
+  if (stepConfig?.extractionFields) {
+    for (const f of stepConfig.extractionFields) {
+      fieldsSet.add(f);
+    }
+  }
+  const fields = Array.from(fieldsSet);
+
+  // Build a condensed conversation transcript
+  const transcript = conversationMessages
+    .map((m) => `${m.role.toUpperCase()}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+    .join('\n');
+
+  return `You are a data extraction assistant. Analyze the following brand onboarding conversation and extract any brand information that has been explicitly stated or clearly agreed upon by the user.
+
+CONVERSATION:
+${transcript}
+
+FIELDS TO EXTRACT (return only fields that were clearly stated or confirmed):
+${fields.map((f) => `- ${f}`).join('\n')}
+
+RULES:
+- Return a JSON object with ONLY the fields that have definitive values from the conversation
+- Do NOT guess or infer values that weren't discussed
+- If the user explicitly stated a brand name, include it as "brandName"
+- Preserve exact spelling, capitalization, and special characters (e.g. "*Space" not "Space")
+- For array fields (brandPersonalityTraits, colorPalette, brandValues, competitors, uniqueSellingPoints, customerPainPoints), return JSON arrays
+- For fields with no clear value from the conversation, omit them entirely
+- Return ONLY valid JSON, no markdown, no explanation
+- If nothing was clearly established, return an empty object {}`;
+}
+
+/**
+ * Parse the extraction AI response into a typed object.
+ * Returns null if the response is invalid, empty, or contains no known fields.
+ */
+export function parseExtractionResponse(response: string): ExtractedFields | null {
+  if (!response || response.trim().length === 0) return null;
+
+  let text = response.trim();
+
+  // Strip markdown code block wrappers if present
+  const codeBlockMatch = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
+  if (codeBlockMatch) {
+    text = codeBlockMatch[1].trim();
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return null;
+  }
+
+  // Filter to only known fields with non-empty values
+  const result: ExtractedFields = {};
+  let hasValue = false;
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!KNOWN_EXTRACTION_FIELDS.has(key)) continue;
+    if (value === null || value === undefined) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+
+    result[key] = value as string | string[] | Record<string, unknown>;
+    hasValue = true;
+  }
+
+  return hasValue ? result : null;
+}

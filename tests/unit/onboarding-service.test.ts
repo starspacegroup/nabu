@@ -20,7 +20,10 @@ import {
   getPreviousStep,
   getStepProgress,
   buildBrandContentContextString,
-  generatePlaceholderBrandName
+  generatePlaceholderBrandName,
+  buildExtractionPrompt,
+  parseExtractionResponse,
+  type ExtractedFields
 } from '$lib/services/onboarding';
 import type { BrandContentContext } from '$lib/services/onboarding';
 import type { BrandProfile, OnboardingStep } from '$lib/types/onboarding';
@@ -770,6 +773,146 @@ describe('Brand Onboarding Service', () => {
       const progress = getStepProgress('brand_identity');
       expect(progress).toBeGreaterThan(0);
       expect(progress).toBeLessThan(100);
+    });
+  });
+
+  describe('buildExtractionPrompt', () => {
+    it('should return a system prompt for extracting brand data', () => {
+      const prompt = buildExtractionPrompt('welcome', []);
+      expect(prompt).toBeDefined();
+      expect(typeof prompt).toBe('string');
+      expect(prompt.length).toBeGreaterThan(50);
+    });
+
+    it('should instruct the AI to return JSON', () => {
+      const prompt = buildExtractionPrompt('welcome', []);
+      expect(prompt.toLowerCase()).toMatch(/json/i);
+    });
+
+    it('should include the relevant extraction fields for the step', () => {
+      const prompt = buildExtractionPrompt('brand_assessment', []);
+      expect(prompt).toContain('brandName');
+      expect(prompt).toContain('industry');
+      expect(prompt).toContain('elevatorPitch');
+    });
+
+    it('should include extraction fields for brand_identity step', () => {
+      const prompt = buildExtractionPrompt('brand_identity', []);
+      expect(prompt).toContain('brandName');
+      expect(prompt).toContain('tagline');
+      expect(prompt).toContain('missionStatement');
+    });
+
+    it('should include conversation messages for context', () => {
+      const messages = [
+        { role: 'user' as const, content: 'My brand is called *Space' },
+        { role: 'assistant' as const, content: 'Great name! Tell me more about *Space.' }
+      ];
+      const prompt = buildExtractionPrompt('welcome', messages);
+      expect(prompt).toContain('*Space');
+    });
+
+    it('should always include brandName in welcome step', () => {
+      // Welcome step has empty extractionFields, but should still extract brandName
+      const prompt = buildExtractionPrompt('welcome', []);
+      expect(prompt).toContain('brandName');
+    });
+
+    it('should return empty string for complete step', () => {
+      const prompt = buildExtractionPrompt('complete', []);
+      expect(prompt).toBe('');
+    });
+  });
+
+  describe('parseExtractionResponse', () => {
+    it('should parse valid JSON extraction response', () => {
+      const response = JSON.stringify({
+        brandName: '*Space',
+        industry: 'Technology'
+      });
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeDefined();
+      expect(result!.brandName).toBe('*Space');
+      expect(result!.industry).toBe('Technology');
+    });
+
+    it('should return null for invalid JSON', () => {
+      const result = parseExtractionResponse('not valid json');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for empty response', () => {
+      const result = parseExtractionResponse('');
+      expect(result).toBeNull();
+    });
+
+    it('should strip null/undefined values from result', () => {
+      const response = JSON.stringify({
+        brandName: '*Space',
+        industry: null,
+        tagline: undefined,
+        elevatorPitch: ''
+      });
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeDefined();
+      expect(result!.brandName).toBe('*Space');
+      expect(result!.industry).toBeUndefined();
+      expect(result!.tagline).toBeUndefined();
+      expect(result!.elevatorPitch).toBeUndefined();
+    });
+
+    it('should handle JSON wrapped in markdown code blocks', () => {
+      const response = '```json\n{"brandName": "Acme Corp", "industry": "SaaS"}\n```';
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeDefined();
+      expect(result!.brandName).toBe('Acme Corp');
+      expect(result!.industry).toBe('SaaS');
+    });
+
+    it('should handle JSON with array values', () => {
+      const response = JSON.stringify({
+        brandName: 'TestBrand',
+        brandPersonalityTraits: ['bold', 'innovative', 'friendly']
+      });
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeDefined();
+      expect(result!.brandPersonalityTraits).toEqual(['bold', 'innovative', 'friendly']);
+    });
+
+    it('should return null when all values are null or empty', () => {
+      const response = JSON.stringify({
+        brandName: null,
+        industry: '',
+        tagline: null
+      });
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeNull();
+    });
+
+    it('should preserve special characters in brand names', () => {
+      const response = JSON.stringify({
+        brandName: '*Space'
+      });
+
+      const result = parseExtractionResponse(response);
+      expect(result).toBeDefined();
+      expect(result!.brandName).toBe('*Space');
+    });
+
+    it('should handle response with only unknown fields', () => {
+      const response = JSON.stringify({
+        unknownField: 'whatever',
+        anotherField: 123
+      });
+
+      const result = parseExtractionResponse(response);
+      // Should filter to only known brand fields
+      expect(result).toBeNull();
     });
   });
 });
