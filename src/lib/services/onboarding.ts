@@ -14,6 +14,18 @@ import type {
 } from '$lib/types/onboarding';
 import type { ChatMessage } from '$lib/services/openai-chat';
 import type { D1Database } from '@cloudflare/workers-types';
+import type { BrandText, BrandAssetSummary } from '$lib/types/brand-assets';
+
+/**
+ * Supplementary brand content that gives the AI richer context.
+ * Fetched from brand_texts and brand_media tables.
+ */
+export interface BrandContentContext {
+  /** Text assets (names, messaging, descriptions, legal, social, voice) */
+  texts: BrandText[];
+  /** Summary counts of media assets */
+  assetSummary: BrandAssetSummary;
+}
 
 /**
  * Marker the AI includes at the end of its response when the current step is complete.
@@ -473,11 +485,53 @@ export function buildBrandContextString(brandData: Partial<BrandProfile>): strin
 }
 
 /**
+ * Build a human-readable summary of brand text assets grouped by category.
+ * Gives the AI awareness of what copy/content has been created.
+ */
+export function buildBrandContentContextString(content: BrandContentContext): string {
+  const parts: string[] = [];
+
+  // Group texts by category
+  if (content.texts.length > 0) {
+    const byCategory = new Map<string, BrandText[]>();
+    for (const text of content.texts) {
+      const existing = byCategory.get(text.category) || [];
+      existing.push(text);
+      byCategory.set(text.category, existing);
+    }
+
+    parts.push('EXISTING BRAND COPY & TEXT ASSETS:');
+    for (const [category, texts] of byCategory) {
+      const label = category.charAt(0).toUpperCase() + category.slice(1);
+      parts.push(`  ${label}:`);
+      for (const t of texts) {
+        // Truncate very long values to keep context manageable
+        const value = t.value.length > 300 ? t.value.slice(0, 300) + '…' : t.value;
+        parts.push(`    - ${t.label}: ${value}`);
+      }
+    }
+  }
+
+  // Asset summary
+  const s = content.assetSummary;
+  if (s.totalCount > 0 || s.videoGenerationsCount > 0) {
+    parts.push('BRAND ASSET INVENTORY:');
+    if (s.imageCount > 0) parts.push(`  - ${s.imageCount} image(s) (logos, social, marketing, etc.)`);
+    if (s.audioCount > 0) parts.push(`  - ${s.audioCount} audio asset(s) (sonic identity, music, voiceover)`);
+    if (s.videoCount > 0) parts.push(`  - ${s.videoCount} video asset(s)`);
+    if (s.videoGenerationsCount > 0) parts.push(`  - ${s.videoGenerationsCount} AI-generated video(s)`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
  * Get the system prompt for a specific step, optionally incorporating brand data
  */
 export function getSystemPromptForStep(
   stepId: OnboardingStep,
-  brandData?: Partial<BrandProfile>
+  brandData?: Partial<BrandProfile>,
+  contentContext?: BrandContentContext
 ): string {
   const step = getStepConfig(stepId);
   if (!step) return '';
@@ -507,6 +561,20 @@ The user's brand profile currently has these fields filled in:
 ${contextStr}
 
 You can reference, build upon, or suggest improvements to any of these existing values. If the user asks you to change or refine any field, do so and explicitly mention what you're updating. The system will track all changes with version history, so the user can always revert.`;
+    }
+  }
+
+  // Add generated content awareness when we have content context
+  if (contentContext) {
+    const contentStr = buildBrandContentContextString(contentContext);
+    if (contentStr) {
+      prompt += `
+
+GENERATED CONTENT AWARENESS:
+The following content and assets have already been created for this brand:
+${contentStr}
+
+Use this knowledge to maintain consistency across all brand touchpoints. Reference existing copy, acknowledge created assets, and ensure any new suggestions align with what's already established.`;
     }
   }
 
@@ -817,9 +885,10 @@ export async function getOnboardingMessages(
 export function buildConversationContext(
   step: OnboardingStep,
   messages: OnboardingMessage[],
-  brandData?: Partial<BrandProfile>
+  brandData?: Partial<BrandProfile>,
+  contentContext?: BrandContentContext
 ): ChatMessage[] {
-  const systemPrompt = getSystemPromptForStep(step, brandData);
+  const systemPrompt = getSystemPromptForStep(step, brandData, contentContext);
   const result: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
   for (const msg of messages) {

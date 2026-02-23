@@ -13,7 +13,9 @@ import {
   getNextStep,
   STEP_COMPLETE_MARKER
 } from '$lib/services/onboarding';
+import type { BrandContentContext } from '$lib/services/onboarding';
 import { updateBrandFieldWithVersion } from '$lib/services/brand';
+import { getBrandTexts, getBrandAssetSummary } from '$lib/services/brand-assets';
 import {
   getEnabledOpenAIKey,
   streamChatCompletion
@@ -62,11 +64,23 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   // Get all previous messages for context
   const previousMessages = await getOnboardingMessages(platform!.env.DB, profileId);
 
-  // Build conversation context
+  // Fetch brand content (texts and asset summary) for richer AI context
+  const [brandTexts, assetSummary] = await Promise.all([
+    getBrandTexts(platform!.env.DB, profileId),
+    getBrandAssetSummary(platform!.env.DB, profileId)
+  ]);
+
+  const contentContext: BrandContentContext = {
+    texts: brandTexts,
+    assetSummary
+  };
+
+  // Build conversation context with full brand awareness
   const conversationMessages = buildConversationContext(
     step as OnboardingStep,
     previousMessages,
-    profile
+    profile,
+    contentContext
   );
 
   // Stream AI response

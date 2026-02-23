@@ -18,8 +18,10 @@ import {
   STEP_COMPLETE_MARKER,
   getNextStep,
   getPreviousStep,
-  getStepProgress
+  getStepProgress,
+  buildBrandContentContextString
 } from '$lib/services/onboarding';
+import type { BrandContentContext } from '$lib/services/onboarding';
 import type { BrandProfile, OnboardingStep } from '$lib/types/onboarding';
 
 // Mock D1 database
@@ -432,6 +434,152 @@ describe('Brand Onboarding Service', () => {
       const systemMessage = context.find((m) => m.role === 'system');
       expect(systemMessage).toBeDefined();
       expect(systemMessage!.content).toContain('Acme Corp');
+    });
+
+    it('should include brand content context in system prompt when provided', () => {
+      const brandData: Partial<BrandProfile> = {
+        brandName: 'Acme Corp'
+      };
+
+      const contentContext: BrandContentContext = {
+        texts: [
+          {
+            id: 'txt-1',
+            brandProfileId: 'bp-123',
+            category: 'messaging',
+            key: 'tagline',
+            label: 'Tagline',
+            value: 'Innovation without limits',
+            language: 'en',
+            sortOrder: 0,
+            createdAt: '2026-01-01',
+            updatedAt: '2026-01-01'
+          }
+        ],
+        assetSummary: {
+          textCount: 1,
+          imageCount: 3,
+          audioCount: 0,
+          videoCount: 1,
+          videoGenerationsCount: 2,
+          totalCount: 5
+        }
+      };
+
+      const context = buildConversationContext('brand_identity', [], brandData, contentContext);
+
+      const systemMessage = context.find((m) => m.role === 'system');
+      expect(systemMessage).toBeDefined();
+      expect(systemMessage!.content).toContain('GENERATED CONTENT AWARENESS');
+      expect(systemMessage!.content).toContain('Tagline');
+      expect(systemMessage!.content).toContain('Innovation without limits');
+      expect(systemMessage!.content).toContain('3 image(s)');
+      expect(systemMessage!.content).toContain('2 AI-generated video(s)');
+    });
+  });
+
+  describe('buildBrandContentContextString', () => {
+    it('should return empty string when no content exists', () => {
+      const result = buildBrandContentContextString({
+        texts: [],
+        assetSummary: { textCount: 0, imageCount: 0, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 0 }
+      });
+      expect(result).toBe('');
+    });
+
+    it('should group text assets by category', () => {
+      const result = buildBrandContentContextString({
+        texts: [
+          { id: '1', brandProfileId: 'bp', category: 'messaging', key: 'tagline', label: 'Tagline', value: 'Be bold', language: 'en', sortOrder: 0, createdAt: '', updatedAt: '' },
+          { id: '2', brandProfileId: 'bp', category: 'messaging', key: 'slogan', label: 'Slogan', value: 'Go further', language: 'en', sortOrder: 1, createdAt: '', updatedAt: '' },
+          { id: '3', brandProfileId: 'bp', category: 'descriptions', key: 'bio', label: 'Short Bio', value: 'A tech company', language: 'en', sortOrder: 0, createdAt: '', updatedAt: '' }
+        ],
+        assetSummary: { textCount: 3, imageCount: 0, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 0 }
+      });
+
+      expect(result).toContain('Messaging:');
+      expect(result).toContain('Descriptions:');
+      expect(result).toContain('Tagline: Be bold');
+      expect(result).toContain('Slogan: Go further');
+      expect(result).toContain('Short Bio: A tech company');
+    });
+
+    it('should include asset inventory counts', () => {
+      const result = buildBrandContentContextString({
+        texts: [],
+        assetSummary: { textCount: 0, imageCount: 5, audioCount: 2, videoCount: 1, videoGenerationsCount: 3, totalCount: 8 }
+      });
+
+      expect(result).toContain('BRAND ASSET INVENTORY');
+      expect(result).toContain('5 image(s)');
+      expect(result).toContain('2 audio asset(s)');
+      expect(result).toContain('1 video asset(s)');
+      expect(result).toContain('3 AI-generated video(s)');
+    });
+
+    it('should truncate long text values', () => {
+      const longValue = 'A'.repeat(500);
+      const result = buildBrandContentContextString({
+        texts: [
+          { id: '1', brandProfileId: 'bp', category: 'descriptions', key: 'bio', label: 'Long Bio', value: longValue, language: 'en', sortOrder: 0, createdAt: '', updatedAt: '' }
+        ],
+        assetSummary: { textCount: 1, imageCount: 0, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 0 }
+      });
+
+      expect(result).toContain('Long Bio:');
+      expect(result).toContain('\u2026'); // ellipsis
+      // Should not contain the full 500-char value
+      expect(result.length).toBeLessThan(500);
+    });
+  });
+
+  describe('getSystemPromptForStep with content context', () => {
+    it('should include generated content awareness when content context is provided', () => {
+      const contentContext: BrandContentContext = {
+        texts: [
+          { id: '1', brandProfileId: 'bp', category: 'voice', key: 'tone', label: 'Tone Guidelines', value: 'Friendly and approachable', language: 'en', sortOrder: 0, createdAt: '', updatedAt: '' }
+        ],
+        assetSummary: { textCount: 1, imageCount: 2, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 3 }
+      };
+
+      const prompt = getSystemPromptForStep('brand_personality', undefined, contentContext);
+
+      expect(prompt).toContain('GENERATED CONTENT AWARENESS');
+      expect(prompt).toContain('Tone Guidelines');
+      expect(prompt).toContain('Friendly and approachable');
+      expect(prompt).toContain('2 image(s)');
+    });
+
+    it('should not include generated content section when content context is empty', () => {
+      const contentContext: BrandContentContext = {
+        texts: [],
+        assetSummary: { textCount: 0, imageCount: 0, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 0 }
+      };
+
+      const prompt = getSystemPromptForStep('brand_personality', undefined, contentContext);
+
+      expect(prompt).not.toContain('GENERATED CONTENT AWARENESS');
+    });
+
+    it('should include both brand data and content context when both provided', () => {
+      const brandData: Partial<BrandProfile> = {
+        brandName: 'StarBrand',
+        toneOfVoice: 'Bold and confident'
+      };
+
+      const contentContext: BrandContentContext = {
+        texts: [
+          { id: '1', brandProfileId: 'bp', category: 'messaging', key: 'pitch', label: 'Elevator Pitch', value: 'We help startups scale', language: 'en', sortOrder: 0, createdAt: '', updatedAt: '' }
+        ],
+        assetSummary: { textCount: 1, imageCount: 1, audioCount: 0, videoCount: 0, videoGenerationsCount: 0, totalCount: 2 }
+      };
+
+      const prompt = getSystemPromptForStep('brand_identity', brandData, contentContext);
+
+      expect(prompt).toContain('StarBrand');
+      expect(prompt).toContain('BRAND FIELD AWARENESS');
+      expect(prompt).toContain('GENERATED CONTENT AWARENESS');
+      expect(prompt).toContain('Elevator Pitch');
     });
   });
 
