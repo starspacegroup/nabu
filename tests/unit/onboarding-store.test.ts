@@ -116,6 +116,32 @@ describe('Brand Onboarding Store', () => {
 
       expect(result).toBeNull();
     });
+
+    it('should make brandName available from the loaded profile', async () => {
+      const mockProfile = {
+        id: 'bp-456',
+        userId: 'user-123',
+        status: 'in_progress',
+        brandName: 'Acme Corp',
+        onboardingStep: 'brand_identity'
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ profile: mockProfile })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ messages: [] })
+        });
+
+      const { loadExistingProfile, onboardingStore } = await import('$lib/stores/onboarding');
+      await loadExistingProfile();
+
+      const state = get(onboardingStore);
+      expect(state.profile?.brandName).toBe('Acme Corp');
+    });
   });
 
   describe('sendMessage', () => {

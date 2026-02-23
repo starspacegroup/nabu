@@ -326,6 +326,7 @@
 
 	$: currentStepConfig = ONBOARDING_STEPS.find(s => s.id === $onboardingStore.currentStep);
 	$: canGoBack = getPreviousStep($onboardingStore.currentStep) !== null;
+	$: brandName = $onboardingStore.profile?.brandName;
 
 	async function handlePreviousStep() {
 		const prev = getPreviousStep($onboardingStore.currentStep);
@@ -484,6 +485,13 @@
 
 			<!-- Bottom bar: stuck to bottom -->
 			<div class="bottom-bar">
+				<!-- Brand name indicator -->
+				{#if brandName}
+					<div class="brand-indicator">
+						<span class="brand-indicator-label">Brand</span>
+						<span class="brand-indicator-name">{brandName}</span>
+					</div>
+				{/if}
 				<!-- Step info + manual skip -->
 				{#if !$onboardingStore.isStreaming && $onboardingStore.messages.length > 0 && $onboardingStore.currentStep !== 'complete'}
 					<div class="step-navigation">
@@ -959,6 +967,30 @@
 		background-color: var(--color-surface);
 		border-top: 1px solid var(--color-border);
 		flex-shrink: 0;
+	}
+
+	/* Brand indicator */
+	.brand-indicator {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-xs) var(--spacing-md);
+		border-bottom: 1px solid var(--color-border);
+		background-color: var(--color-background);
+	}
+
+	.brand-indicator-label {
+		font-size: 0.6rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-text-secondary);
+	}
+
+	.brand-indicator-name {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-primary);
 	}
 
 	/* Step navigation */
