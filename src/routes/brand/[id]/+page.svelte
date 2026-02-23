@@ -5,6 +5,7 @@
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
+	import { labelToKey } from '$lib/utils/text';
 
 	export let data: PageData;
 
@@ -113,13 +114,31 @@
 	// Text asset creation
 	let showAddText = false;
 	let newTextCategory = 'names';
-	let newTextKey = '';
-	let newTextLabel = '';
+	let selectedPresetKey = ''; // '' = pick one, '__custom__' = custom entry
+	let customLabel = '';
 	let newTextValue = '';
+
+	// Derived key/label from preset or custom entry
+	$: currentPresets = aiPresets;
+	$: selectedPreset = selectedPresetKey && selectedPresetKey !== '__custom__'
+		? currentPresets.find(p => p.key === selectedPresetKey) ?? null
+		: null;
+	$: newTextLabel = selectedPreset ? selectedPreset.label : customLabel;
+	$: newTextKey = selectedPreset ? selectedPreset.key : labelToKey(customLabel);
 
 	// Text editing
 	let editingTextId: string | null = null;
 	let editTextValue = '';
+
+	// AI text generation
+	let aiGenerating = false;
+	let aiError: string | null = null;
+	let showAiPrompt = false;
+	let aiCustomPrompt = '';
+	let aiPresets: Array<{ key: string; label: string; promptTemplate: string }> = [];
+	let aiEditGenerating = false;
+	let aiEditCustomPrompt = '';
+	let showAiEditPrompt = false;
 
 	// Text categories config
 	const textCategoryInfo: Record<string, { label: string; icon: string; description: string }> = {
@@ -342,15 +361,15 @@
 				body: JSON.stringify({
 					brandProfileId: data.brandId,
 					category: newTextCategory,
-					key: newTextKey.toLowerCase().replace(/\s+/g, '_'),
+					key: newTextKey,
 					label: newTextLabel,
 					value: newTextValue
 				})
 			});
 			if (res.ok) {
 				showAddText = false;
-				newTextKey = '';
-				newTextLabel = '';
+				selectedPresetKey = '';
+				customLabel = '';
 				newTextValue = '';
 				await loadTabAssets('text');
 				loadAssetSummary();
@@ -384,6 +403,92 @@
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save';
+		}
+	}
+
+	// AI Text Generation
+
+	async function loadAiPresets(category: string) {
+		try {
+			const res = await fetch(`/api/brand/assets/generate-text?category=${category}`);
+			if (res.ok) {
+				const result = await res.json();
+				aiPresets = result.presets || [];
+			}
+		} catch {
+			aiPresets = [];
+		}
+	}
+
+	// Load presets when category changes
+	$: if (showAddText && newTextCategory) {
+		loadAiPresets(newTextCategory);
+	}
+
+	async function generateTextWithAI(customPrompt?: string) {
+		aiGenerating = true;
+		aiError = null;
+		try {
+			const res = await fetch('/api/brand/assets/generate-text', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					brandProfileId: data.brandId,
+					category: newTextCategory,
+					key: newTextKey || 'generated',
+					label: newTextLabel || 'Generated Text',
+					customPrompt: customPrompt || undefined
+				})
+			});
+			if (res.ok) {
+				const result = await res.json();
+				newTextValue = result.text;
+				showAiPrompt = false;
+				aiCustomPrompt = '';
+			} else {
+				const err = await res.json().catch(() => ({ message: 'Generation failed' }));
+				aiError = err.message || 'Failed to generate text';
+			}
+		} catch (err) {
+			aiError = err instanceof Error ? err.message : 'Failed to generate text';
+		} finally {
+			aiGenerating = false;
+		}
+	}
+
+	async function generateFromPreset(preset: { key: string; label: string; promptTemplate: string }) {
+		selectedPresetKey = preset.key;
+		await generateTextWithAI(preset.promptTemplate);
+	}
+
+	async function generateEditTextWithAI(textId: string, category: string, key: string, label: string, customPrompt?: string) {
+		aiEditGenerating = true;
+		aiError = null;
+		try {
+			const res = await fetch('/api/brand/assets/generate-text', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					brandProfileId: data.brandId,
+					category,
+					key,
+					label,
+					customPrompt: customPrompt || undefined
+				})
+			});
+			if (res.ok) {
+				const result = await res.json();
+				editTextValue = result.text;
+				showAiEditPrompt = false;
+				aiEditCustomPrompt = '';
+			} else {
+				const err = await res.json().catch(() => ({ message: 'Generation failed' }));
+				aiError = err.message || 'Failed to generate text';
+			}
+		} catch (err) {
+			aiError = err instanceof Error ? err.message : 'Failed to generate text';
+		} finally {
+			aiEditGenerating = false;
 		}
 	}
 
@@ -596,31 +701,105 @@
 
 				{#if showAddText}
 					<div class="add-text-form">
-						<div class="form-row">
+						<div class="form-row two-col">
 							<label class="form-label">
 								Category
-								<select bind:value={newTextCategory} class="form-input">
+								<select bind:value={newTextCategory} on:change={() => { selectedPresetKey = ''; customLabel = ''; newTextValue = ''; }} class="form-input">
 									{#each Object.entries(textCategoryInfo) as [key, info]}
-										<option value={key}>{info.label}</option>
+										<option value={key}>{info.icon} {info.label}</option>
 									{/each}
 								</select>
+								<span class="form-hint">{textCategoryInfo[newTextCategory]?.description}</span>
 							</label>
 							<label class="form-label">
-								Key
-								<input type="text" bind:value={newTextKey} placeholder="e.g. primary_name" class="form-input" />
-							</label>
-							<label class="form-label">
-								Label
-								<input type="text" bind:value={newTextLabel} placeholder="e.g. Primary Brand Name" class="form-input" />
+								Type
+								<select bind:value={selectedPresetKey} class="form-input">
+									<option value="">— Pick a type —</option>
+									{#each aiPresets as preset}
+										<option value={preset.key}>{preset.label}</option>
+									{/each}
+									<option value="__custom__">✏️ Custom...</option>
+								</select>
 							</label>
 						</div>
-						<label class="form-label">
-							Value
-							<textarea bind:value={newTextValue} placeholder="Enter text content..." class="form-textarea" rows="3"></textarea>
-						</label>
-						<button class="save-btn" on:click={addTextAsset} disabled={!newTextKey || !newTextLabel || !newTextValue}>
-							Save Text Asset
-						</button>
+
+						{#if selectedPresetKey === '__custom__'}
+							<label class="form-label">
+								Name
+								<input type="text" bind:value={customLabel} placeholder="e.g. Brand Anthem, Welcome Message" class="form-input" />
+								{#if customLabel}
+									<span class="form-hint">Key: <code>{newTextKey}</code></span>
+								{/if}
+							</label>
+						{/if}
+
+						{#if selectedPresetKey}
+							<label class="form-label">
+								Value
+								<textarea bind:value={newTextValue} placeholder="Enter text content or use AI to generate..." class="form-textarea" rows="3"></textarea>
+							</label>
+
+							<!-- AI Generation Section -->
+							{#if data.hasAIProviders}
+								<div class="ai-generate-section">
+									<div class="ai-generate-header">
+										<span class="ai-label">✨ AI Generate</span>
+										<div class="ai-actions-row">
+											<button
+												class="ai-btn"
+												on:click={() => {
+													if (selectedPreset) {
+														generateTextWithAI(selectedPreset.promptTemplate);
+													} else {
+														generateTextWithAI();
+													}
+												}}
+												disabled={aiGenerating || (selectedPresetKey === '__custom__' && !customLabel)}
+												title="Auto-generate based on type and brand context"
+											>
+												{aiGenerating ? '⏳ Generating...' : '🪄 Auto'}
+											</button>
+											<button
+												class="ai-btn secondary"
+												on:click={() => (showAiPrompt = !showAiPrompt)}
+												disabled={aiGenerating}
+											>
+												💬 With Prompt
+											</button>
+										</div>
+									</div>
+
+									{#if showAiPrompt}
+										<div class="ai-prompt-area">
+											<textarea
+												bind:value={aiCustomPrompt}
+												placeholder="Describe what you want, e.g. 'Write a catchy tagline about innovation'..."
+												class="form-textarea"
+												rows="2"
+											></textarea>
+											<button
+												class="ai-btn"
+												on:click={() => generateTextWithAI(aiCustomPrompt)}
+												disabled={aiGenerating || !aiCustomPrompt}
+											>
+												{aiGenerating ? '⏳ Generating...' : '✨ Generate'}
+											</button>
+										</div>
+									{/if}
+
+									{#if aiError}
+										<div class="ai-error">
+											{aiError}
+											<button class="ai-error-dismiss" on:click={() => (aiError = null)}>✕</button>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							<button class="save-btn" on:click={addTextAsset} disabled={!newTextKey || !newTextLabel || !newTextValue}>
+								Save Text Asset
+							</button>
+						{/if}
 					</div>
 				{/if}
 
@@ -660,6 +839,42 @@
 													class="form-textarea"
 													rows="3"
 												></textarea>
+												{#if data.hasAIProviders}
+													<div class="ai-edit-row">
+														<button
+															class="ai-btn small"
+															on:click={() => generateEditTextWithAI(text.id, text.category, text.key, text.label)}
+															disabled={aiEditGenerating}
+															title="Regenerate this text using AI"
+														>
+															{aiEditGenerating ? '⏳...' : '✨ AI Regenerate'}
+														</button>
+														<button
+															class="ai-btn secondary small"
+															on:click={() => (showAiEditPrompt = !showAiEditPrompt)}
+															disabled={aiEditGenerating}
+														>
+															💬
+														</button>
+													</div>
+													{#if showAiEditPrompt}
+														<div class="ai-prompt-area compact">
+															<textarea
+																bind:value={aiEditCustomPrompt}
+																placeholder="Custom instructions..."
+																class="form-textarea"
+																rows="2"
+															></textarea>
+															<button
+																class="ai-btn small"
+																on:click={() => generateEditTextWithAI(text.id, text.category, text.key, text.label, aiEditCustomPrompt)}
+																disabled={aiEditGenerating || !aiEditCustomPrompt}
+															>
+																{aiEditGenerating ? '⏳...' : '✨ Generate'}
+															</button>
+														</div>
+													{/if}
+												{/if}
 												<div class="text-asset-actions">
 													<button class="save-btn small" on:click={() => saveTextAsset(text.id)}>Save</button>
 													<button class="cancel-btn small" on:click={cancelEditingText}>Cancel</button>
@@ -1135,6 +1350,26 @@
 		gap: var(--spacing-md);
 	}
 
+	.form-row.two-col {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.form-hint {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		font-weight: 400;
+		margin-top: 2px;
+	}
+
+	.form-hint code {
+		font-family: monospace;
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		background-color: var(--color-surface);
+		padding: 1px 4px;
+		border-radius: 3px;
+	}
+
 	.form-label {
 		display: flex;
 		flex-direction: column;
@@ -1286,6 +1521,115 @@
 	.cancel-btn.small {
 		padding: 2px 8px;
 		font-size: 0.7rem;
+	}
+
+	/* ─── AI Generate Section ─────────────────────────────── */
+
+	.ai-generate-section {
+		background-color: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		padding: var(--spacing-md);
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.ai-generate-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+	}
+
+	.ai-label {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+	}
+
+	.ai-actions-row {
+		display: flex;
+		gap: var(--spacing-xs);
+	}
+
+	.ai-btn {
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		border: none;
+		border-radius: var(--radius-sm);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+		white-space: nowrap;
+	}
+
+	.ai-btn:hover:not(:disabled) {
+		background-color: var(--color-primary-hover);
+	}
+
+	.ai-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.ai-btn.secondary {
+		background-color: var(--color-border);
+		color: var(--color-text);
+	}
+
+	.ai-btn.secondary:hover:not(:disabled) {
+		background-color: var(--color-text-secondary);
+		color: var(--color-background);
+	}
+
+	.ai-btn.small {
+		padding: 2px 8px;
+		font-size: 0.7rem;
+	}
+
+	.ai-prompt-area {
+		display: flex;
+		gap: var(--spacing-xs);
+		align-items: flex-end;
+	}
+
+	.ai-prompt-area .form-textarea {
+		flex: 1;
+	}
+
+	.ai-prompt-area.compact {
+		margin-top: var(--spacing-xs);
+	}
+
+	.ai-error {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background-color: var(--color-error);
+		color: var(--color-background);
+		border-radius: var(--radius-sm);
+		font-size: 0.75rem;
+	}
+
+	.ai-error-dismiss {
+		background: none;
+		border: none;
+		color: var(--color-background);
+		cursor: pointer;
+		padding: 0;
+		font-size: 0.9rem;
+		line-height: 1;
+	}
+
+	.ai-edit-row {
+		display: flex;
+		gap: var(--spacing-xs);
+		margin-top: var(--spacing-xs);
 	}
 
 	/* ─── Responsive ──────────────────────────────────────── */
