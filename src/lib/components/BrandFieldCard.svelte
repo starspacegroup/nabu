@@ -10,11 +10,33 @@
 	export let type: 'text' | 'color' | 'list' | 'object' | 'archetype' = 'text';
 	export let isEditing = false;
 	export let editValue = '';
+	export let hasTextSuggestions = false;
 
 	$: hasValue = value != null && value !== '' && (!Array.isArray(value) || value.length > 0);
 
+	// Local editing value — isolated from parent re-renders
+	let localEditValue = '';
 	let inputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
-	let cancelledByEscape = false;
+	let skipBlur = false;
+	let prevIsEditing = false;
+
+	// Detect transitions of isEditing to seed value or suppress teardown blur
+	$: {
+		if (isEditing && !prevIsEditing) {
+			// false → true: editing just started — seed local value from prop
+			localEditValue = editValue;
+			skipBlur = false;
+			tick().then(() => {
+				inputEl?.focus();
+			});
+		}
+		if (!isEditing && prevIsEditing) {
+			// true → false: parent is closing the editor —
+			// suppress any blur from the DOM teardown so it doesn't trigger a phantom save
+			skipBlur = true;
+		}
+		prevIsEditing = isEditing;
+	}
 
 	function formatValue(v: unknown): string {
 		if (v == null) return '';
@@ -26,20 +48,27 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			dispatch('save');
+			skipBlur = true;
+			// Capture the local value NOW and send it with the event
+			dispatch('save', { value: localEditValue });
+			// Remove focus so blur fires immediately while skipBlur is true
+			inputEl?.blur();
 		}
 		if (e.key === 'Escape') {
-			cancelledByEscape = true;
+			skipBlur = true;
 			dispatch('cancel');
+			inputEl?.blur();
 		}
 	}
 
 	function handleBlur() {
-		if (cancelledByEscape) {
-			cancelledByEscape = false;
+		if (skipBlur) {
+			skipBlur = false;
 			return;
 		}
-		dispatch('save');
+		// Only fire save from blur if we're actually editing (user-initiated blur)
+		if (!isEditing) return;
+		dispatch('save', { value: localEditValue });
 	}
 
 	function handleValueClick() {
@@ -52,47 +81,66 @@
 			dispatch('edit');
 		}
 	}
-
-	// Auto-focus the input when editing starts
-	$: if (isEditing) {
-		tick().then(() => {
-			inputEl?.focus();
-		});
-	}
 </script>
 
 <div class="field-card" class:empty={!hasValue} class:editing={isEditing}>
 	<div class="field-header">
 		<span class="field-label">{label}</span>
-		<button
-			class="action-btn history-btn"
-			on:click|stopPropagation={() => dispatch('history')}
-			aria-label="View history for {label}"
-			title="Version history"
-		>
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
+		<div class="header-actions">
+			{#if hasTextSuggestions}
+				<button
+					class="action-btn pick-btn"
+					on:click|stopPropagation={() => dispatch('picktext')}
+					aria-label="Pick from saved text for {label}"
+					title="Pick from saved text"
+				>
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+						<polyline points="14 2 14 8 20 8" />
+						<line x1="16" y1="13" x2="8" y2="13" />
+						<line x1="16" y1="17" x2="8" y2="17" />
+					</svg>
+				</button>
+			{/if}
+			<button
+				class="action-btn history-btn"
+				on:click|stopPropagation={() => dispatch('history')}
+				aria-label="View history for {label}"
+				title="Version history"
 			>
-				<circle cx="12" cy="12" r="10" />
-				<polyline points="12 6 12 12 16 14" />
-			</svg>
-		</button>
+				<svg
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<circle cx="12" cy="12" r="10" />
+					<polyline points="12 6 12 12 16 14" />
+				</svg>
+			</button>
+		</div>
 	</div>
 
 	{#if isEditing}
 		<div class="edit-area">
 			{#if type === 'text' || type === 'archetype'}
-				{#if (editValue?.length || 0) > 80}
+				{#if (localEditValue?.length || 0) > 80}
 					<textarea
 						bind:this={inputEl}
-						bind:value={editValue}
+						bind:value={localEditValue}
 						on:keydown={handleKeydown}
 						on:blur={handleBlur}
 						class="edit-input textarea"
@@ -103,7 +151,7 @@
 					<input
 						bind:this={inputEl}
 						type="text"
-						bind:value={editValue}
+						bind:value={localEditValue}
 						on:keydown={handleKeydown}
 						on:blur={handleBlur}
 						class="edit-input"
@@ -112,11 +160,11 @@
 				{/if}
 			{:else if type === 'color'}
 				<div class="color-edit">
-					<input type="color" bind:value={editValue} class="color-picker" />
+					<input type="color" bind:value={localEditValue} class="color-picker" />
 					<input
 						bind:this={inputEl}
 						type="text"
-						bind:value={editValue}
+						bind:value={localEditValue}
 						on:keydown={handleKeydown}
 						on:blur={handleBlur}
 						class="edit-input color-text"
@@ -126,7 +174,7 @@
 			{:else if type === 'list'}
 				<textarea
 					bind:this={inputEl}
-					bind:value={editValue}
+					bind:value={localEditValue}
 					on:keydown={handleKeydown}
 					on:blur={handleBlur}
 					class="edit-input textarea"
@@ -136,7 +184,7 @@
 			{:else}
 				<textarea
 					bind:this={inputEl}
-					bind:value={editValue}
+					bind:value={localEditValue}
 					on:keydown={handleKeydown}
 					on:blur={handleBlur}
 					class="edit-input textarea"
@@ -211,6 +259,12 @@
 		margin-bottom: 2px;
 	}
 
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+	}
+
 	.field-label {
 		font-size: 0.7rem;
 		font-weight: 600;
@@ -219,8 +273,8 @@
 		letter-spacing: 0.05em;
 	}
 
-	/* History button - always visible but subtle */
-	.history-btn {
+	/* Action buttons - always visible but subtle */
+	.action-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -236,23 +290,26 @@
 		flex-shrink: 0;
 	}
 
-	.field-card:hover .history-btn {
+	.field-card:hover .action-btn {
 		opacity: 0.6;
 	}
 
-	.history-btn:hover {
+	.action-btn:hover {
 		opacity: 1 !important;
 		background-color: var(--color-surface-hover);
 		color: var(--color-text);
 	}
 
+	.pick-btn:hover {
+		color: var(--color-primary);
+	}
+
 	/* Touch devices: always visible */
 	@media (hover: none) {
-		.history-btn {
+		.action-btn {
 			opacity: 0.5;
 		}
 	}
-
 	/* Clickable value area */
 	.field-value-area {
 		cursor: pointer;

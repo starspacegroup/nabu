@@ -118,7 +118,7 @@ describe('BrandFieldCard', () => {
       expect(input).toBeTruthy();
     });
 
-    it('should dispatch save on Enter key', async () => {
+    it('should dispatch save with value on Enter key', async () => {
       const { component } = render(BrandFieldCard, {
         props: {
           fieldKey: 'brandName',
@@ -136,6 +136,7 @@ describe('BrandFieldCard', () => {
       const input = screen.getByPlaceholderText(/brand name/i);
       await fireEvent.keyDown(input, { key: 'Enter' });
       expect(saveHandler).toHaveBeenCalled();
+      expect(saveHandler.mock.calls[0][0].detail).toEqual({ value: 'Acme' });
     });
 
     it('should dispatch cancel on Escape key', async () => {
@@ -158,7 +159,7 @@ describe('BrandFieldCard', () => {
       expect(cancelHandler).toHaveBeenCalled();
     });
 
-    it('should dispatch save on blur', async () => {
+    it('should dispatch save with value on blur', async () => {
       const { component } = render(BrandFieldCard, {
         props: {
           fieldKey: 'brandName',
@@ -176,6 +177,57 @@ describe('BrandFieldCard', () => {
       const input = screen.getByPlaceholderText(/brand name/i);
       await fireEvent.blur(input);
       expect(saveHandler).toHaveBeenCalled();
+      expect(saveHandler.mock.calls[0][0].detail).toEqual({ value: 'New Name' });
+    });
+
+    it('should NOT dispatch a second save via blur after Enter already saved', async () => {
+      const { component } = render(BrandFieldCard, {
+        props: {
+          fieldKey: 'brandName',
+          label: 'Brand Name',
+          value: 'Acme',
+          type: 'text',
+          isEditing: true,
+          editValue: 'Updated Name'
+        }
+      });
+
+      const saveHandler = vi.fn();
+      component.$on('save', saveHandler);
+
+      const input = screen.getByPlaceholderText(/brand name/i);
+      // Pressing Enter should save with value, then blur should NOT save again
+      await fireEvent.keyDown(input, { key: 'Enter' });
+      expect(saveHandler).toHaveBeenCalledTimes(1);
+      expect(saveHandler.mock.calls[0][0].detail).toEqual({ value: 'Updated Name' });
+
+      // The blur triggered by Enter (inputEl.blur()) should be suppressed
+      // No additional fireEvent.blur needed — it was called in the handler
+    });
+
+    it('should NOT dispatch save via blur after Escape cancelled', async () => {
+      const { component } = render(BrandFieldCard, {
+        props: {
+          fieldKey: 'brandName',
+          label: 'Brand Name',
+          value: 'Acme',
+          type: 'text',
+          isEditing: true,
+          editValue: 'Acme'
+        }
+      });
+
+      const saveHandler = vi.fn();
+      const cancelHandler = vi.fn();
+      component.$on('save', saveHandler);
+      component.$on('cancel', cancelHandler);
+
+      const input = screen.getByPlaceholderText(/brand name/i);
+      await fireEvent.keyDown(input, { key: 'Escape' });
+      expect(cancelHandler).toHaveBeenCalled();
+
+      await fireEvent.blur(input);
+      expect(saveHandler).not.toHaveBeenCalled();
     });
   });
 

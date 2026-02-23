@@ -9,7 +9,9 @@ import {
   updateBrandFieldWithVersion,
   getBrandFieldsSummary,
   revertFieldToVersion,
-  BRAND_FIELD_LABELS
+  BRAND_FIELD_LABELS,
+  FIELD_TO_TEXT_MAPPING,
+  getTextSuggestionsForField
 } from '$lib/services/brand';
 
 // Mock D1 database
@@ -302,6 +304,110 @@ describe('Brand Service', () => {
           versionId: 'nonexistent'
         })
       ).rejects.toThrow('Version not found');
+    });
+  });
+
+  describe('FIELD_TO_TEXT_MAPPING', () => {
+    it('should map brand profile fields to text asset categories and keys', () => {
+      expect(FIELD_TO_TEXT_MAPPING).toBeDefined();
+      expect(typeof FIELD_TO_TEXT_MAPPING).toBe('object');
+    });
+
+    it('should map tagline to messaging category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.tagline;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('messaging');
+      expect(mapping.keys).toContain('tagline');
+    });
+
+    it('should map missionStatement to messaging category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.missionStatement;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('messaging');
+      expect(mapping.keys).toContain('mission');
+    });
+
+    it('should map visionStatement to messaging category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.visionStatement;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('messaging');
+      expect(mapping.keys).toContain('vision');
+    });
+
+    it('should map elevatorPitch to messaging category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.elevatorPitch;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('messaging');
+      expect(mapping.keys).toContain('elevator_pitch');
+    });
+
+    it('should map valueProposition to messaging category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.valueProposition;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('messaging');
+      expect(mapping.keys).toContain('value_proposition');
+    });
+
+    it('should map brandName to names category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.brandName;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('names');
+    });
+
+    it('should map toneOfVoice to voice category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.toneOfVoice;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('voice');
+    });
+
+    it('should map originStory to descriptions category', () => {
+      const mapping = FIELD_TO_TEXT_MAPPING.originStory;
+      expect(mapping).toBeDefined();
+      expect(mapping.category).toBe('descriptions');
+    });
+
+    it('should not map color fields (they are not text)', () => {
+      expect(FIELD_TO_TEXT_MAPPING.primaryColor).toBeUndefined();
+      expect(FIELD_TO_TEXT_MAPPING.secondaryColor).toBeUndefined();
+      expect(FIELD_TO_TEXT_MAPPING.accentColor).toBeUndefined();
+    });
+  });
+
+  describe('getTextSuggestionsForField', () => {
+    it('should return matching text assets for a mapped field', async () => {
+      const mockTexts = [
+        { id: 't1', brand_profile_id: 'p1', category: 'messaging', key: 'tagline', label: 'Tagline', value: 'Build the future', language: 'en', sort_order: 0, metadata: null, created_at: '2025-01-01', updated_at: '2025-01-01' },
+        { id: 't2', brand_profile_id: 'p1', category: 'messaging', key: 'slogan', label: 'Slogan', value: 'Innovation starts here', language: 'en', sort_order: 1, metadata: null, created_at: '2025-01-01', updated_at: '2025-01-01' }
+      ];
+      mockDB._mockAll.mockResolvedValueOnce({ results: mockTexts, success: true, meta: {} });
+
+      const suggestions = await getTextSuggestionsForField(mockDB as any, 'p1', 'tagline');
+
+      expect(suggestions).toHaveLength(2);
+      expect(suggestions[0].value).toBe('Build the future');
+      expect(suggestions[1].value).toBe('Innovation starts here');
+    });
+
+    it('should return empty array for unmapped fields', async () => {
+      const suggestions = await getTextSuggestionsForField(mockDB as any, 'p1', 'primaryColor');
+      expect(suggestions).toEqual([]);
+    });
+
+    it('should return empty array when no texts exist', async () => {
+      mockDB._mockAll.mockResolvedValueOnce({ results: [], success: true, meta: {} });
+
+      const suggestions = await getTextSuggestionsForField(mockDB as any, 'p1', 'tagline');
+      expect(suggestions).toEqual([]);
+    });
+
+    it('should query the correct category', async () => {
+      mockDB._mockAll.mockResolvedValueOnce({ results: [], success: true, meta: {} });
+
+      await getTextSuggestionsForField(mockDB as any, 'p1', 'missionStatement');
+
+      expect(mockDB.prepare).toHaveBeenCalledWith(
+        expect.stringContaining('category = ?')
+      );
     });
   });
 });

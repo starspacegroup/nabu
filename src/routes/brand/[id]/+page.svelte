@@ -4,9 +4,11 @@
 	import type { BrandProfile } from '$lib/types/onboarding';
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
+	import BrandTextPicker from '$lib/components/BrandTextPicker.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
 	import { labelToKey } from '$lib/utils/text';
+	import { FIELD_TO_TEXT_MAPPING } from '$lib/services/brand';
 
 	export let data: PageData;
 
@@ -102,6 +104,11 @@
 	// Editing state (profile fields)
 	let editingField: string | null = null;
 	let editValue = '';
+	let isSaving = false;
+
+	// Text picker state
+	let pickerFieldKey: string | null = null;
+	let pickerFieldLabel: string | null = null;
 
 	// Asset state
 	let assetSummary: AssetSummary | null = null;
@@ -223,23 +230,62 @@
 		editValue = '';
 	}
 
-	async function saveField(fieldKey: string, fieldType: string) {
-		if (!profile) return;
+	function openTextPicker(fieldKey: string, fieldLabel: string) {
+		pickerFieldKey = fieldKey;
+		pickerFieldLabel = fieldLabel;
+	}
 
-		let parsedValue: unknown = editValue;
+	function closeTextPicker() {
+		pickerFieldKey = null;
+		pickerFieldLabel = null;
+	}
+
+	async function handleTextPicked(event: CustomEvent<{ value: string; label: string }>) {
+		if (!profile || !pickerFieldKey) return;
+		const fieldKey = pickerFieldKey;
+		closeTextPicker();
+
+		try {
+			const res = await fetch('/api/brand/update-field', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					profileId: profile.id,
+					fieldName: fieldKey,
+					newValue: event.detail.value,
+					changeSource: 'manual'
+				})
+			});
+
+			if (!res.ok) throw new Error('Failed to save');
+			await loadProfile();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to apply text';
+		}
+	}
+
+	async function saveField(fieldKey: string, fieldType: string, valueFromEvent?: string) {
+		if (!profile || isSaving) return;
+		isSaving = true;
+
+		// Use the value passed from the event (captured at save time)
+		// This is critical — editValue can be corrupted by re-renders
+		const rawValue = valueFromEvent ?? editValue;
+
+		let parsedValue: unknown = rawValue;
 
 		// Parse list fields
-		if (fieldType === 'list' && typeof editValue === 'string') {
-			parsedValue = editValue
+		if (fieldType === 'list' && typeof rawValue === 'string') {
+			parsedValue = rawValue
 				.split(',')
 				.map((s) => s.trim())
 				.filter(Boolean);
 		}
 
 		// Parse object fields
-		if (fieldType === 'object' && typeof editValue === 'string') {
+		if (fieldType === 'object' && typeof rawValue === 'string') {
 			try {
-				parsedValue = JSON.parse(editValue);
+				parsedValue = JSON.parse(rawValue);
 			} catch {
 				// Keep as string if not valid JSON
 			}
@@ -259,11 +305,13 @@
 
 			if (!res.ok) throw new Error('Failed to save');
 
+			await loadProfile();
 			editingField = null;
 			editValue = '';
-			await loadProfile();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save field';
+		} finally {
+			isSaving = false;
 		}
 	}
 
@@ -672,18 +720,20 @@
 						</div>
 
 						<div class="fields-list">
-							{#each section.fields as field}
+							{#each section.fields as field (field.key)}
 								<BrandFieldCard
 									fieldKey={field.key}
 									label={field.label}
 									value={field.value}
 									type={field.type}
 									isEditing={editingField === field.key}
-									bind:editValue
+									hasTextSuggestions={!!FIELD_TO_TEXT_MAPPING[field.key]}
+									editValue={editValue}
 									on:edit={() => startEditing(field.key, field.value)}
-									on:save={() => saveField(field.key, field.type)}
+									on:save={(e) => saveField(field.key, field.type, e.detail?.value)}
 									on:cancel={cancelEditing}
 									on:history={() => openHistory(field.key, field.label)}
+									on:picktext={() => openTextPicker(field.key, field.label)}
 								/>
 							{/each}
 						</div>
@@ -963,6 +1013,17 @@
 			fieldLabel={historyFieldLabel || historyFieldKey}
 			on:close={closeHistory}
 			on:revert={handleRevert}
+		/>
+	{/if}
+
+	<!-- Text Picker Modal -->
+	{#if pickerFieldKey && profile}
+		<BrandTextPicker
+			brandProfileId={profile.id}
+			fieldName={pickerFieldKey}
+			fieldLabel={pickerFieldLabel || pickerFieldKey}
+			on:select={handleTextPicked}
+			on:close={closeTextPicker}
 		/>
 	{/if}
 </div>

@@ -121,6 +121,75 @@ const JSON_OBJECT_FIELDS = new Set([
   'styleGuide'
 ]);
 
+/** A text suggestion from saved brand text assets */
+export interface TextSuggestion {
+  id: string;
+  category: string;
+  key: string;
+  label: string;
+  value: string;
+  language: string;
+}
+
+/**
+ * Mapping from brand profile field names to text asset categories/keys.
+ * This allows "pick from saved text" for profile fields that have
+ * corresponding text assets stored in brand_texts.
+ */
+export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: string[]; }> = {
+  // Identity → Names
+  brandName: { category: 'names', keys: ['brand_name', 'primary_name', 'company_name'] },
+  // Identity → Messaging
+  tagline: { category: 'messaging', keys: ['tagline', 'slogan'] },
+  missionStatement: { category: 'messaging', keys: ['mission', 'mission_statement'] },
+  visionStatement: { category: 'messaging', keys: ['vision', 'vision_statement'] },
+  elevatorPitch: { category: 'messaging', keys: ['elevator_pitch', 'pitch'] },
+  valueProposition: { category: 'messaging', keys: ['value_proposition'] },
+  brandPromise: { category: 'messaging', keys: ['brand_promise', 'promise'] },
+  // Personality → Voice
+  toneOfVoice: { category: 'voice', keys: ['tone', 'tone_of_voice', 'tone_guidelines'] },
+  communicationStyle: { category: 'voice', keys: ['communication_style', 'style_guidelines'] },
+  // Story → Descriptions
+  originStory: { category: 'descriptions', keys: ['origin_story', 'about_us', 'long_bio'] },
+  // Market
+  marketPosition: { category: 'descriptions', keys: ['market_position', 'positioning'] },
+  industry: { category: 'descriptions', keys: ['industry'] },
+  logoConcept: { category: 'descriptions', keys: ['logo_concept', 'logo_description'] },
+};
+
+/**
+ * Get text asset suggestions that could populate a brand profile field.
+ * Returns all text assets from the matching category for that field,
+ * so the user can pick any saved text — not just exact key matches.
+ */
+export async function getTextSuggestionsForField(
+  db: D1Database,
+  brandProfileId: string,
+  fieldName: string
+): Promise<TextSuggestion[]> {
+  const mapping = FIELD_TO_TEXT_MAPPING[fieldName];
+  if (!mapping) return [];
+
+  const result = await db
+    .prepare(
+      `SELECT id, category, key, label, value, language
+       FROM brand_texts
+       WHERE brand_profile_id = ? AND category = ?
+       ORDER BY sort_order, key`
+    )
+    .bind(brandProfileId, mapping.category)
+    .all();
+
+  return (result.results || []).map((row) => ({
+    id: (row as Record<string, unknown>).id as string,
+    category: (row as Record<string, unknown>).category as string,
+    key: (row as Record<string, unknown>).key as string,
+    label: (row as Record<string, unknown>).label as string,
+    value: (row as Record<string, unknown>).value as string,
+    language: (row as Record<string, unknown>).language as string,
+  }));
+}
+
 /**
  * Map a database row to a BrandFieldVersion
  */
