@@ -28,6 +28,7 @@ export async function POST({ params, request, platform, locals }: RequestEvent) 
       content,
       cost,
       media,
+      attachments,
       id: messageId
     } = body;
 
@@ -47,8 +48,9 @@ export async function POST({ params, request, platform, locals }: RequestEvent) 
 				id, user_id, conversation_id, role, content, created_at,
 				input_tokens, output_tokens, total_cost, model, display_name,
 				media_type, media_url, media_thumbnail_url, media_status,
-				media_r2_key, media_duration, media_error, media_provider_job_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+				media_r2_key, media_duration, media_error, media_provider_job_id,
+				attachments
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -69,7 +71,8 @@ export async function POST({ params, request, platform, locals }: RequestEvent) 
         media?.r2Key || null,
         media?.duration || null,
         media?.error || null,
-        media?.providerJobId || null
+        media?.providerJobId || null,
+        attachments ? JSON.stringify(attachments) : null
       )
       .run();
 
@@ -119,6 +122,10 @@ export async function POST({ params, request, platform, locals }: RequestEvent) 
 
     if (media) {
       message.media = media;
+    }
+
+    if (attachments) {
+      message.attachments = attachments;
     }
 
     return json(message);

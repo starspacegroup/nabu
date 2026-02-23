@@ -27,7 +27,8 @@ export async function GET({ params, platform, locals }: RequestEvent) {
       `SELECT id, role, content, created_at,
 				input_tokens, output_tokens, total_cost, model, display_name,
 				media_type, media_url, media_thumbnail_url, media_status,
-				media_r2_key, media_duration, media_error, media_provider_job_id
+				media_r2_key, media_duration, media_error, media_provider_job_id,
+				attachments
 			FROM chat_messages
 			WHERE conversation_id = ?
 			ORDER BY created_at ASC`
@@ -65,6 +66,15 @@ export async function GET({ params, platform, locals }: RequestEvent) {
           error: row.media_error,
           providerJobId: row.media_provider_job_id
         };
+      }
+
+      // Include attachments if present
+      if (row.attachments) {
+        try {
+          msg.attachments = JSON.parse(row.attachments);
+        } catch {
+          // Ignore parse errors
+        }
       }
 
       return msg;

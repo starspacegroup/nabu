@@ -4,7 +4,7 @@
  */
 
 import { writable, get } from 'svelte/store';
-import type { BrandProfile, OnboardingMessage, OnboardingStep } from '$lib/types/onboarding';
+import type { BrandProfile, OnboardingMessage, OnboardingStep, OnboardingAttachment } from '$lib/types/onboarding';
 import { STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
 interface OnboardingState {
@@ -122,8 +122,9 @@ export async function loadExistingProfile(brandId?: string): Promise<BrandProfil
 /**
  * Send a message in the onboarding conversation
  * Handles SSE streaming from the API
+ * Supports file attachments (already uploaded to R2)
  */
-export async function sendMessage(content: string): Promise<void> {
+export async function sendMessage(content: string, attachments?: OnboardingAttachment[]): Promise<void> {
   const state = get(onboardingStore);
   if (!state.profile) return;
 
@@ -135,6 +136,7 @@ export async function sendMessage(content: string): Promise<void> {
     role: 'user',
     content,
     step: state.currentStep,
+    attachments: attachments || undefined,
     createdAt: new Date().toISOString()
   };
 
@@ -152,7 +154,8 @@ export async function sendMessage(content: string): Promise<void> {
       body: JSON.stringify({
         profileId: state.profile.id,
         message: content,
-        step: state.currentStep
+        step: state.currentStep,
+        attachments: attachments || undefined
       })
     });
 

@@ -5,7 +5,16 @@
 
 export interface ChatMessage {
 	role: 'user' | 'assistant' | 'system';
-	content: string;
+	content: string | ChatMessageContentPart[];
+}
+
+export interface ChatMessageContentPart {
+	type: 'text' | 'image_url';
+	text?: string;
+	image_url?: {
+		url: string;
+		detail?: 'auto' | 'low' | 'high';
+	};
 }
 
 export interface AIKey {
@@ -201,10 +210,24 @@ export async function createRealtimeSession(
 
 /**
  * Format messages for OpenAI API
+ * Supports multi-modal messages with image attachments
  */
 export function formatMessagesForOpenAI(
-	messages: Array<{ id: string; role: string; content: string; timestamp: Date }>,
-	options: { includeSystem?: boolean } = {}
+	messages: Array<{
+		id: string;
+		role: string;
+		content: string;
+		timestamp: Date;
+		attachments?: Array<{
+			id: string;
+			type: 'image' | 'video';
+			name: string;
+			url: string;
+			mimeType: string;
+			size?: number;
+		}>;
+	}>,
+	options: { includeSystem?: boolean; } = {}
 ): ChatMessage[] {
 	const { includeSystem = true } = options;
 
@@ -215,8 +238,37 @@ export function formatMessagesForOpenAI(
 			}
 			return msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system';
 		})
-		.map((msg) => ({
-			role: msg.role as 'user' | 'assistant' | 'system',
-			content: msg.content
-		}));
+		.map((msg) => {
+			const role = msg.role as 'user' | 'assistant' | 'system';
+
+			// Only user messages can have attachments
+			const imageAttachments = (msg.attachments || []).filter((a) => a.type === 'image');
+			const videoAttachments = (msg.attachments || []).filter((a) => a.type === 'video');
+
+			// Build text with video notes if any
+			let textContent = msg.content;
+			if (videoAttachments.length > 0) {
+				const videoNames = videoAttachments.map((v) => v.name).join(', ');
+				textContent += `\n\n[Attached video${videoAttachments.length > 1 ? 's' : ''}: ${videoNames}]`;
+			}
+
+			// If no image attachments or not a user message, return plain text
+			if (role !== 'user' || !imageAttachments.length) {
+				return { role, content: textContent };
+			}
+
+			// Build multi-modal content array for messages with images
+			const content: ChatMessageContentPart[] = [];
+			content.push({ type: 'text', text: textContent });
+
+			// Add image attachments as image_url parts
+			for (const img of imageAttachments) {
+				content.push({
+					type: 'image_url',
+					image_url: { url: img.url, detail: 'auto' }
+				});
+			}
+
+			return { role, content };
+		});
 }

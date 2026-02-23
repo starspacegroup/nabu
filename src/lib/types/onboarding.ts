@@ -146,7 +146,20 @@ export interface OnboardingMessage {
   content: string;
   step?: OnboardingStep;
   metadata?: Record<string, unknown>;
+  attachments?: OnboardingAttachment[];
   createdAt: string;
+}
+
+/** Attachment on an onboarding message */
+export interface OnboardingAttachment {
+  id: string;
+  type: 'image' | 'video' | 'audio';
+  name: string;
+  url: string;
+  r2Key: string;
+  mimeType: string;
+  size: number;
+  archiveId?: string;
 }
 
 /** Step configuration for the onboarding wizard */

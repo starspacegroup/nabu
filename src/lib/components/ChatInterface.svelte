@@ -2,10 +2,19 @@
 	import {
 		chatHistoryStore,
 		currentMessages,
+		type ChatAttachment,
 		type MediaAttachment,
 		type MessageCost
 	} from '$lib/stores/chatHistory';
 	import { calculateCost, formatCost, getModelDisplayName } from '$lib/utils/cost';
+	import {
+		fileToDataUrl,
+		formatFileSize,
+		getAcceptString,
+		getAttachmentType,
+		MAX_ATTACHMENTS,
+		validateAttachmentFile
+	} from '$lib/utils/attachments';
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { fade, fly } from 'svelte/transition';
@@ -65,10 +74,16 @@
 		outputTokens: number;
 	} = { inputTokens: 0, outputTokens: 0 };
 
+	// Attachments state
+	let pendingAttachments: ChatAttachment[] = [];
+	let fileInputElement: HTMLInputElement;
+	let isDragOver = false;
+	let attachmentError = '';
+
 	// Input state
 	const MAX_INPUT_LENGTH = 4000;
 	$: inputLength = input.length;
-	$: canSend = input.trim().length > 0 && !isLoading && !isVoiceActive;
+	$: canSend = (input.trim().length > 0 || pendingAttachments.length > 0) && !isLoading && !isVoiceActive;
 	$: showCharCount = inputLength > MAX_INPUT_LENGTH * 0.8;
 
 	onMount(() => {
@@ -150,6 +165,9 @@
 			return;
 		}
 
+		// Capture current attachments and clear them
+		const messageAttachments = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined;
+
 		// Add user message to store with the selected model
 		const userCost: MessageCost = {
 			inputTokens: 0,
@@ -160,11 +178,14 @@
 		};
 		chatHistoryStore.addMessage(conversationId, {
 			role: 'user',
-			content: messageContent,
-			cost: userCost
+			content: messageContent || (messageAttachments ? `[${messageAttachments.length} attachment${messageAttachments.length > 1 ? 's' : ''}]` : ''),
+			cost: userCost,
+			attachments: messageAttachments
 		});
 
 		input = '';
+		pendingAttachments = [];
+		attachmentError = '';
 		isLoading = true;
 		autoResizeTextarea();
 		scrollToBottom();
@@ -384,6 +405,114 @@
 		if (!conversationId) return;
 
 		sendVideoGeneration(conversationId, event.detail.prompt);
+	}
+
+	/**
+	 * Handle file selection from file input
+	 */
+	async function handleFileSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (!input.files?.length) return;
+		await addFiles(Array.from(input.files));
+		// Reset input so the same file can be selected again
+		input.value = '';
+	}
+
+	/**
+	 * Handle drag over events
+	 */
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+		isDragOver = true;
+	}
+
+	function handleDragLeave(event: DragEvent) {
+		event.preventDefault();
+		isDragOver = false;
+	}
+
+	/**
+	 * Handle file drop
+	 */
+	async function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		isDragOver = false;
+		if (!event.dataTransfer?.files?.length) return;
+		await addFiles(Array.from(event.dataTransfer.files));
+	}
+
+	/**
+	 * Handle paste events for image paste
+	 */
+	async function handlePaste(event: ClipboardEvent) {
+		const items = event.clipboardData?.items;
+		if (!items) return;
+
+		const files: File[] = [];
+		for (const item of items) {
+			if (item.kind === 'file') {
+				const file = item.getAsFile();
+				if (file) files.push(file);
+			}
+		}
+
+		if (files.length > 0) {
+			event.preventDefault();
+			await addFiles(files);
+		}
+	}
+
+	/**
+	 * Add files as pending attachments
+	 */
+	async function addFiles(files: File[]) {
+		attachmentError = '';
+
+		for (const file of files) {
+			if (pendingAttachments.length >= MAX_ATTACHMENTS) {
+				attachmentError = `Maximum ${MAX_ATTACHMENTS} attachments allowed`;
+				break;
+			}
+
+			const validationError = validateAttachmentFile(file);
+			if (validationError) {
+				attachmentError = validationError;
+				continue;
+			}
+
+			try {
+				const dataUrl = await fileToDataUrl(file);
+				const attachmentType = getAttachmentType(file.type);
+
+				const attachment: ChatAttachment = {
+					id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+					type: attachmentType!,
+					name: file.name,
+					url: dataUrl,
+					mimeType: file.type,
+					size: file.size
+				};
+
+				pendingAttachments = [...pendingAttachments, attachment];
+			} catch (err) {
+				attachmentError = `Failed to read file: ${file.name}`;
+			}
+		}
+	}
+
+	/**
+	 * Remove a pending attachment
+	 */
+	function removeAttachment(id: string) {
+		pendingAttachments = pendingAttachments.filter((a) => a.id !== id);
+		attachmentError = '';
+	}
+
+	/**
+	 * Open the file picker
+	 */
+	function openFilePicker() {
+		fileInputElement?.click();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -943,6 +1072,32 @@
 					{:else}
 						<div class="message-content">{message.content}</div>
 					{/if}
+					{#if message.attachments && message.attachments.length > 0}
+						<div class="message-attachments">
+							{#each message.attachments as attachment (attachment.id)}
+								<div class="attachment-preview-item">
+									{#if attachment.type === 'image'}
+										<img
+											src={attachment.url}
+											alt={attachment.name}
+											class="attachment-image"
+											loading="lazy"
+										/>
+									{:else if attachment.type === 'video'}
+										<video
+											src={attachment.url}
+											controls
+											class="attachment-video"
+											preload="metadata"
+										>
+											<track kind="captions" />
+										</video>
+									{/if}
+									<span class="attachment-name">{attachment.name}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
 					<div class="message-meta">
 						<span class="message-timestamp">
 							{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1097,7 +1252,96 @@
 
 		<!-- Main input container -->
 		<div class="input-wrapper">
-			<div class="input-container" class:focused={isFocused}>
+			<!-- Pending attachments preview -->
+			{#if pendingAttachments.length > 0}
+				<div class="pending-attachments" in:fly={{ y: 10, duration: 200 }}>
+					{#each pendingAttachments as attachment (attachment.id)}
+						<div class="pending-attachment" in:fade={{ duration: 150 }}>
+							{#if attachment.type === 'image'}
+								<img src={attachment.url} alt={attachment.name} class="pending-thumbnail" />
+							{:else}
+								<div class="pending-video-icon">
+									<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<rect x="2" y="4" width="20" height="16" rx="2" />
+										<polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none" />
+									</svg>
+								</div>
+							{/if}
+							<span class="pending-name" title={attachment.name}>{attachment.name}</span>
+							<button
+								class="remove-attachment"
+								on:click={() => removeAttachment(attachment.id)}
+								aria-label="Remove {attachment.name}"
+								title="Remove attachment"
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<line x1="18" y1="6" x2="6" y2="18" />
+									<line x1="6" y1="6" x2="18" y2="18" />
+								</svg>
+							</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<!-- Attachment error message -->
+			{#if attachmentError}
+				<div class="attachment-error" in:fade={{ duration: 200 }}>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="12" cy="12" r="10" />
+						<line x1="15" y1="9" x2="9" y2="15" />
+						<line x1="9" y1="9" x2="15" y2="15" />
+					</svg>
+					{attachmentError}
+				</div>
+			{/if}
+
+			<div
+				class="input-container"
+				class:focused={isFocused}
+				class:drag-over={isDragOver}
+				on:dragover={handleDragOver}
+				on:dragleave={handleDragLeave}
+				on:drop={handleDrop}
+				role="region"
+				aria-label="Message input with file drop support"
+			>
+				<!-- Hidden file input -->
+				<input
+					type="file"
+					bind:this={fileInputElement}
+					on:change={handleFileSelect}
+					accept={getAcceptString()}
+					multiple
+					class="hidden-file-input"
+					aria-hidden="true"
+					tabindex="-1"
+				/>
+
+				<!-- Attach button -->
+				{#if !isVoiceActive && !isVideoMode}
+					<button
+						class="attach-button"
+						on:click={openFilePicker}
+						disabled={isLoading || pendingAttachments.length >= MAX_ATTACHMENTS}
+						aria-label="Attach image or video"
+						title="Attach image or video"
+					>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+						</svg>
+					</button>
+				{/if}
+
 				<!-- Input field with send button inside -->
 				<div class="textarea-wrapper">
 					<textarea
@@ -1105,13 +1349,16 @@
 						bind:value={input}
 						on:input={autoResizeTextarea}
 						on:keydown={handleKeydown}
+						on:paste={handlePaste}
 						on:focus={() => (isFocused = true)}
 						on:blur={() => (isFocused = false)}
 						placeholder={isVoiceActive
 							? 'Voice chat is active'
 							: isVideoMode
 								? 'Describe the video you want to generate...'
-								: 'Message AI assistant'}
+								: pendingAttachments.length > 0
+									? 'Add a message or send attachments...'
+									: 'Message AI assistant'}
 						class="chat-input"
 						class:voice-active={isVoiceActive}
 						class:has-send-button={!isVoiceActive}
@@ -1158,6 +1405,18 @@
 						</button>
 					{/if}
 				</div>
+
+				<!-- Drag overlay -->
+				{#if isDragOver}
+					<div class="drag-overlay" in:fade={{ duration: 150 }}>
+						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+							<polyline points="17 8 12 3 7 8" />
+							<line x1="12" y1="3" x2="12" y2="15" />
+						</svg>
+						<span>Drop files here</span>
+					</div>
+				{/if}
 
 				<!-- Video mode toggle button -->
 				{#if videoAvailable}
@@ -1673,6 +1932,185 @@
 
 	.aspect-select {
 		max-width: 90px;
+	}
+
+	/* Attachment styles */
+	.hidden-file-input {
+		position: absolute;
+		width: 0;
+		height: 0;
+		overflow: hidden;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.attach-button {
+		width: 44px;
+		height: 44px;
+		border-radius: var(--radius-md);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all var(--transition-base);
+		flex-shrink: 0;
+		border: none;
+		background: transparent;
+		color: var(--color-text-secondary);
+	}
+
+	.attach-button:hover:not(:disabled) {
+		background: var(--color-surface-hover);
+		color: var(--color-text);
+		transform: scale(1.05);
+	}
+
+	.attach-button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.input-container.drag-over {
+		border-color: var(--color-primary);
+		background: rgba(59, 130, 246, 0.05);
+	}
+
+	.drag-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(59, 130, 246, 0.1);
+		border-radius: var(--radius-xl);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-sm);
+		color: var(--color-primary);
+		font-size: 0.875rem;
+		font-weight: 500;
+		pointer-events: none;
+		z-index: 10;
+	}
+
+	.pending-attachments {
+		display: flex;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-xs) 0;
+		overflow-x: auto;
+		scrollbar-width: thin;
+	}
+
+	.pending-attachment {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		min-width: 0;
+		max-width: 200px;
+	}
+
+	.pending-thumbnail {
+		width: 36px;
+		height: 36px;
+		object-fit: cover;
+		border-radius: var(--radius-sm);
+		flex-shrink: 0;
+	}
+
+	.pending-video-icon {
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-background);
+		border-radius: var(--radius-sm);
+		flex-shrink: 0;
+		color: var(--color-text-secondary);
+	}
+
+	.pending-name {
+		font-size: 0.75rem;
+		color: var(--color-text-secondary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+	}
+
+	.remove-attachment {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		border: none;
+		background: transparent;
+		color: var(--color-text-secondary);
+		flex-shrink: 0;
+		transition: all var(--transition-fast);
+	}
+
+	.remove-attachment:hover {
+		background: var(--color-error, #ef4444);
+		color: white;
+	}
+
+	.attachment-error {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		font-size: 0.75rem;
+		color: var(--color-error, #ef4444);
+		padding: var(--spacing-xs) 0;
+	}
+
+	/* Message attachment display */
+	.message-attachments {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-sm);
+		margin-top: var(--spacing-xs);
+	}
+
+	.attachment-preview-item {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+		max-width: 300px;
+	}
+
+	.attachment-image {
+		max-width: 100%;
+		max-height: 300px;
+		border-radius: var(--radius-md);
+		object-fit: contain;
+		cursor: pointer;
+		transition: opacity var(--transition-fast);
+		border: 1px solid var(--color-border);
+	}
+
+	.attachment-image:hover {
+		opacity: 0.9;
+	}
+
+	.attachment-video {
+		max-width: 100%;
+		max-height: 300px;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--color-border);
+	}
+
+	.attachment-name {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	@media (min-width: 769px) {

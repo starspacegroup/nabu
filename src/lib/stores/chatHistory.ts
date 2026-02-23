@@ -21,6 +21,17 @@ export interface MediaAttachment {
 	generationId?: string;
 }
 
+export interface ChatAttachment {
+	id: string;
+	type: 'image' | 'video' | 'audio';
+	name: string;
+	url: string;
+	mimeType: string;
+	size?: number;
+	r2Key?: string;
+	archiveId?: string;
+}
+
 export interface Message {
 	id: string;
 	role: 'user' | 'assistant' | 'system';
@@ -28,6 +39,7 @@ export interface Message {
 	timestamp: Date;
 	cost?: MessageCost;
 	media?: MediaAttachment;
+	attachments?: ChatAttachment[];
 }
 
 export interface Conversation {
@@ -257,6 +269,7 @@ function createChatHistoryStore() {
 				content: string;
 				cost?: MessageCost;
 				media?: MediaAttachment;
+				attachments?: ChatAttachment[];
 				id?: string;
 			}
 		): Message {
@@ -266,7 +279,8 @@ function createChatHistoryStore() {
 				content: message.content,
 				timestamp: new Date(),
 				cost: message.cost,
-				media: message.media
+				media: message.media,
+				attachments: message.attachments
 			};
 
 			update((state) => {
@@ -309,7 +323,8 @@ function createChatHistoryStore() {
 						role: message.role,
 						content: message.content,
 						cost: message.cost,
-						media: message.media
+						media: message.media,
+						attachments: message.attachments
 					})
 				}).catch((err) => console.error('Failed to persist message:', err));
 			}

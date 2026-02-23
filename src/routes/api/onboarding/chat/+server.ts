@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   }
 
   const body = await request.json();
-  const { profileId, message, step } = body;
+  const { profileId, message, step, attachments } = body;
 
   if (!profileId || !message || !step) {
     throw error(400, 'profileId, message, and step are required');
@@ -52,13 +52,18 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(503, 'No AI provider configured. Please configure an OpenAI API key.');
   }
 
-  // Persist user message
+  // Persist user message (with attachments metadata if any)
+  const attachmentsJson = attachments && attachments.length > 0
+    ? JSON.stringify(attachments)
+    : null;
+
   await addOnboardingMessage(platform!.env.DB, {
     brandProfileId: profileId,
     userId: locals.user.id,
     role: 'user',
     content: message,
-    step: step as OnboardingStep
+    step: step as OnboardingStep,
+    attachments: attachmentsJson
   });
 
   // Get all previous messages for context

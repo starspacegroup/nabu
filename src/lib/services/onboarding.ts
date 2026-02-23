@@ -12,7 +12,7 @@ import type {
   BrandStyleGuide,
   TargetAudience
 } from '$lib/types/onboarding';
-import type { ChatMessage } from '$lib/services/openai-chat';
+import type { ChatMessage, ChatMessageContentPart } from '$lib/services/openai-chat';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { BrandText, BrandAssetSummary } from '$lib/types/brand-assets';
 
@@ -641,6 +641,14 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
  * Map a database row to an OnboardingMessage
  */
 function mapRowToMessage(row: Record<string, unknown>): OnboardingMessage {
+  let attachments;
+  if (row.attachments) {
+    try {
+      attachments = JSON.parse(row.attachments as string);
+    } catch {
+      attachments = undefined;
+    }
+  }
   return {
     id: row.id as string,
     brandProfileId: row.brand_profile_id as string,
@@ -649,6 +657,7 @@ function mapRowToMessage(row: Record<string, unknown>): OnboardingMessage {
     content: row.content as string,
     step: (row.step as OnboardingStep) || undefined,
     metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined,
+    attachments,
     createdAt: row.created_at as string
   };
 }
@@ -818,6 +827,7 @@ export async function addOnboardingMessage(
     content: string;
     step?: OnboardingStep;
     metadata?: Record<string, unknown>;
+    attachments?: string | null;
   }
 ): Promise<OnboardingMessage> {
   const id = crypto.randomUUID();
@@ -825,8 +835,8 @@ export async function addOnboardingMessage(
 
   await db
     .prepare(
-      `INSERT INTO onboarding_messages (id, brand_profile_id, user_id, role, content, step, metadata, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO onboarding_messages (id, brand_profile_id, user_id, role, content, step, metadata, attachments, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -836,6 +846,7 @@ export async function addOnboardingMessage(
       message.content,
       message.step || null,
       message.metadata ? JSON.stringify(message.metadata) : null,
+      message.attachments || null,
       now
     )
     .run();
@@ -881,6 +892,7 @@ export async function getOnboardingMessages(
 /**
  * Build the conversation context for an AI request
  * Combines system prompt with previous messages
+ * Includes image attachments as multi-modal content for vision
  */
 export function buildConversationContext(
   step: OnboardingStep,
@@ -893,7 +905,42 @@ export function buildConversationContext(
 
   for (const msg of messages) {
     if (msg.role === 'user' || msg.role === 'assistant') {
-      result.push({ role: msg.role, content: msg.content });
+      // Check for image attachments to send as multi-modal content
+      const imageAttachments = msg.attachments?.filter(a => a.type === 'image') || [];
+      const otherAttachments = msg.attachments?.filter(a => a.type !== 'image') || [];
+
+      if (imageAttachments.length > 0 && msg.role === 'user') {
+        // Build multi-modal content with text + images
+        const contentParts: ChatMessageContentPart[] = [];
+
+        // Add text content
+        let textContent = msg.content;
+        if (otherAttachments.length > 0) {
+          const attachmentList = otherAttachments
+            .map(a => `[Attached ${a.type}: ${a.name}]`)
+            .join('\n');
+          textContent += '\n\n' + attachmentList;
+        }
+        contentParts.push({ type: 'text', text: textContent });
+
+        // Add image URLs for vision
+        for (const img of imageAttachments) {
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: img.url, detail: 'auto' }
+          });
+        }
+
+        result.push({ role: 'user', content: contentParts });
+      } else if (otherAttachments.length > 0 || imageAttachments.length > 0) {
+        // Non-image attachments — mention them as text footnotes
+        const attachmentList = [...imageAttachments, ...otherAttachments]
+          .map(a => `[Attached ${a.type}: ${a.name}]`)
+          .join('\n');
+        result.push({ role: msg.role, content: msg.content + '\n\n' + attachmentList });
+      } else {
+        result.push({ role: msg.role, content: msg.content });
+      }
     }
   }
 

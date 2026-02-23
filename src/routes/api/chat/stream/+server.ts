@@ -68,7 +68,7 @@ export async function POST({ request, platform, locals }: RequestEvent) {
 	try {
 		// Parse request body
 		const body = await request.json();
-		const { messages, model: requestedModel, conversationId, userMessageId } = body;
+		const { messages, model: requestedModel, conversationId, userMessageId, attachments } = body;
 
 		// Validate messages
 		if (!Array.isArray(messages) || messages.length === 0) {
