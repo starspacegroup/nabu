@@ -5,6 +5,7 @@
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
+	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
 	import { labelToKey } from '$lib/utils/text';
 
 	export let data: PageData;
@@ -113,6 +114,7 @@
 
 	// Text asset creation
 	let showAddText = false;
+	let showAITextGenerate = false;
 	let newTextCategory = 'names';
 	let selectedPresetKey = ''; // '' = pick one, '__custom__' = custom entry
 	let customLabel = '';
@@ -694,9 +696,16 @@
 			<div class="asset-tab">
 				<div class="asset-tab-header">
 					<h2 class="asset-tab-title">Brand Text Assets</h2>
-					<button class="add-asset-btn" on:click={() => (showAddText = !showAddText)}>
-						{showAddText ? '✕ Cancel' : '+ Add Text'}
-					</button>
+					<div class="asset-tab-actions">
+						{#if data.hasAIProviders}
+							<button class="add-asset-btn ai" on:click={() => (showAITextGenerate = true)}>
+								✨ AI Generate
+							</button>
+						{/if}
+						<button class="add-asset-btn" on:click={() => (showAddText = !showAddText)}>
+							{showAddText ? '✕ Cancel' : '+ Add Text'}
+						</button>
+					</div>
 				</div>
 
 				{#if showAddText}
@@ -812,6 +821,11 @@
 						<span class="empty-icon">📝</span>
 						<p>No text assets yet</p>
 						<p class="empty-hint">Add brand names, taglines, bios, legal copy, and more.</p>
+						{#if data.hasAIProviders}
+							<button class="add-asset-btn ai empty-cta" on:click={() => (showAITextGenerate = true)}>
+								✨ Generate with AI
+							</button>
+						{/if}
 					</div>
 				{:else}
 					{#each Object.entries(textCategoryInfo) as [catKey, catInfo]}
@@ -894,6 +908,14 @@
 					{/each}
 				{/if}
 			</div>
+
+			{#if showAITextGenerate && data.brandId}
+				<AITextQuickGenerate
+					brandProfileId={data.brandId}
+					on:close={() => (showAITextGenerate = false)}
+					on:saved={() => { showAITextGenerate = false; loadTabAssets('text'); }}
+				/>
+			{/if}
 
 		<!-- ═══ Images Tab ═══ -->
 		{:else if activeTab === 'images'}
@@ -1265,6 +1287,29 @@
 
 	.add-asset-btn:hover {
 		background-color: var(--color-primary-hover);
+	}
+
+	.add-asset-btn.ai {
+		background-color: var(--color-surface);
+		color: var(--color-primary);
+		border: 1px solid var(--color-primary);
+	}
+
+	.add-asset-btn.ai:hover {
+		background-color: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.add-asset-btn.empty-cta {
+		margin-top: var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-lg);
+		font-size: 0.9rem;
+	}
+
+	.asset-tab-actions {
+		display: flex;
+		gap: var(--spacing-sm);
+		align-items: center;
 	}
 
 	/* Empty state */
