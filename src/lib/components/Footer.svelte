@@ -47,9 +47,6 @@
 					<h3 class="footer-heading">Resources</h3>
 					<ul class="footer-links">
 						<li>
-							<a href="/documentation">Documentation</a>
-						</li>
-						<li>
 							<a
 								href="https://github.com/starspacegroup/nabu"
 								target="_blank"

@@ -89,13 +89,6 @@
 				]
 			: []),
 		{
-			id: 'documentation',
-			label: 'Documentation',
-			description: 'View Nabu documentation',
-			action: () => goto('/documentation'),
-			icon: '📚'
-		},
-		{
 			id: 'login',
 			label: 'Sign In',
 			description: 'Go to login page',
