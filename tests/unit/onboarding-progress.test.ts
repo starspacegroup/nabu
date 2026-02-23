@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/svelte';
-import { describe, expect, it } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import { describe, expect, it, vi } from 'vitest';
 import OnboardingProgress from '../../src/lib/components/OnboardingProgress.svelte';
 
 describe('OnboardingProgress', () => {
@@ -109,5 +109,54 @@ describe('OnboardingProgress', () => {
 
     const progressBar = screen.getByRole('progressbar');
     expect(progressBar.getAttribute('aria-valuenow')).toBe('100');
+  });
+
+  it('should disable the active step button', () => {
+    render(OnboardingProgress, { props: { currentStep: 'brand_identity' } });
+
+    const activeStep = screen.getByLabelText(/Identity — current step/);
+    expect(activeStep.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('should not disable completed step buttons (they are navigable)', () => {
+    render(OnboardingProgress, { props: { currentStep: 'brand_identity' } });
+
+    const nav = screen.getByRole('navigation', { name: 'Onboarding steps' });
+    const completedSteps = nav.querySelectorAll('button.step.completed');
+    completedSteps.forEach((step) => {
+      expect(step.hasAttribute('disabled')).toBe(false);
+    });
+  });
+
+  it('should show "Go back to" in tooltip for completed steps', () => {
+    render(OnboardingProgress, { props: { currentStep: 'brand_identity' } });
+
+    const completedStep = screen.getByLabelText(/Welcome — completed, click to go back/);
+    expect(completedStep.getAttribute('title')).toContain('Go back to');
+  });
+
+  it('should dispatch stepClick event when clicking a completed step', async () => {
+    const { component } = render(OnboardingProgress, { props: { currentStep: 'brand_identity' } });
+
+    const handler = vi.fn();
+    component.$on('stepClick', handler);
+
+    const completedStep = screen.getByLabelText(/Welcome — completed, click to go back/);
+    await fireEvent.click(completedStep);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0].detail).toBe('welcome');
+  });
+
+  it('should not dispatch stepClick when clicking the active step', async () => {
+    const { component } = render(OnboardingProgress, { props: { currentStep: 'brand_identity' } });
+
+    const handler = vi.fn();
+    component.$on('stepClick', handler);
+
+    const activeStep = screen.getByLabelText(/Identity — current step/);
+    await fireEvent.click(activeStep);
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

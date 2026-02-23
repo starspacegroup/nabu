@@ -3,9 +3,19 @@
 	 * OnboardingProgress - Sticky step progress indicator for the brand onboarding wizard.
 	 * Mobile-first responsive: compact dots on small screens, full labels on desktop.
 	 */
+	import { createEventDispatcher } from 'svelte';
 	import type { OnboardingStep } from '$lib/types/onboarding';
 
 	export let currentStep: OnboardingStep = 'welcome';
+
+	const dispatch = createEventDispatcher<{ stepClick: OnboardingStep }>();
+
+	function handleStepClick(stepId: OnboardingStep, index: number) {
+		// Only allow clicking completed (past) steps
+		if (index < currentIndex) {
+			dispatch('stepClick', stepId);
+		}
+	}
 
 	const steps: { id: OnboardingStep; label: string; icon: string; shortLabel: string }[] = [
 		{ id: 'welcome', label: 'Welcome', shortLabel: 'Welcome', icon: '👋' },
@@ -55,10 +65,11 @@
 				class:active={state === 'active'}
 				class:completed={state === 'completed'}
 				class:future={state === 'future'}
-				disabled={state === 'future'}
-				title={step.label}
-				aria-label="{step.label} — {state === 'completed' ? 'completed' : state === 'active' ? 'current step' : 'upcoming'}"
+				disabled={state === 'future' || state === 'active'}
+				title={state === 'completed' ? `Go back to ${step.label}` : step.label}
+				aria-label="{step.label} — {state === 'completed' ? 'completed, click to go back' : state === 'active' ? 'current step' : 'upcoming'}"
 				aria-current={state === 'active' ? 'step' : undefined}
+				on:click={() => handleStepClick(step.id, i)}
 			>
 				<span class="step-dot">
 					{#if state === 'completed'}

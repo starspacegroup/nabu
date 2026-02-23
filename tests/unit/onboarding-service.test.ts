@@ -15,7 +15,10 @@ import {
   ONBOARDING_STEPS,
   buildConversationContext,
   archiveBrandProfile,
-  STEP_COMPLETE_MARKER
+  STEP_COMPLETE_MARKER,
+  getNextStep,
+  getPreviousStep,
+  getStepProgress
 } from '$lib/services/onboarding';
 import type { BrandProfile, OnboardingStep } from '$lib/types/onboarding';
 
@@ -437,6 +440,55 @@ describe('Brand Onboarding Service', () => {
       await archiveBrandProfile(mockDB as any, 'bp-123');
 
       expect(mockDB.prepare).toHaveBeenCalled();
+    });
+  });
+
+  describe('getNextStep', () => {
+    it('should return the next step in sequence', () => {
+      expect(getNextStep('welcome')).toBe('brand_assessment');
+      expect(getNextStep('brand_assessment')).toBe('brand_identity');
+      expect(getNextStep('brand_identity')).toBe('target_audience');
+    });
+
+    it('should return null for the last step', () => {
+      expect(getNextStep('complete')).toBeNull();
+    });
+
+    it('should return null for an invalid step', () => {
+      expect(getNextStep('nonexistent' as any)).toBeNull();
+    });
+  });
+
+  describe('getPreviousStep', () => {
+    it('should return the previous step in sequence', () => {
+      expect(getPreviousStep('brand_assessment')).toBe('welcome');
+      expect(getPreviousStep('brand_identity')).toBe('brand_assessment');
+      expect(getPreviousStep('target_audience')).toBe('brand_identity');
+      expect(getPreviousStep('complete')).toBe('style_guide');
+    });
+
+    it('should return null for the first step (welcome)', () => {
+      expect(getPreviousStep('welcome')).toBeNull();
+    });
+
+    it('should return null for an invalid step', () => {
+      expect(getPreviousStep('nonexistent' as any)).toBeNull();
+    });
+  });
+
+  describe('getStepProgress', () => {
+    it('should return 0% for welcome step', () => {
+      expect(getStepProgress('welcome')).toBe(0);
+    });
+
+    it('should return 100% for complete step', () => {
+      expect(getStepProgress('complete')).toBe(100);
+    });
+
+    it('should return intermediate values for middle steps', () => {
+      const progress = getStepProgress('brand_identity');
+      expect(progress).toBeGreaterThan(0);
+      expect(progress).toBeLessThan(100);
     });
   });
 });

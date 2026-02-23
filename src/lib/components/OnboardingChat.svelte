@@ -17,7 +17,7 @@
 		resetOnboarding
 	} from '$lib/stores/onboarding';
 	import type { OnboardingStep } from '$lib/types/onboarding';
-	import { ONBOARDING_STEPS, getNextStep, STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
+	import { ONBOARDING_STEPS, getNextStep, getPreviousStep, STEP_COMPLETE_MARKER } from '$lib/services/onboarding';
 
 	/** Optional brand profile ID to load a specific brand for continued onboarding */
 	export let brandId: string | undefined = undefined;
@@ -144,6 +144,23 @@
 	}
 
 	$: currentStepConfig = ONBOARDING_STEPS.find(s => s.id === $onboardingStore.currentStep);
+	$: canGoBack = getPreviousStep($onboardingStore.currentStep) !== null;
+
+	async function handlePreviousStep() {
+		const prev = getPreviousStep($onboardingStore.currentStep);
+		if (prev) {
+			await updateStep(prev);
+			await tick();
+			scrollToBottom();
+		}
+	}
+
+	async function handleStepNavigate(event: CustomEvent<import('$lib/types/onboarding').OnboardingStep>) {
+		const targetStep = event.detail;
+		await updateStep(targetStep);
+		await tick();
+		scrollToBottom();
+	}
 </script>
 
 <div class="onboarding-container">
@@ -205,7 +222,7 @@
 	{:else}
 		<!-- Onboarding Chat Interface -->
 		<div class="chat-layout" in:fade={{ duration: 200 }}>
-			<OnboardingProgress currentStep={$onboardingStore.currentStep} />
+			<OnboardingProgress currentStep={$onboardingStore.currentStep} on:stepClick={handleStepNavigate} />
 
 			<div class="chat-area" bind:this={chatContainer}>
 				{#if $onboardingStore.isLoading && $onboardingStore.messages.length === 0}
@@ -271,12 +288,21 @@
 				<!-- Step info + manual skip -->
 				{#if !$onboardingStore.isStreaming && $onboardingStore.messages.length > 0 && $onboardingStore.currentStep !== 'complete'}
 					<div class="step-navigation">
-						{#if currentStepConfig}
-							<span class="step-hint">
-								{currentStepConfig.title} — {currentStepConfig.description}
-							</span>
-						{/if}
+					{#if canGoBack}
 						<button
+							class="back-step-btn"
+							on:click={handlePreviousStep}
+							title="Go to previous step"
+						>
+							← Back
+						</button>
+					{/if}
+					{#if currentStepConfig}
+						<span class="step-hint">
+							{currentStepConfig.title} — {currentStepConfig.description}
+						</span>
+					{/if}
+					<button
 							class="skip-step-btn"
 							on:click={handleNextStep}
 							title="Skip to next step"
@@ -665,11 +691,12 @@
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: var(--spacing-md);
+		gap: var(--spacing-sm);
 		padding: var(--spacing-sm) var(--spacing-md);
 		border-bottom: 1px solid var(--color-border);
 	}
 
+	.back-step-btn,
 	.skip-step-btn {
 		padding: 4px var(--spacing-sm);
 		background: none;
@@ -684,6 +711,7 @@
 		flex-shrink: 0;
 	}
 
+	.back-step-btn:hover,
 	.skip-step-btn:hover {
 		border-color: var(--color-text-secondary);
 		color: var(--color-text);
@@ -866,6 +894,7 @@
 			flex-direction: row;
 			align-items: center;
 			padding: var(--spacing-sm) var(--spacing-lg);
+			gap: var(--spacing-md);
 		}
 	}
 </style>

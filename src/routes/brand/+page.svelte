@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 	import type { BrandProfile } from '$lib/types/onboarding';
 
@@ -16,6 +17,7 @@
 	let duplicatingId: string | null = null;
 	let archivingId: string | null = null;
 	let confirmArchiveId: string | null = null;
+	let creatingBrand = false;
 
 	onMount(async () => {
 		await loadBrands();
@@ -112,6 +114,25 @@
 		const d = new Date(dateStr);
 		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}
+
+	async function createNewBrand() {
+		creatingBrand = true;
+		error = null;
+		try {
+			const res = await fetch('/api/onboarding/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({})
+			});
+			if (!res.ok) throw new Error('Failed to create brand');
+			const data = await res.json();
+			await goto(`/onboarding?brand=${data.profile.id}`);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to create brand';
+		} finally {
+			creatingBrand = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -126,22 +147,27 @@
 			<p class="page-subtitle">Manage your brand profiles</p>
 		</div>
 		<div class="header-actions">
-			<a href="/onboarding" class="create-button">
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="12" y1="5" x2="12" y2="19" />
-					<line x1="5" y1="12" x2="19" y2="12" />
-				</svg>
-				New Brand
-			</a>
+			<button class="create-button" on:click={createNewBrand} disabled={creatingBrand}>
+				{#if creatingBrand}
+					<div class="button-spinner"></div>
+					Creating…
+				{:else}
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="12" y1="5" x2="12" y2="19" />
+						<line x1="5" y1="12" x2="19" y2="12" />
+					</svg>
+					New Brand
+				{/if}
+			</button>
 		</div>
 	</header>
 
@@ -162,7 +188,9 @@
 			<div class="empty-icon">✨</div>
 			<h2>No Brands Yet</h2>
 			<p>Start building your first brand with our AI-powered Brand Architect.</p>
-			<a href="/onboarding" class="cta-button"> Launch Brand Architect → </a>
+			<button class="cta-button" on:click={createNewBrand} disabled={creatingBrand}>
+				{creatingBrand ? 'Creating…' : 'Launch Brand Architect →'}
+			</button>
 		</div>
 	{:else}
 		<div class="brands-grid">
@@ -335,16 +363,31 @@
 		padding: var(--spacing-sm) var(--spacing-lg);
 		background-color: var(--color-primary);
 		color: var(--color-background);
+		border: none;
 		border-radius: var(--radius-md);
-		text-decoration: none;
+		cursor: pointer;
 		font-weight: 600;
 		font-size: 0.85rem;
 		white-space: nowrap;
 		transition: background-color var(--transition-fast);
 	}
 
-	.create-button:hover {
+	.create-button:hover:not(:disabled) {
 		background-color: var(--color-primary-hover);
+	}
+
+	.create-button:disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
+	}
+
+	.button-spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid var(--color-background);
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: spin 0.6s linear infinite;
 	}
 
 	/* Error banner */
@@ -434,15 +477,21 @@
 		padding: var(--spacing-sm) var(--spacing-xl);
 		background-color: var(--color-primary);
 		color: var(--color-background);
+		border: none;
 		border-radius: var(--radius-md);
-		text-decoration: none;
+		cursor: pointer;
 		font-weight: 600;
 		font-size: 0.9rem;
 		transition: background-color var(--transition-fast);
 	}
 
-	.cta-button:hover {
+	.cta-button:hover:not(:disabled) {
 		background-color: var(--color-primary-hover);
+	}
+
+	.cta-button:disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
 	}
 
 	/* Brands grid */
