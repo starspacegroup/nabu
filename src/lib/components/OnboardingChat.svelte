@@ -326,7 +326,7 @@
 
 	$: currentStepConfig = ONBOARDING_STEPS.find(s => s.id === $onboardingStore.currentStep);
 	$: canGoBack = getPreviousStep($onboardingStore.currentStep) !== null;
-	$: brandName = $onboardingStore.profile?.brandName;
+	$: brandName = $onboardingStore.profile?.brandName || ($onboardingStore.profile ? 'Untitled Brand' : '');
 
 	async function handlePreviousStep() {
 		const prev = getPreviousStep($onboardingStore.currentStep);
@@ -486,10 +486,10 @@
 			<!-- Bottom bar: stuck to bottom -->
 			<div class="bottom-bar">
 				<!-- Brand name indicator -->
-				{#if brandName}
+				{#if $onboardingStore.profile}
 					<div class="brand-indicator">
 						<span class="brand-indicator-label">Brand</span>
-						<span class="brand-indicator-name">{brandName}</span>
+						<span class="brand-indicator-name" class:untitled={!$onboardingStore.profile.brandName}>{brandName}</span>
 					</div>
 				{/if}
 				<!-- Step info + manual skip -->
@@ -991,6 +991,11 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--color-primary);
+	}
+
+	.brand-indicator-name.untitled {
+		color: var(--color-text-secondary);
+		font-style: italic;
 	}
 
 	/* Step navigation */

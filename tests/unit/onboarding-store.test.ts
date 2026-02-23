@@ -142,6 +142,32 @@ describe('Brand Onboarding Store', () => {
       const state = get(onboardingStore);
       expect(state.profile?.brandName).toBe('Acme Corp');
     });
+
+    it('should have undefined brandName for a profile without one set', async () => {
+      const mockProfile = {
+        id: 'bp-789',
+        userId: 'user-123',
+        status: 'in_progress',
+        onboardingStep: 'welcome'
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ profile: mockProfile })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ messages: [] })
+        });
+
+      const { loadExistingProfile, onboardingStore } = await import('$lib/stores/onboarding');
+      await loadExistingProfile();
+
+      const state = get(onboardingStore);
+      expect(state.profile).toBeTruthy();
+      expect(state.profile?.brandName).toBeUndefined();
+    });
   });
 
   describe('sendMessage', () => {
