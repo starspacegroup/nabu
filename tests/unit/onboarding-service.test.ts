@@ -251,6 +251,19 @@ describe('Brand Onboarding Service', () => {
       const prepareCall = mockDB.prepare.mock.calls[0][0] as string;
       expect(prepareCall).toContain('brand_name');
     });
+
+    it('should set brandNameConfirmed to false for new profiles', async () => {
+      const result = await createBrandProfile(mockDB as any, 'user-123');
+
+      expect(result.brandNameConfirmed).toBe(false);
+    });
+
+    it('should include brand_name_confirmed in the INSERT query', async () => {
+      await createBrandProfile(mockDB as any, 'user-123');
+
+      const prepareCall = mockDB.prepare.mock.calls[0][0] as string;
+      expect(prepareCall).toContain('brand_name_confirmed');
+    });
   });
 
   describe('getBrandProfile', () => {
@@ -282,6 +295,62 @@ describe('Brand Onboarding Service', () => {
       expect(result!.brandName).toBe('TestBrand');
       expect(result!.onboardingStep).toBe('brand_identity');
       expect(result!.brandPersonalityTraits).toEqual(['bold', 'innovative']);
+    });
+
+    it('should map brand_name_confirmed field correctly', async () => {
+      const mockProfile = {
+        id: 'bp-123',
+        user_id: 'user-123',
+        status: 'in_progress',
+        brand_name: 'My Real Brand',
+        brand_name_confirmed: 1,
+        onboarding_step: 'brand_identity',
+        brand_personality_traits: null,
+        color_palette: null,
+        target_audience: null,
+        brand_values: null,
+        competitors: null,
+        unique_selling_points: null,
+        customer_pain_points: null,
+        style_guide: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      };
+
+      mockDB._mockFirst.mockResolvedValueOnce(mockProfile);
+
+      const result = await getBrandProfile(mockDB as any, 'bp-123');
+
+      expect(result).toBeDefined();
+      expect(result!.brandNameConfirmed).toBe(true);
+    });
+
+    it('should default brandNameConfirmed to false when not set in DB', async () => {
+      const mockProfile = {
+        id: 'bp-456',
+        user_id: 'user-123',
+        status: 'in_progress',
+        brand_name: 'Wild Fox',
+        brand_name_confirmed: 0,
+        onboarding_step: 'welcome',
+        brand_personality_traits: null,
+        color_palette: null,
+        target_audience: null,
+        brand_values: null,
+        competitors: null,
+        unique_selling_points: null,
+        customer_pain_points: null,
+        style_guide: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      };
+
+      mockDB._mockFirst.mockResolvedValueOnce(mockProfile);
+
+      const result = await getBrandProfile(mockDB as any, 'bp-456');
+
+      expect(result).toBeDefined();
+      expect(result!.brandNameConfirmed).toBe(false);
     });
 
     it('should return null if profile not found', async () => {
@@ -346,6 +415,16 @@ describe('Brand Onboarding Service', () => {
       });
 
       expect(mockDB.prepare).toHaveBeenCalled();
+    });
+
+    it('should support updating brandNameConfirmed', async () => {
+      await updateBrandProfile(mockDB as any, 'bp-123', {
+        brandNameConfirmed: true
+      });
+
+      expect(mockDB.prepare).toHaveBeenCalled();
+      const query = mockDB.prepare.mock.calls[0][0] as string;
+      expect(query).toContain('brand_name_confirmed');
     });
   });
 

@@ -227,7 +227,12 @@
 							</span>
 						</div>
 
-						<h2 class="brand-name">{brand.brandName || 'New Brand'}</h2>
+						<h2 class="brand-name" class:codename={!brand.brandNameConfirmed}>
+							{brand.brandName || 'New Brand'}
+							{#if !brand.brandNameConfirmed}
+								<span class="codename-badge">Codename</span>
+							{/if}
+						</h2>
 
 						{#if brand.tagline}
 							<p class="brand-tagline">{brand.tagline}</p>
@@ -582,6 +587,28 @@
 		color: var(--color-text);
 		margin: 0 0 var(--spacing-xs);
 		line-height: 1.3;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		flex-wrap: wrap;
+	}
+
+	.brand-name.codename {
+		font-style: italic;
+	}
+
+	.codename-badge {
+		font-size: 0.6rem;
+		font-weight: 500;
+		font-style: normal;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 0.1em 0.4em;
+		white-space: nowrap;
 	}
 
 	.brand-tagline {

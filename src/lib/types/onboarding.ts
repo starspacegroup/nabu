@@ -45,6 +45,9 @@ export interface BrandProfile {
 
   // Brand identity
   brandName?: string;
+  /** Whether the user has explicitly chosen or confirmed the brand name.
+   *  When false, the name is a system-generated codename. */
+  brandNameConfirmed: boolean;
   tagline?: string;
   missionStatement?: string;
   visionStatement?: string;

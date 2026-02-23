@@ -593,8 +593,11 @@
 			<div class="header-content">
 				<div class="header-left">
 					<a href="/brand" class="back-link">← All Brands</a>
-					<h1 class="brand-title">
+					<h1 class="brand-title" class:codename={!profile.brandNameConfirmed}>
 						{profile.brandName || 'New Brand'}
+						{#if !profile.brandNameConfirmed}
+							<span class="codename-badge">Codename</span>
+						{/if}
 					</h1>
 					{#if profile.tagline}
 						<p class="brand-tagline">{profile.tagline}</p>
@@ -1118,6 +1121,28 @@
 		color: var(--color-text);
 		margin: 0;
 		line-height: 1.2;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
+	}
+
+	.brand-title.codename {
+		font-style: italic;
+	}
+
+	.codename-badge {
+		font-size: 0.6rem;
+		font-weight: 500;
+		font-style: normal;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 0.15em 0.5em;
+		white-space: nowrap;
 	}
 
 	.brand-tagline {

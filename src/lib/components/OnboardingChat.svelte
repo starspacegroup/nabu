@@ -327,6 +327,7 @@
 	$: currentStepConfig = ONBOARDING_STEPS.find(s => s.id === $onboardingStore.currentStep);
 	$: canGoBack = getPreviousStep($onboardingStore.currentStep) !== null;
 	$: brandName = $onboardingStore.profile?.brandName || ($onboardingStore.profile ? 'New Brand' : '');
+	$: brandNameConfirmed = $onboardingStore.profile?.brandNameConfirmed ?? false;
 
 	async function handlePreviousStep() {
 		const prev = getPreviousStep($onboardingStore.currentStep);
@@ -488,8 +489,8 @@
 				<!-- Brand name indicator -->
 				{#if $onboardingStore.profile}
 					<div class="brand-indicator">
-						<span class="brand-indicator-label">Brand</span>
-						<span class="brand-indicator-name" class:untitled={!$onboardingStore.profile.brandName}>{brandName}</span>
+						<span class="brand-indicator-label">{brandNameConfirmed ? 'Brand' : 'Codename'}</span>
+						<span class="brand-indicator-name" class:untitled={!brandNameConfirmed}>{brandName}</span>
 					</div>
 				{/if}
 				<!-- Step info + manual skip -->

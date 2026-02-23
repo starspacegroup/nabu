@@ -595,6 +595,7 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     userId: row.user_id as string,
     status: row.status as BrandProfile['status'],
     brandName: (row.brand_name as string) || undefined,
+    brandNameConfirmed: !!(row.brand_name_confirmed),
     tagline: (row.tagline as string) || undefined,
     missionStatement: (row.mission_statement as string) || undefined,
     visionStatement: (row.vision_statement as string) || undefined,
@@ -705,8 +706,8 @@ export async function createBrandProfile(
 
   await db
     .prepare(
-      `INSERT INTO brand_profiles (id, user_id, brand_name, status, onboarding_step, created_at, updated_at)
-			 VALUES (?, ?, ?, 'in_progress', 'welcome', ?, ?)`
+      `INSERT INTO brand_profiles (id, user_id, brand_name, brand_name_confirmed, status, onboarding_step, created_at, updated_at)
+			 VALUES (?, ?, ?, 0, 'in_progress', 'welcome', ?, ?)`
     )
     .bind(id, userId, placeholderName, now, now)
     .run();
@@ -715,6 +716,7 @@ export async function createBrandProfile(
     id,
     userId,
     brandName: placeholderName,
+    brandNameConfirmed: false,
     status: 'in_progress',
     onboardingStep: 'welcome',
     createdAt: now,
@@ -771,6 +773,7 @@ export async function updateBrandProfile(
 
   const fieldMap: Record<string, string> = {
     brandName: 'brand_name',
+    brandNameConfirmed: 'brand_name_confirmed',
     tagline: 'tagline',
     missionStatement: 'mission_statement',
     visionStatement: 'vision_statement',
@@ -813,7 +816,9 @@ export async function updateBrandProfile(
   for (const [key, column] of Object.entries(fieldMap)) {
     if (key in updates) {
       setClauses.push(`${column} = ?`);
-      values.push((updates as Record<string, unknown>)[key] ?? null);
+      const val = (updates as Record<string, unknown>)[key];
+      // Convert booleans to integers for SQLite
+      values.push(typeof val === 'boolean' ? (val ? 1 : 0) : (val ?? null));
     }
   }
 

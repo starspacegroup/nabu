@@ -408,6 +408,14 @@ export async function updateBrandFieldWithVersion(
     .bind(dbValue, params.profileId)
     .run();
 
+  // When brand name is explicitly set (manually or by AI), mark it as confirmed
+  if (params.fieldName === 'brandName') {
+    await db
+      .prepare(`UPDATE brand_profiles SET brand_name_confirmed = 1 WHERE id = ?`)
+      .bind(params.profileId)
+      .run();
+  }
+
   // Create version record
   await addFieldVersion(db, {
     brandProfileId: params.profileId,
@@ -603,7 +611,7 @@ export async function duplicateBrandProfile(
     .prepare(
       `INSERT INTO brand_profiles (
         id, user_id, status,
-        brand_name, tagline, mission_statement, vision_statement, elevator_pitch,
+        brand_name, brand_name_confirmed, tagline, mission_statement, vision_statement, elevator_pitch,
         brand_archetype, brand_personality_traits, tone_of_voice, communication_style,
         target_audience, customer_pain_points, value_proposition,
         primary_color, secondary_color, accent_color, color_palette,
@@ -613,7 +621,7 @@ export async function duplicateBrandProfile(
         onboarding_step, created_at, updated_at
       ) VALUES (
         ?, ?, 'in_progress',
-        ?, ?, ?, ?, ?,
+        ?, 0, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?,
@@ -664,6 +672,7 @@ export async function duplicateBrandProfile(
     userId,
     status: 'in_progress',
     brandName: copyName,
+    brandNameConfirmed: false,
     tagline: (source.tagline as string) || undefined,
     missionStatement: (source.mission_statement as string) || undefined,
     visionStatement: (source.vision_statement as string) || undefined,

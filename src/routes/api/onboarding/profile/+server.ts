@@ -57,6 +57,11 @@ export const PATCH: RequestHandler = async ({ locals, platform, request }) => {
     throw error(400, 'profileId and updates are required');
   }
 
+  // When brand name is explicitly set, auto-confirm it
+  if (updates.brandName !== undefined && updates.brandNameConfirmed === undefined) {
+    updates.brandNameConfirmed = true;
+  }
+
   await updateBrandProfile(platform!.env.DB, profileId, updates);
   const profile = await getBrandProfile(platform!.env.DB, profileId);
 
