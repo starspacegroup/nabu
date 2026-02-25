@@ -379,7 +379,6 @@ color: var(--color-background);
 
 .login-icon   { background: var(--color-primary); }
 .signup-icon  { background: var(--color-secondary); }
-.docs-icon    { background: var(--color-text-secondary); }
 .admin-icon   { background: var(--color-primary); }
 .users-icon   { background: #6366f1; }
 .cms-icon     { background: #10b981; }

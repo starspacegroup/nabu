@@ -4,7 +4,6 @@
 	const dispatch = createEventDispatcher();
 
 	export let fieldKey: string;
-	$: void fieldKey;
 	export let label: string;
 	export let value: unknown;
 	export let type: 'text' | 'color' | 'list' | 'object' | 'archetype' = 'text';
@@ -83,7 +82,7 @@
 	}
 </script>
 
-<div class="field-card" class:empty={!hasValue} class:editing={isEditing}>
+<div class="field-card" class:empty={!hasValue} class:editing={isEditing} data-field={fieldKey}>
 	<div class="field-header">
 		<span class="field-label">{label}</span>
 		<div class="header-actions">

@@ -876,7 +876,7 @@ describe('load() for /brand', () => {
     const { load } = await import('../../src/routes/brand/+page.server');
     const result = await load({
       platform: { env: { KV: mockKV } }, locals: authedLocals
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.userId).toBe('user-1');
     expect(result.hasAIProviders).toBe(false);
   });
@@ -890,7 +890,7 @@ describe('load() for /brand', () => {
     };
     const result = await load({
       platform: { env: { KV: kvWithKeys } }, locals: authedLocals
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.hasAIProviders).toBe(true);
   });
 
@@ -900,7 +900,7 @@ describe('load() for /brand', () => {
     const kvError = { get: vi.fn().mockRejectedValue(new Error('KV failed')) };
     const result = await load({
       platform: { env: { KV: kvError } }, locals: authedLocals
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.hasAIProviders).toBe(false);
     errorSpy.mockRestore();
   });
@@ -929,7 +929,7 @@ describe('load() for /brand/[id]', () => {
     const result = await load({
       platform: { env: { KV: mockKV } }, locals: authedLocals,
       params: { id: 'bp-1' }
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.userId).toBe('user-1');
     expect(result.brandId).toBe('bp-1');
     expect(result.hasAIProviders).toBe(false);
@@ -945,7 +945,7 @@ describe('load() for /brand/[id]', () => {
     const result = await load({
       platform: { env: { KV: kvWithKeys } }, locals: authedLocals,
       params: { id: 'bp-1' }
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.hasAIProviders).toBe(true);
   });
 });
@@ -973,7 +973,7 @@ describe('load() for /onboarding/archive', () => {
     const result = await load({
       platform: { env: { DB: mockDB } }, locals: authedLocals,
       url: makeUrl('/onboarding/archive', { brand: 'bp-1' })
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.brandProfileId).toBe('bp-1');
   });
 
@@ -989,7 +989,7 @@ describe('load() for /onboarding/archive', () => {
     const result = await load({
       platform: { env: { DB: dbWithProfile } }, locals: authedLocals,
       url: makeUrl('/onboarding/archive')
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.brandProfileId).toBe('bp-found');
   });
 
@@ -998,7 +998,7 @@ describe('load() for /onboarding/archive', () => {
     const result = await load({
       platform: { env: { DB: mockDB } }, locals: authedLocals,
       url: makeUrl('/onboarding/archive')
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.brandProfileId).toBeNull();
   });
 
@@ -1015,7 +1015,7 @@ describe('load() for /onboarding/archive', () => {
     const result = await load({
       platform: { env: { DB: dbError } }, locals: authedLocals,
       url: makeUrl('/onboarding/archive')
-    } as any);
+    } as any) as Record<string, any>;
     expect(result.brandProfileId).toBeNull();
     errorSpy.mockRestore();
   });

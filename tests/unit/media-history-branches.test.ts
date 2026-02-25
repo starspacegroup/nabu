@@ -285,9 +285,9 @@ describe('Media History - Branch Coverage', () => {
       const result = await logMediaActivity(mockDB as any, {
         brandProfileId: 'bp-1',
         userId: 'user-1',
-        action: 'create',
+        action: 'created',
         description: 'A new asset',
-        source: 'manual'
+        source: 'upload'
       });
 
       expect(result.details).toBeUndefined();
@@ -299,10 +299,10 @@ describe('Media History - Branch Coverage', () => {
         brandProfileId: 'bp-1',
         brandMediaId: 'bm-1',
         userId: 'user-1',
-        action: 'update',
+        action: 'updated',
         description: 'Updated logo',
         details: { field: 'url', oldValue: 'a.png', newValue: 'b.png' },
-        source: 'manual'
+        source: 'upload'
       });
 
       expect(result.details).toEqual({ field: 'url', oldValue: 'a.png', newValue: 'b.png' });
@@ -319,7 +319,7 @@ describe('Media History - Branch Coverage', () => {
 
       const result = await createMediaRevision(mockDB as any, {
         brandMediaId: 'bm-1',
-        source: 'manual',
+        source: 'upload',
         userId: 'user-1'
       });
 
@@ -341,7 +341,7 @@ describe('Media History - Branch Coverage', () => {
 
       const result = await createMediaRevision(mockDB as any, {
         brandMediaId: 'bm-1',
-        source: 'manual',
+        source: 'upload',
         userId: 'user-1',
         url: 'https://example.com/v6.png',
         r2Key: 'brands/v6.png',
@@ -369,7 +369,7 @@ describe('Media History - Branch Coverage', () => {
 
       await createMediaRevision(mockDB as any, {
         brandMediaId: 'bm-1',
-        source: 'ai_generation',
+        source: 'ai_generated',
         userId: 'user-1'
       });
 
@@ -383,7 +383,7 @@ describe('Media History - Branch Coverage', () => {
 
       const result = await createMediaRevision(mockDB as any, {
         brandMediaId: 'bm-1',
-        source: 'manual',
+        source: 'upload',
         userId: 'user-1',
         metadata: { note: 'test' }
       });
@@ -396,7 +396,7 @@ describe('Media History - Branch Coverage', () => {
 
       const result = await createMediaRevision(mockDB as any, {
         brandMediaId: 'bm-2',
-        source: 'manual',
+        source: 'upload',
         userId: 'user-1',
         durationSeconds: 120,
         mimeType: 'audio/mpeg'

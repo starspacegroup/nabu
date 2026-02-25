@@ -5,9 +5,9 @@
 	import type { BrandProfile } from '$lib/types/onboarding';
 
 	export let data: PageData;
-
-	// data is used by SvelteKit for page load data
-	$: void data;
+	// SvelteKit page data (used for server-side auth redirect)
+	$: _pageData = data;
+	void _pageData;
 
 	let brands: BrandProfile[] = [];
 	let isLoading = true;
@@ -619,6 +619,7 @@
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

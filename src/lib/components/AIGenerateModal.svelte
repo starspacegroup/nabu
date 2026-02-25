@@ -268,7 +268,7 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
 	<div class="modal-backdrop" on:click={handleBackdropClick} role="dialog" aria-modal="true" aria-label="AI {typeLabel} Generation">
 		<div class="modal">
 			<header class="modal-header">

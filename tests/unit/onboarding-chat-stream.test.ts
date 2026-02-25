@@ -181,7 +181,7 @@ describe('POST /api/onboarding/chat - Streaming Flow', () => {
       id: 'key-1', name: 'OpenAI', provider: 'openai', apiKey: 'sk-test', enabled: true
     });
 
-    vi.mocked(buildExtractionPrompt).mockReturnValue(null);
+    vi.mocked(buildExtractionPrompt).mockReturnValue(null as any);
 
     async function* mockStream() {
       yield { type: 'content' as const, content: 'Welcome ' };
@@ -246,7 +246,7 @@ describe('POST /api/onboarding/chat - Streaming Flow', () => {
     });
 
     vi.mocked(getNextStep).mockReturnValue('brand_assessment');
-    vi.mocked(buildExtractionPrompt).mockReturnValue(null);
+    vi.mocked(buildExtractionPrompt).mockReturnValue(null as any);
 
     async function* mockStream() {
       yield { type: 'content' as const, content: 'Great! Moving on.[STEP_COMPLETE]' };
@@ -445,7 +445,7 @@ describe('POST /api/onboarding/chat - Streaming Flow', () => {
       id: 'key-1', name: 'OpenAI', provider: 'openai', apiKey: 'sk-test', enabled: true
     });
 
-    vi.mocked(buildExtractionPrompt).mockReturnValue(null);
+    vi.mocked(buildExtractionPrompt).mockReturnValue(null as any);
 
     async function* mockStream() {
       yield { type: 'content' as const, content: 'Nice image!' };
@@ -545,7 +545,7 @@ describe('POST /api/onboarding/chat - Streaming Flow', () => {
     });
 
     vi.mocked(getNextStep).mockReturnValue(null);
-    vi.mocked(buildExtractionPrompt).mockReturnValue(null);
+    vi.mocked(buildExtractionPrompt).mockReturnValue(null as any);
 
     async function* mockStream() {
       yield { type: 'content' as const, content: 'Done![STEP_COMPLETE]' };
@@ -588,7 +588,7 @@ describe('POST /api/onboarding/chat - Streaming Flow', () => {
       id: 'key-1', name: 'OpenAI', provider: 'openai', apiKey: 'sk-test', enabled: true
     });
 
-    vi.mocked(buildExtractionPrompt).mockReturnValue(null);
+    vi.mocked(buildExtractionPrompt).mockReturnValue(null as any);
 
     async function* mockStream() {
       yield { type: 'content' as const, content: 'OK' };
