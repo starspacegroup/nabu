@@ -11,7 +11,8 @@ import type {
   AIAudioGenerationParams,
   AIVideoGenerationParams,
   AIGenerationStatus,
-  AIGenerationType
+  AIGenerationType,
+  AIGenerationProvider
 } from '$lib/types/brand-assets';
 
 // Re-export types for test imports
@@ -82,7 +83,7 @@ function mapRowToGeneration(row: Record<string, unknown>): AIMediaGeneration {
     brandProfileId: row.brand_profile_id as string,
     brandMediaId: (row.brand_media_id as string) || undefined,
     generationType: row.generation_type as AIGenerationType,
-    provider: row.provider as string,
+    provider: row.provider as AIGenerationProvider,
     model: row.model as string,
     prompt: row.prompt as string,
     negativePrompt: (row.negative_prompt as string) || undefined,

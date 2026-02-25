@@ -394,7 +394,7 @@ describe('lookupVideoModelCost — resolution-aware', () => {
     const { lookupVideoModelCost } = await import(
       '../../src/lib/utils/cost.js'
     );
-    const cost = lookupVideoModelCost('wavespeed', 'wan-2.1/t2v-720p', 10, '720p');
+    const cost = lookupVideoModelCost('wavespeed', 'wan-2.1/t2v', 10, '720p');
     expect(cost).toBeCloseTo(0.03, 4); // flat per-generation
   });
 });

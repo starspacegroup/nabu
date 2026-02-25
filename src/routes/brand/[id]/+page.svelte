@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	import type { BrandProfile } from '$lib/types/onboarding';
+	import type { BrandMediaAsset } from '$lib/types/brand-assets';
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
 	import BrandTextPicker from '$lib/components/BrandTextPicker.svelte';
@@ -56,6 +57,7 @@
 		height?: number;
 		durationSeconds?: number;
 		tags?: string[];
+		sortOrder: number;
 		isPrimary: boolean;
 		createdAt: string;
 		updatedAt: string;
@@ -113,9 +115,9 @@
 	// Asset state
 	let assetSummary: AssetSummary | null = null;
 	let textAssets: TextAsset[] = [];
-	let imageAssets: MediaAsset[] = [];
-	let audioAssets: MediaAsset[] = [];
-	let videoAssets: MediaAsset[] = [];
+	let imageAssets: BrandMediaAsset[] = [];
+	let audioAssets: BrandMediaAsset[] = [];
+	let videoAssets: BrandMediaAsset[] = [];
 	let brandVideos: VideoItem[] = [];
 	let assetsLoading = false;
 
@@ -974,7 +976,7 @@
 		{:else if activeTab === 'images'}
 			<div class="asset-tab">
 				<MediaGallery
-					brandProfileId={data.brandId}
+					brandProfileId={data.brandId ?? ''}
 					mediaType="image"
 					assets={imageAssets}
 					loading={assetsLoading}
@@ -986,7 +988,7 @@
 		{:else if activeTab === 'audio'}
 			<div class="asset-tab">
 				<MediaGallery
-					brandProfileId={data.brandId}
+					brandProfileId={data.brandId ?? ''}
 					mediaType="audio"
 					assets={audioAssets}
 					loading={assetsLoading}
@@ -998,7 +1000,7 @@
 		{:else if activeTab === 'videos'}
 			<div class="asset-tab">
 				<MediaGallery
-					brandProfileId={data.brandId}
+					brandProfileId={data.brandId ?? ''}
 					mediaType="video"
 					assets={videoAssets}
 					loading={assetsLoading}

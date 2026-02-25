@@ -104,7 +104,7 @@ describe('Chat Media Attachments', () => {
           attachments: [
             {
               id: 'att-1',
-              type: 'image',
+              type: 'image' as const,
               name: 'photo.jpg',
               url: 'data:image/jpeg;base64,/9j/4AAQ',
               mimeType: 'image/jpeg'
@@ -141,14 +141,14 @@ describe('Chat Media Attachments', () => {
           attachments: [
             {
               id: 'att-1',
-              type: 'image',
+              type: 'image' as const,
               name: 'photo1.jpg',
               url: 'data:image/jpeg;base64,abc123',
               mimeType: 'image/jpeg'
             },
             {
               id: 'att-2',
-              type: 'image',
+              type: 'image' as const,
               name: 'photo2.png',
               url: 'data:image/png;base64,def456',
               mimeType: 'image/png'
@@ -219,14 +219,14 @@ describe('Chat Media Attachments', () => {
           attachments: [
             {
               id: 'att-1',
-              type: 'image',
+              type: 'image' as const,
               name: 'photo.jpg',
               url: 'data:image/jpeg;base64,abc',
               mimeType: 'image/jpeg'
             },
             {
               id: 'att-2',
-              type: 'video',
+              type: 'video' as const,
               name: 'clip.mp4',
               url: 'data:video/mp4;base64,xyz',
               mimeType: 'video/mp4'

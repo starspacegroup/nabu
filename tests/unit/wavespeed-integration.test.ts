@@ -315,7 +315,7 @@ describe('WaveSpeed AI Integration', () => {
 
       // Should include popular WaveSpeed video models
       const modelIds = models.map((m) => m.id);
-      expect(modelIds).toContain('wan-2.1/t2v-720p');
+      expect(modelIds).toContain('wan-2.1/t2v');
     });
 
     it('should have correct provider name on models', async () => {

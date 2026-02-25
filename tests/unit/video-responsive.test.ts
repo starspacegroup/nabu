@@ -5,7 +5,7 @@ describe('Videos Page - Mobile-First Responsive Structure', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     // Mock fetch for the page's onMount
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ videos: [], total: 0, models: [], schedules: [] })
     });

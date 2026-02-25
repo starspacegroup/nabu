@@ -138,7 +138,7 @@ describe('lookupVideoModelCost', () => {
       '../../src/lib/utils/cost.js'
     );
     // WaveSpeed models use per-generation pricing
-    const cost = lookupVideoModelCost('wavespeed', 'wan-2.1/t2v-720p', 10);
+    const cost = lookupVideoModelCost('wavespeed', 'wan-2.1/t2v', 10);
     expect(cost).toBeGreaterThan(0);
   });
 

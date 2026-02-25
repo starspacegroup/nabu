@@ -20,7 +20,7 @@ async function flushAll() {
   await tick();
 }
 
-let mockFetch: ReturnType<typeof vi.fn>;
+let mockFetch: typeof fetch;
 
 function createMockFetch() {
   return vi.fn((url: string | URL | Request, options?: RequestInit): Promise<Response> => {
@@ -52,7 +52,7 @@ function createMockFetch() {
 describe('AITextQuickGenerate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch = createMockFetch();
+    mockFetch = createMockFetch() as typeof fetch;
   });
 
   /** Helper: render with mock fetch and wait for presets to load */
@@ -412,7 +412,7 @@ describe('AITextQuickGenerate', () => {
       await flushAll();
 
       // Find the POST to /api/brand/assets/texts
-      const textPostCall = statusFetch.mock.calls.find(
+      const textPostCall = vi.mocked(statusFetch).mock.calls.find(
         ([url, opts]: [string | URL | Request, RequestInit?]) => {
           const u = typeof url === 'string' ? url : url.toString();
           return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';
@@ -447,7 +447,7 @@ describe('AITextQuickGenerate', () => {
       await fireEvent.click(saveBtn);
       await flushAll();
 
-      const textPostCall = statusFetch.mock.calls.find(
+      const textPostCall = vi.mocked(statusFetch).mock.calls.find(
         ([url, opts]: [string | URL | Request, RequestInit?]) => {
           const u = typeof url === 'string' ? url : url.toString();
           return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';
@@ -485,7 +485,7 @@ describe('AITextQuickGenerate', () => {
       await fireEvent.click(saveBtn);
       await flushAll();
 
-      const textPostCall = statusFetch.mock.calls.find(
+      const textPostCall = vi.mocked(statusFetch).mock.calls.find(
         ([url, opts]: [string | URL | Request, RequestInit?]) => {
           const u = typeof url === 'string' ? url : url.toString();
           return u.includes('/api/brand/assets/texts') && !u.includes('field-status') && opts?.method === 'POST';

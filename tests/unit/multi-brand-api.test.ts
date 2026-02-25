@@ -43,6 +43,7 @@ function makeBrandProfile(overrides: Partial<BrandProfile> = {}): BrandProfile {
     userId: overrides.userId || 'user-1',
     status: overrides.status || 'completed',
     brandName: overrides.brandName || 'Test Brand',
+    brandNameConfirmed: overrides.brandNameConfirmed ?? false,
     onboardingStep: overrides.onboardingStep || 'complete',
     createdAt: overrides.createdAt || '2025-01-01T00:00:00Z',
     updatedAt: overrides.updatedAt || '2025-01-01T00:00:00Z',

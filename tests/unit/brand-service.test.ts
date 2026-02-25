@@ -213,6 +213,7 @@ describe('Brand Service', () => {
         userId: 'user-1',
         status: 'in_progress' as const,
         brandName: 'Test Brand',
+        brandNameConfirmed: false,
         tagline: 'Test tagline',
         missionStatement: 'Our mission',
         primaryColor: '#0066cc',
@@ -254,6 +255,7 @@ describe('Brand Service', () => {
         userId: 'user-1',
         status: 'in_progress' as const,
         brandName: 'Test Brand',
+        brandNameConfirmed: false,
         onboardingStep: 'welcome' as const,
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01'

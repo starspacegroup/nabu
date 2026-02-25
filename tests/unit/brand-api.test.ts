@@ -61,7 +61,7 @@ describe('Brand API Endpoints', () => {
           fieldName: 'brandName',
           oldValue: null,
           newValue: 'First Name',
-          changeSource: 'manual',
+          changeSource: 'manual' as const,
           changeReason: null,
           versionNumber: 1,
           createdAt: '2025-01-01T00:00:00Z'
