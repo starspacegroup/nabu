@@ -28,7 +28,7 @@ export interface BrandFieldSummaryItem {
   key: string;
   label: string;
   value: unknown;
-  type: 'text' | 'color' | 'list' | 'object' | 'archetype';
+  type: 'text' | 'color' | 'list' | 'object' | 'archetype' | 'image';
 }
 
 /** A section grouping related brand fields */
@@ -154,7 +154,6 @@ export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: str
   // Market
   marketPosition: { category: 'descriptions', keys: ['market_position', 'positioning'] },
   industry: { category: 'descriptions', keys: ['industry'] },
-  logoConcept: { category: 'descriptions', keys: ['logo_concept', 'logo_description'] },
 };
 
 /**
@@ -174,8 +173,15 @@ export const FIELD_TO_PRESET_KEY: Record<string, { category: string; presetKey: 
   originStory: { category: 'descriptions', presetKey: 'origin_story' },
   marketPosition: { category: 'descriptions', presetKey: 'market_position' },
   industry: { category: 'descriptions', presetKey: 'industry' },
-  logoConcept: { category: 'descriptions', presetKey: 'logo_concept' },
 };
+
+/**
+ * Set of profile field keys that should navigate to the Images tab when clicked.
+ * These fields represent visual/image concepts rather than text assets.
+ */
+export const IMAGE_FIELDS: Set<string> = new Set([
+  'logoConcept',
+]);
 
 /**
  * Reverse mapping: given a text category + key, find the matching brand profile field.
@@ -532,7 +538,7 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
         { key: 'colorPalette', label: 'Color Palette', value: profile.colorPalette, type: 'list' },
         { key: 'typographyHeading', label: 'Heading Font', value: profile.typographyHeading, type: 'text' },
         { key: 'typographyBody', label: 'Body Font', value: profile.typographyBody, type: 'text' },
-        { key: 'logoConcept', label: 'Logo Concept', value: profile.logoConcept, type: 'text' }
+        { key: 'logoConcept', label: 'Logo Concept', value: profile.logoConcept, type: 'image' }
       ]
     },
     {

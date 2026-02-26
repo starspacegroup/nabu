@@ -6,7 +6,7 @@
 	export let fieldKey: string;
 	export let label: string;
 	export let value: unknown;
-	export let type: 'text' | 'color' | 'list' | 'object' | 'archetype' = 'text';
+	export let type: 'text' | 'color' | 'list' | 'object' | 'archetype' | 'image' = 'text';
 	export let isEditing = false;
 	export let editValue = '';
 	export let hasTextSuggestions = false;

@@ -7,7 +7,7 @@
  * Fields without text mappings (colors, lists, etc.) stay inline.
  */
 import { describe, it, expect } from 'vitest';
-import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY } from '$lib/services/brand';
+import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY, IMAGE_FIELDS } from '$lib/services/brand';
 import { TEXT_GENERATION_PRESETS } from '$lib/services/ai-text-generation';
 
 /**
@@ -209,8 +209,8 @@ describe('Brand Profile - Field click → Text tab navigation', () => {
       expect(FIELD_TO_PRESET_KEY.industry).toEqual({ category: 'descriptions', presetKey: 'industry' });
     });
 
-    it('should map logoConcept → descriptions/logo_concept', () => {
-      expect(FIELD_TO_PRESET_KEY.logoConcept).toEqual({ category: 'descriptions', presetKey: 'logo_concept' });
+    it('should NOT include logoConcept (it navigates to Images tab)', () => {
+      expect(FIELD_TO_PRESET_KEY.logoConcept).toBeUndefined();
     });
   });
 
@@ -222,6 +222,26 @@ describe('Brand Profile - Field click → Text tab navigation', () => {
         const match = presets.find(p => p.key === presetKey);
         expect(match, `No preset with key "${presetKey}" in category "${category}" for field "${fieldKey}"`).toBeDefined();
       }
+    });
+  });
+
+  describe('IMAGE_FIELDS - fields that navigate to Images tab', () => {
+    it('should include logoConcept', () => {
+      expect(IMAGE_FIELDS.has('logoConcept')).toBe(true);
+    });
+
+    it('should NOT include text-mapped fields', () => {
+      expect(IMAGE_FIELDS.has('tagline')).toBe(false);
+      expect(IMAGE_FIELDS.has('brandName')).toBe(false);
+      expect(IMAGE_FIELDS.has('originStory')).toBe(false);
+    });
+
+    it('logoConcept should NOT be in FIELD_TO_TEXT_MAPPING', () => {
+      expect(FIELD_TO_TEXT_MAPPING.logoConcept).toBeUndefined();
+    });
+
+    it('logoConcept should NOT be in FIELD_TO_PRESET_KEY', () => {
+      expect(FIELD_TO_PRESET_KEY.logoConcept).toBeUndefined();
     });
   });
 });

@@ -10,7 +10,7 @@
 	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
 	import TextRevisionHistory from '$lib/components/TextRevisionHistory.svelte';
 	import { labelToKey } from '$lib/utils/text';
-	import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY, getMatchingProfileField } from '$lib/services/brand';
+	import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY, IMAGE_FIELDS, getMatchingProfileField } from '$lib/services/brand';
 
 	export let data: PageData;
 
@@ -227,6 +227,12 @@
 	}
 
 	function startEditing(fieldKey: string, currentValue: unknown) {
+		// If the field is an image field, navigate to the Images tab
+		if (IMAGE_FIELDS.has(fieldKey)) {
+			switchTab('images');
+			return;
+		}
+
 		// If the field has a text preset mapping, navigate to the Text tab
 		const preset = FIELD_TO_PRESET_KEY[fieldKey];
 		if (preset) {
