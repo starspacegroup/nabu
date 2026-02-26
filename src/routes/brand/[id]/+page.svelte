@@ -990,7 +990,7 @@
 								</div>
 								<div class="text-assets-list">
 									{#each catTexts as text}
-										<div class="text-asset-card">
+										<div class="text-asset-card" class:editing={editingTextId === text.id}>
 											<div class="text-asset-header">
 												<span class="text-asset-label">{text.label}</span>
 												<span class="text-asset-key">{text.key}</span>
@@ -999,50 +999,56 @@
 												{/if}
 											</div>
 											{#if editingTextId === text.id}
-												<textarea
-													bind:value={editTextValue}
-													class="form-textarea"
-													rows="3"
-												></textarea>
-												{#if data.hasAIProviders}
-													<div class="ai-edit-row">
-														<button
-															class="ai-btn small"
-															on:click={() => generateEditTextWithAI(text.id, text.category, text.key, text.label)}
-															disabled={aiEditGenerating}
-															title="Regenerate this text using AI"
-														>
-															{aiEditGenerating ? '⏳...' : '✨ AI Regenerate'}
-														</button>
-														<button
-															class="ai-btn secondary small"
-															on:click={() => (showAiEditPrompt = !showAiEditPrompt)}
-															disabled={aiEditGenerating}
-														>
-															💬
-														</button>
+												<div class="edit-form">
+													<textarea
+														bind:value={editTextValue}
+														class="form-textarea edit-textarea"
+														rows="4"
+														placeholder="Enter text content..."
+													></textarea>
+													<div class="edit-toolbar">
+														<div class="edit-toolbar-left">
+															{#if data.hasAIProviders}
+																<button
+																	class="toolbar-btn ai"
+																	on:click={() => generateEditTextWithAI(text.id, text.category, text.key, text.label)}
+																	disabled={aiEditGenerating}
+																	title="Regenerate this text using AI"
+																>
+																	{aiEditGenerating ? '⏳ Generating...' : '✨ AI Regenerate'}
+																</button>
+																<button
+																	class="toolbar-btn"
+																	on:click={() => (showAiEditPrompt = !showAiEditPrompt)}
+																	disabled={aiEditGenerating}
+																	title="Custom AI prompt"
+																>
+																	💬 Custom Prompt
+																</button>
+															{/if}
+														</div>
+														<div class="edit-toolbar-right">
+															<button class="toolbar-btn cancel" on:click={cancelEditingText}>Cancel</button>
+															<button class="toolbar-btn save" on:click={() => saveTextAsset(text.id)}>Save Changes</button>
+														</div>
 													</div>
 													{#if showAiEditPrompt}
-														<div class="ai-prompt-area compact">
+														<div class="custom-prompt-area">
 															<textarea
 																bind:value={aiEditCustomPrompt}
-																placeholder="Custom instructions..."
-																class="form-textarea"
+																placeholder="Describe what you want, e.g. 'Make it more concise' or 'Add a playful tone'..."
+																class="form-textarea prompt-textarea"
 																rows="2"
 															></textarea>
 															<button
-																class="ai-btn small"
+																class="toolbar-btn ai"
 																on:click={() => generateEditTextWithAI(text.id, text.category, text.key, text.label, aiEditCustomPrompt)}
 																disabled={aiEditGenerating || !aiEditCustomPrompt}
 															>
-																{aiEditGenerating ? '⏳...' : '✨ Generate'}
+																{aiEditGenerating ? '⏳ Generating...' : '✨ Generate with Prompt'}
 															</button>
 														</div>
 													{/if}
-												{/if}
-												<div class="text-asset-actions">
-													<button class="save-btn small" on:click={() => saveTextAsset(text.id)}>Save</button>
-													<button class="cancel-btn small" on:click={cancelEditingText}>Cancel</button>
 												</div>
 											{:else}
 												<p class="text-asset-value">{text.value}</p>
@@ -1694,13 +1700,19 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
 		padding: var(--spacing-md);
+		transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+	}
+
+	.text-asset-card.editing {
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 1px var(--color-primary), 0 4px 12px rgba(0, 0, 0, 0.08);
 	}
 
 	.text-asset-header {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
-		margin-bottom: var(--spacing-xs);
+		margin-bottom: var(--spacing-sm);
 	}
 
 	.text-asset-label {
@@ -1712,9 +1724,12 @@
 	}
 
 	.text-asset-key {
-		font-size: 0.7rem;
+		font-size: 0.65rem;
 		color: var(--color-text-secondary);
 		font-family: monospace;
+		background-color: var(--color-surface);
+		padding: 1px 6px;
+		border-radius: var(--radius-sm);
 	}
 
 	.lang-badge {
@@ -1731,13 +1746,127 @@
 		font-size: 0.9rem;
 		color: var(--color-text);
 		margin: 0 0 var(--spacing-sm);
-		line-height: 1.5;
+		line-height: 1.6;
 		white-space: pre-wrap;
 	}
 
 	.text-asset-actions {
 		display: flex;
 		gap: var(--spacing-xs);
+		flex-wrap: wrap;
+	}
+
+	/* ─── Edit Form ──────────────────────────────────────── */
+
+	.edit-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.edit-textarea {
+		width: 100%;
+		min-height: 100px;
+		padding: var(--spacing-md);
+		font-size: 0.9rem;
+		line-height: 1.6;
+		resize: vertical;
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		transition: border-color var(--transition-fast);
+	}
+
+	.edit-textarea:focus {
+		border-color: var(--color-primary);
+		outline: none;
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+	}
+
+	.edit-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+		padding-top: var(--spacing-xs);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.edit-toolbar-left,
+	.edit-toolbar-right {
+		display: flex;
+		gap: var(--spacing-xs);
+		align-items: center;
+	}
+
+	.toolbar-btn {
+		padding: 6px 12px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background-color: var(--color-surface);
+		color: var(--color-text);
+		font-size: 0.75rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		white-space: nowrap;
+	}
+
+	.toolbar-btn:hover:not(:disabled) {
+		background-color: var(--color-border);
+	}
+
+	.toolbar-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.toolbar-btn.ai {
+		background-color: var(--color-primary);
+		border-color: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.toolbar-btn.ai:hover:not(:disabled) {
+		background-color: var(--color-primary-hover);
+	}
+
+	.toolbar-btn.save {
+		background-color: var(--color-primary);
+		border-color: var(--color-primary);
+		color: var(--color-background);
+		font-weight: 600;
+	}
+
+	.toolbar-btn.save:hover:not(:disabled) {
+		background-color: var(--color-primary-hover);
+	}
+
+	.toolbar-btn.cancel {
+		background-color: transparent;
+		color: var(--color-text-secondary);
+	}
+
+	.toolbar-btn.cancel:hover:not(:disabled) {
+		color: var(--color-text);
+		background-color: var(--color-border);
+	}
+
+	.custom-prompt-area {
+		display: flex;
+		gap: var(--spacing-xs);
+		align-items: flex-end;
+		padding: var(--spacing-sm);
+		background-color: var(--color-surface);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--color-border);
+	}
+
+	.prompt-textarea {
+		flex: 1;
+		font-size: 0.8rem;
+		min-height: unset;
+		padding: var(--spacing-sm);
 	}
 
 	/* ─── Buttons ─────────────────────────────────────────── */
@@ -1826,11 +1955,6 @@
 		cursor: not-allowed;
 	}
 
-	.save-btn.small,
-	.cancel-btn.small {
-		padding: 2px 8px;
-		font-size: 0.7rem;
-	}
 
 	/* ─── AI Generate Section ─────────────────────────────── */
 
@@ -1894,11 +2018,6 @@
 		color: var(--color-background);
 	}
 
-	.ai-btn.small {
-		padding: 2px 8px;
-		font-size: 0.7rem;
-	}
-
 	.ai-prompt-area {
 		display: flex;
 		gap: var(--spacing-xs);
@@ -1909,9 +2028,7 @@
 		flex: 1;
 	}
 
-	.ai-prompt-area.compact {
-		margin-top: var(--spacing-xs);
-	}
+
 
 	.ai-error {
 		display: flex;
@@ -1935,11 +2052,7 @@
 		line-height: 1;
 	}
 
-	.ai-edit-row {
-		display: flex;
-		gap: var(--spacing-xs);
-		margin-top: var(--spacing-xs);
-	}
+
 
 	/* ─── Responsive ──────────────────────────────────────── */
 
@@ -1954,6 +2067,20 @@
 
 		.tab-icon {
 			font-size: 1.2rem;
+		}
+
+		.edit-toolbar {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.edit-toolbar-left,
+		.edit-toolbar-right {
+			justify-content: center;
+		}
+
+		.custom-prompt-area {
+			flex-direction: column;
 		}
 	}
 
