@@ -134,6 +134,10 @@ export interface CreateBrandTextParams {
   language?: string;
   sortOrder?: number;
   metadata?: Record<string, unknown>;
+  /** Optional: user ID for initial revision tracking */
+  userId?: string;
+  /** Optional: source of the creation for revision tracking */
+  changeSource?: TextChangeSource;
 }
 
 /** Params for updating a brand text asset */
@@ -142,6 +146,12 @@ export interface UpdateBrandTextParams {
   label?: string;
   sortOrder?: number;
   metadata?: Record<string, unknown>;
+  /** Optional: user ID for revision tracking (creates a revision if value changed) */
+  userId?: string;
+  /** Optional: source of the change for revision tracking */
+  changeSource?: TextChangeSource;
+  /** Optional: note for the revision */
+  changeNote?: string;
 }
 
 /** Params for creating a brand media asset */
@@ -375,4 +385,46 @@ export interface BrandMediaWithRevisions {
   asset: BrandMediaAsset;
   revisions: MediaRevision[];
   currentRevision?: MediaRevision;
+}
+
+// ─── Text Revision Control Types ──────────────────────────────────
+
+/** Change source for text revisions */
+export type TextChangeSource = 'manual' | 'ai' | 'import' | 'revert';
+
+/** A revision (version snapshot) of a text asset */
+export interface TextRevision {
+  id: string;
+  brandTextId: string;
+  revisionNumber: number;
+  /** The text value at this revision */
+  value: string;
+  /** Label at time of revision */
+  label?: string;
+  /** How this revision was created */
+  changeSource: TextChangeSource;
+  /** User who created this revision */
+  userId: string;
+  /** Optional change note */
+  changeNote?: string;
+  /** Whether this is the currently active revision */
+  isCurrent: boolean;
+  createdAt: string;
+}
+
+/** Params for creating a text revision */
+export interface CreateTextRevisionParams {
+  brandTextId: string;
+  value: string;
+  label?: string;
+  changeSource: TextChangeSource;
+  userId: string;
+  changeNote?: string;
+}
+
+/** A text asset with its full revision history */
+export interface BrandTextWithRevisions {
+  text: BrandText;
+  revisions: TextRevision[];
+  currentRevision?: TextRevision;
 }

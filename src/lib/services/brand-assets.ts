@@ -18,6 +18,7 @@ import type {
   UpdateBrandMediaParams,
   CreateMediaVariantParams
 } from '$lib/types/brand-assets';
+import { createTextRevision } from '$lib/services/text-history';
 
 // Re-export types the tests import directly from this module
 export type { BrandText, BrandMediaAsset, BrandMediaVariant, BrandAssetSummary };
@@ -122,7 +123,75 @@ function mapRowToVariant(row: Record<string, unknown>): BrandMediaVariant {
 // ─── Brand Text Assets ──────────────────────────────────────────
 
 /**
+ * Find a text asset by brand profile, category, and key.
+ * Returns null if not found.
+ */
+export async function findBrandTextByKey(
+  db: D1Database,
+  brandProfileId: string,
+  category: string,
+  key: string
+): Promise<BrandText | null> {
+  const row = await db
+    .prepare(
+      `SELECT * FROM brand_texts
+       WHERE brand_profile_id = ? AND category = ? AND key = ?`
+    )
+    .bind(brandProfileId, category, key)
+    .first<Record<string, unknown>>();
+
+  if (!row) return null;
+  return mapRowToText(row);
+}
+
+/**
+ * Sync a brand profile field value to a corresponding text asset.
+ * Uses FIELD_TO_TEXT_MAPPING to determine the text category and key.
+ * Creates the text if it doesn't exist, or updates it if it does.
+ * No-ops for fields without a mapping, or null/empty values.
+ */
+export async function syncFieldToTextAsset(
+  db: D1Database,
+  params: {
+    brandProfileId: string;
+    fieldName: string;
+    value: string | null;
+  }
+): Promise<void> {
+  // Skip if value is empty or null
+  if (!params.value) return;
+
+  // Import inline to avoid circular dependency at module level
+  const { FIELD_TO_TEXT_MAPPING, BRAND_FIELD_LABELS } = await import('$lib/services/brand');
+
+  const mapping = FIELD_TO_TEXT_MAPPING[params.fieldName];
+  if (!mapping) return;
+
+  const category = mapping.category;
+  const key = mapping.keys[0]; // Use first key as the canonical key
+  const label = BRAND_FIELD_LABELS[params.fieldName] || params.fieldName;
+
+  // Check if a text asset already exists for this field
+  const existing = await findBrandTextByKey(db, params.brandProfileId, category, key);
+
+  if (existing) {
+    // Update the existing text asset
+    await updateBrandText(db, existing.id, { value: params.value });
+  } else {
+    // Create a new text asset
+    await createBrandText(db, {
+      brandProfileId: params.brandProfileId,
+      category: category as CreateBrandTextParams['category'],
+      key,
+      label,
+      value: params.value
+    });
+  }
+}
+
+/**
  * Create a text asset for a brand.
+ * If userId is provided, also creates an initial revision for history tracking.
  */
 export async function createBrandText(
   db: D1Database,
@@ -142,6 +211,18 @@ export async function createBrandText(
     )
     .bind(id, params.brandProfileId, params.category, params.key, params.label, params.value, language, sortOrder, metadataStr, now, now)
     .run();
+
+  // Create initial revision if user context is available
+  if (params.userId) {
+    await createTextRevision(db, {
+      brandTextId: id,
+      value: params.value,
+      label: params.label,
+      changeSource: params.changeSource ?? 'manual',
+      userId: params.userId,
+      changeNote: 'Initial version'
+    });
+  }
 
   return {
     id,
@@ -203,6 +284,7 @@ export async function getBrandTextsByCategory(
 
 /**
  * Update a text asset.
+ * If userId is provided and the value is being changed, creates a new revision.
  */
 export async function updateBrandText(
   db: D1Database,
@@ -238,6 +320,18 @@ export async function updateBrandText(
     .prepare(`UPDATE brand_texts SET ${sets.join(', ')} WHERE id = ?`)
     .bind(...values)
     .run();
+
+  // Create a revision if value changed and user context is available
+  if (params.value !== undefined && params.userId) {
+    await createTextRevision(db, {
+      brandTextId: textId,
+      value: params.value,
+      label: params.label,
+      changeSource: params.changeSource ?? 'manual',
+      userId: params.userId,
+      changeNote: params.changeNote
+    });
+  }
 }
 
 /**

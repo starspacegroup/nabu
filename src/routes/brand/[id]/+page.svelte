@@ -8,6 +8,7 @@
 	import BrandTextPicker from '$lib/components/BrandTextPicker.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
+	import TextRevisionHistory from '$lib/components/TextRevisionHistory.svelte';
 	import { labelToKey } from '$lib/utils/text';
 	import { FIELD_TO_TEXT_MAPPING } from '$lib/services/brand';
 
@@ -140,6 +141,10 @@
 	// Text editing
 	let editingTextId: string | null = null;
 	let editTextValue = '';
+
+	// Text revision history modal
+	let textHistoryId: string | null = null;
+	let textHistoryLabel: string | null = null;
 
 	// AI text generation
 	let aiGenerating = false;
@@ -952,6 +957,7 @@
 												<p class="text-asset-value">{text.value}</p>
 												<div class="text-asset-actions">
 													<button class="edit-btn" on:click={() => startEditingText(text)}>Edit</button>
+													<button class="history-btn" on:click={() => { textHistoryId = text.id; textHistoryLabel = text.label; }} title="Revision history">History</button>
 													<button class="delete-btn" on:click={() => deleteTextAsset(text.id)}>Delete</button>
 												</div>
 											{/if}
@@ -1018,6 +1024,16 @@
 			fieldLabel={historyFieldLabel || historyFieldKey}
 			on:close={closeHistory}
 			on:revert={handleRevert}
+		/>
+	{/if}
+
+	<!-- Text Revision History Modal -->
+	{#if textHistoryId}
+		<TextRevisionHistory
+			brandTextId={textHistoryId}
+			textLabel={textHistoryLabel || ''}
+			on:close={() => { textHistoryId = null; textHistoryLabel = null; }}
+			on:revert={() => { textHistoryId = null; textHistoryLabel = null; loadTabAssets('text'); }}
 		/>
 	{/if}
 
@@ -1596,7 +1612,8 @@
 	.save-btn,
 	.edit-btn,
 	.cancel-btn,
-	.delete-btn {
+	.delete-btn,
+	.history-btn {
 		padding: var(--spacing-xs) var(--spacing-sm);
 		border: none;
 		border-radius: var(--radius-sm);
@@ -1628,6 +1645,17 @@
 	.edit-btn:hover {
 		background-color: var(--color-text-secondary);
 		color: var(--color-background);
+	}
+
+	.history-btn {
+		background-color: transparent;
+		color: var(--color-text-secondary);
+		border: 1px solid var(--color-border);
+	}
+
+	.history-btn:hover {
+		background-color: var(--color-border);
+		color: var(--color-text);
 	}
 
 	.cancel-btn {

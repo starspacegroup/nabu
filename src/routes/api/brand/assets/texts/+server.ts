@@ -52,7 +52,9 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     key,
     label,
     value,
-    language
+    language,
+    userId: locals.user.id,
+    changeSource: 'manual'
   });
 
   // Optionally set the profile field to this value
@@ -78,18 +80,23 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 /**
  * PATCH /api/brand/assets/texts
- * Update a text asset
+ * Update a text asset. Automatically creates a revision when value changes.
  */
 export const PATCH: RequestHandler = async ({ request, platform, locals }) => {
   if (!locals.user) throw error(401, 'Unauthorized');
   if (!platform?.env?.DB) throw error(500, 'Platform not available');
 
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, changeSource, changeNote, ...updates } = body;
 
   if (!id) throw error(400, 'id required');
 
-  await updateBrandText(platform.env.DB, id, updates);
+  await updateBrandText(platform.env.DB, id, {
+    ...updates,
+    userId: locals.user.id,
+    changeSource: changeSource || 'manual',
+    changeNote
+  });
   return json({ success: true });
 };
 
