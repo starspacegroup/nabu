@@ -25,6 +25,7 @@
 			model: string;
 			category: string;
 			name: string;
+			brandProfileId: string;
 			options: Record<string, unknown>;
 		};
 		close: void;
@@ -192,12 +193,12 @@
 	}
 
 	async function handleGenerate() {
-		if (!prompt.trim()) {
-			error = 'Please enter a prompt';
+		// Audio is text-to-speech — prompt is always required
+		if (generationType === 'audio' && !prompt.trim()) {
+			error = 'Please enter the text to speak';
 			return;
 		}
 
-		generating = true;
 		error = '';
 
 		const options: Record<string, unknown> = {};
@@ -221,40 +222,20 @@
 			}
 		}
 
-		try {
-			const response = await fetch('/api/brand/assets/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: generationType,
-					brandProfileId,
-					prompt: prompt.trim(),
-					name: assetName || `AI ${typeLabel}`,
-					category: selectedCategory,
-					...options
-				})
-			});
+		// Dispatch event with all form data, then close immediately.
+		// The parent (MediaGallery) will make the API call and show a progress placeholder.
+		dispatch('generate', {
+			type: generationType,
+			prompt: prompt.trim(),
+			model: (options.model as string) || '',
+			category: selectedCategory,
+			name: assetName || `AI ${typeLabel}`,
+			brandProfileId,
+			options
+		});
 
-			const data = await response.json();
-
-			if (data.generation?.status === 'failed') {
-				error = data.generation.errorMessage || 'Generation failed';
-			} else {
-				dispatch('generate', {
-					type: generationType,
-					prompt: prompt.trim(),
-					model: (options.model as string) || '',
-					category: selectedCategory,
-					name: assetName || `AI ${typeLabel}`,
-					options
-				});
-				handleClose();
-			}
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Generation failed';
-		} finally {
-			generating = false;
-		}
+		open = false;
+		reset();
 	}
 
 	function reset() {
@@ -300,7 +281,7 @@
 				<!-- Prompt -->
 				<div class="field">
 					<label for="ai-prompt">
-						{#if generationType === 'audio'}Text to speak{:else}Describe what you want{/if}
+						{#if generationType === 'audio'}Text to speak{:else}Describe what you want <span class="optional-hint">(optional — brand context will be used)</span>{/if}
 					</label>
 					<textarea
 						id="ai-prompt"
@@ -469,7 +450,7 @@
 				<button class="btn-secondary" on:click={handleClose} disabled={generating}>
 					Cancel
 				</button>
-				<button class="btn-primary" on:click={handleGenerate} disabled={generating || !prompt.trim()}>
+				<button class="btn-primary" on:click={handleGenerate} disabled={generating || (generationType === 'audio' && !prompt.trim())}>
 					{#if generating}
 						<span class="spinner"></span>
 						Generating...
@@ -593,6 +574,12 @@
 		font-size: 0.8125rem;
 		font-weight: 500;
 		color: var(--color-text-secondary);
+	}
+
+	.optional-hint {
+		font-weight: 400;
+		font-size: 0.75rem;
+		opacity: 0.7;
 	}
 
 	.field textarea,

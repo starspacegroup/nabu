@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import MediaUpload from './MediaUpload.svelte';
 	import AIGenerateModal from './AIGenerateModal.svelte';
 	import type { BrandMediaAsset } from '$lib/types/brand-assets';
@@ -13,6 +13,13 @@
 	export let mediaType: 'image' | 'audio' | 'video' = 'image';
 	export let assets: BrandMediaAsset[] = [];
 	export let loading = false;
+	export let pendingGenerations: Array<{
+		id: string;
+		name: string;
+		category: string;
+		status: string;
+		type: string;
+	}> = [];
 
 	let mode: 'gallery' | 'upload' | 'ai' = 'gallery';
 	let aiModalOpen = false;
@@ -68,10 +75,98 @@
 		}
 	}
 
-	function handleAIGenerate() {
+	async function handleAIGenerate(e: CustomEvent<{
+		type: string;
+		prompt: string;
+		model: string;
+		name: string;
+		category: string;
+		brandProfileId: string;
+		options: Record<string, unknown>;
+	}>) {
+		const { type, prompt, name, category, brandProfileId: bpId, options } = e.detail;
+
+		// Show a placeholder immediately while the API call runs
+		const tempId = `temp-${Date.now()}`;
+		pendingGenerations = [
+			...pendingGenerations,
+			{ id: tempId, name, category, status: 'pending', type }
+		];
 		mode = 'gallery';
-		dispatch('refresh');
+
+		try {
+			const response = await fetch('/api/brand/assets/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					type,
+					brandProfileId: bpId,
+					prompt,
+					name,
+					category,
+					...options
+				})
+			});
+
+			const data = await response.json();
+
+			if (data.generation?.status === 'failed') {
+				// Remove the placeholder on failure
+				pendingGenerations = pendingGenerations.filter((g) => g.id !== tempId);
+				return;
+			}
+
+			const realId = data.generation?.id;
+			if (realId) {
+				// Swap temp ID for real ID and start polling
+				pendingGenerations = pendingGenerations.map((g) =>
+					g.id === tempId ? { ...g, id: realId } : g
+				);
+				pollGeneration(realId);
+			} else {
+				pendingGenerations = pendingGenerations.filter((g) => g.id !== tempId);
+			}
+		} catch {
+			// Remove placeholder on network error
+			pendingGenerations = pendingGenerations.filter((g) => g.id !== tempId);
+		}
 	}
+
+	/** Poll for generation completion and refresh assets when done */
+	let pollTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+	function pollGeneration(generationId: string) {
+		const poll = async () => {
+			try {
+				const res = await fetch(`/api/brand/assets/generate?id=${encodeURIComponent(generationId)}`);
+				if (!res.ok) return;
+				const data = await res.json();
+				const gen = data.generation;
+
+				if (gen?.status === 'complete' || gen?.status === 'failed') {
+					// Remove from pending
+					pendingGenerations = pendingGenerations.filter((g) => g.id !== generationId);
+					delete pollTimers[generationId];
+					// Refresh the assets list
+					if (gen.status === 'complete') {
+						dispatch('refresh');
+					}
+					return;
+				}
+			} catch {
+				// Network error — keep polling
+			}
+			// Poll again in 3 seconds
+			pollTimers[generationId] = setTimeout(poll, 3000);
+		};
+		// Start first poll after 2 seconds
+		pollTimers[generationId] = setTimeout(poll, 2000);
+	}
+
+	onDestroy(() => {
+		// Clean up all polling timers
+		Object.values(pollTimers).forEach(clearTimeout);
+	});
 
 	async function loadActivityLog() {
 		try {
@@ -229,7 +324,7 @@
 			<span class="spinner"></span>
 			Loading...
 		</div>
-	{:else if assets.length === 0 && mode === 'gallery'}
+	{:else if assets.length === 0 && pendingGenerations.length === 0 && mode === 'gallery'}
 		<div class="empty-state">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
 				{#if mediaType === 'image'}
@@ -258,6 +353,24 @@
 		</div>
 	{:else}
 		<div class="asset-grid" class:audio-grid={mediaType === 'audio'}>
+			<!-- Pending generation placeholders -->
+			{#each pendingGenerations as gen (gen.id)}
+				<div class="asset-card generating-card">
+					<div class="asset-preview generating-preview">
+						<div class="generation-placeholder">
+							<span class="generation-spinner"></span>
+							<span class="generation-label">Generating...</span>
+						</div>
+						<span class="source-badge ai">AI</span>
+					</div>
+					<div class="asset-info">
+						<span class="asset-name" title={gen.name}>{gen.name}</span>
+						<span class="asset-meta">{gen.category.replace(/_/g, ' ')}</span>
+					</div>
+				</div>
+			{/each}
+
+			<!-- Existing assets -->
 			{#each assets as asset (asset.id)}
 				<div class="asset-card">
 					<!-- Preview -->
@@ -519,6 +632,54 @@
 
 	.asset-card:hover {
 		box-shadow: var(--shadow-md);
+	}
+
+	/* Generation placeholder */
+	.generating-card {
+		border-color: var(--color-primary);
+		border-style: dashed;
+		opacity: 0.85;
+	}
+
+	.generating-preview {
+		background: linear-gradient(
+			135deg,
+			var(--color-surface-hover) 0%,
+			var(--color-surface) 50%,
+			var(--color-surface-hover) 100%
+		);
+		background-size: 200% 200%;
+		animation: shimmer 2s ease-in-out infinite;
+	}
+
+	.generation-placeholder {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-sm);
+		width: 100%;
+		height: 100%;
+	}
+
+	.generation-spinner {
+		width: 2rem;
+		height: 2rem;
+		border: 3px solid var(--color-border);
+		border-top-color: var(--color-primary);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	.generation-label {
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--color-primary);
+	}
+
+	@keyframes shimmer {
+		0%, 100% { background-position: 0% 50%; }
+		50% { background-position: 100% 50%; }
 	}
 
 	.asset-preview {

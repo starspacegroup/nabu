@@ -13,6 +13,7 @@ import {
 import { createBrandMedia } from '$lib/services/brand-assets';
 import { logMediaActivity, createMediaRevision } from '$lib/services/media-history';
 import { getEnabledVideoKey } from '$lib/services/video-registry';
+import { getBrandProfile, buildBrandContextString } from '$lib/services/onboarding';
 import type { AIGenerationProvider } from '$lib/types/brand-assets';
 
 /**
@@ -48,13 +49,46 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   if (!platform?.env?.DB || !platform?.env?.KV) throw error(500, 'Platform not available');
 
   const body = await request.json();
-  const { type, brandProfileId, prompt } = body;
+  const { type, brandProfileId } = body;
+  let prompt: string = body.prompt || '';
 
   if (!type || !['image', 'audio', 'video'].includes(type)) {
     throw error(400, 'Valid type required (image, audio, video)');
   }
   if (!brandProfileId) throw error(400, 'brandProfileId required');
-  if (!prompt) throw error(400, 'prompt required');
+
+  // Audio is text-to-speech — the prompt IS the content, so it's always required
+  if (type === 'audio' && !prompt.trim()) {
+    throw error(400, 'prompt required');
+  }
+
+  // For image/video: enrich prompt with brand profile context
+  if (type === 'image' || type === 'video') {
+    try {
+      const brandProfile = await getBrandProfile(platform.env.DB, brandProfileId);
+      if (brandProfile) {
+        const brandContext = buildBrandContextString(brandProfile);
+        if (brandContext) {
+          if (prompt.trim()) {
+            // User provided a prompt — append brand context
+            prompt = `${prompt.trim()}\n\nBrand context:\n${brandContext}`;
+          } else {
+            // No user prompt — build a default one from brand data
+            const category = body.category || 'brand_elements';
+            const brandName = brandProfile.brandName || 'the brand';
+            prompt = `Create a professional ${category.replace(/_/g, ' ')} asset for ${brandName}.\n\nBrand context:\n${brandContext}`;
+          }
+        }
+      }
+    } catch {
+      // If brand profile loading fails, continue with whatever prompt we have
+    }
+
+    // After enrichment, if we still have no prompt at all, use a generic fallback
+    if (!prompt.trim()) {
+      prompt = `Create a professional ${(body.category || 'brand_elements').replace(/_/g, ' ')} asset`;
+    }
+  }
 
   let generation;
 
