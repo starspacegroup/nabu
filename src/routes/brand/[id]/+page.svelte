@@ -10,7 +10,7 @@
 	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
 	import TextRevisionHistory from '$lib/components/TextRevisionHistory.svelte';
 	import { labelToKey } from '$lib/utils/text';
-	import { FIELD_TO_TEXT_MAPPING } from '$lib/services/brand';
+	import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY, getMatchingProfileField } from '$lib/services/brand';
 
 	export let data: PageData;
 
@@ -142,9 +142,16 @@
 	let editingTextId: string | null = null;
 	let editTextValue = '';
 
+	// Pending text edit — set when navigating from profile field to auto-open editor
+	let pendingTextEdit: { category: string; presetKey: string; fieldValue?: string } | null = null;
+
 	// Text revision history modal
 	let textHistoryId: string | null = null;
 	let textHistoryLabel: string | null = null;
+
+	// Push-to-profile state
+	let pushingTextId: string | null = null;
+	let pushSuccessMessage: string | null = null;
 
 	// AI text generation
 	let aiGenerating = false;
@@ -220,6 +227,15 @@
 	}
 
 	function startEditing(fieldKey: string, currentValue: unknown) {
+		// If the field has a text preset mapping, navigate to the Text tab
+		const preset = FIELD_TO_PRESET_KEY[fieldKey];
+		if (preset) {
+			const stringValue = currentValue != null && typeof currentValue === 'string' ? currentValue : undefined;
+			navigateToTextAsset(preset.category, preset.presetKey, stringValue);
+			return;
+		}
+
+		// No text mapping — use inline editing
 		editingField = fieldKey;
 		if (currentValue == null) {
 			editValue = '';
@@ -230,6 +246,13 @@
 		} else {
 			editValue = JSON.stringify(currentValue, null, 2);
 		}
+	}
+
+	function navigateToTextAsset(category: string, presetKey: string, fieldValue?: string) {
+		// Set pending edit so loadTabAssets can find and open the right text asset
+		pendingTextEdit = { category, presetKey, fieldValue };
+		showAddText = false;
+		switchTab('text');
 	}
 
 	function cancelEditing() {
@@ -367,6 +390,29 @@
 				if (res.ok) {
 					const result = await res.json();
 					textAssets = result.texts;
+				}
+				// After loading, check for pending text edit from profile field click
+				if (pendingTextEdit) {
+					const pending = pendingTextEdit;
+					pendingTextEdit = null;
+					const match = textAssets.find(
+						t => t.category === pending.category && t.key === pending.presetKey
+					);
+					if (match) {
+						// Found matching text asset — open its editor
+						startEditingText(match);
+						requestAnimationFrame(() => {
+							const el = document.querySelector(`[data-category="${pending.category}"]`);
+							if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+						});
+					} else {
+						// No matching text asset — open add form pre-filled
+						newTextCategory = pending.category;
+						selectedPresetKey = pending.presetKey;
+						customLabel = '';
+						newTextValue = pending.fieldValue ?? '';
+						showAddText = true;
+					}
 				}
 			} else if (tab === 'images') {
 				const res = await fetch(`/api/brand/assets/media?brandProfileId=${data.brandId}&mediaType=image`);
@@ -561,6 +607,43 @@
 		}
 	}
 
+	/**
+	 * Push a text asset's current value to the corresponding profile field.
+	 * Optionally pushes a specific revision's value instead.
+	 */
+	async function pushTextToProfile(textId: string, revisionId?: string) {
+		if (!profile || pushingTextId) return;
+		pushingTextId = textId;
+		pushSuccessMessage = null;
+		try {
+			const body: Record<string, string> = {
+				brandProfileId: profile.id,
+				textId
+			};
+			if (revisionId) body.revisionId = revisionId;
+
+			const res = await fetch('/api/brand/push-to-profile', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			if (!res.ok) {
+				const errData = await res.json().catch(() => null);
+				throw new Error(errData?.message || 'Failed to push to profile');
+			}
+			const result = await res.json();
+			pushSuccessMessage = `Updated ${result.pushedLabel} on profile`;
+			// Refresh profile data so the Profile tab reflects the change
+			await loadProfile();
+			// Auto-dismiss success message after 3 seconds
+			setTimeout(() => { pushSuccessMessage = null; }, 3000);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to push to profile';
+		} finally {
+			pushingTextId = null;
+		}
+	}
+
 	async function refreshMediaAssets() {
 		await loadTabAssets(activeTab);
 		loadAssetSummary();
@@ -650,6 +733,14 @@
 			<div class="error-banner">
 				<span>{error}</span>
 				<button on:click={() => (error = null)} aria-label="Dismiss error">×</button>
+			</div>
+		{/if}
+
+		<!-- Push to profile success -->
+		{#if pushSuccessMessage}
+			<div class="success-banner">
+				<span>✅ {pushSuccessMessage}</span>
+				<button on:click={() => (pushSuccessMessage = null)} aria-label="Dismiss">×</button>
 			</div>
 		{/if}
 
@@ -891,7 +982,7 @@
 					{#each Object.entries(textCategoryInfo) as [catKey, catInfo]}
 						{@const catTexts = textsByCategory[catKey]}
 						{#if catTexts && catTexts.length > 0}
-							<div class="asset-category-group">
+							<div class="asset-category-group" data-category={catKey}>
 								<div class="asset-category-header">
 									<span>{catInfo.icon}</span>
 									<h3>{catInfo.label}</h3>
@@ -957,6 +1048,16 @@
 												<p class="text-asset-value">{text.value}</p>
 												<div class="text-asset-actions">
 													<button class="edit-btn" on:click={() => startEditingText(text)}>Edit</button>
+													{#if getMatchingProfileField(text.category, text.key)}
+														<button
+															class="push-btn"
+															on:click={() => pushTextToProfile(text.id)}
+															disabled={pushingTextId === text.id}
+															title="Push this value to the profile's {getMatchingProfileField(text.category, text.key)?.fieldLabel} field"
+														>
+															{pushingTextId === text.id ? '⏳...' : '📤 Push to Profile'}
+														</button>
+													{/if}
 													<button class="history-btn" on:click={() => { textHistoryId = text.id; textHistoryLabel = text.label; }} title="Revision history">History</button>
 													<button class="delete-btn" on:click={() => deleteTextAsset(text.id)}>Delete</button>
 												</div>
@@ -1029,11 +1130,21 @@
 
 	<!-- Text Revision History Modal -->
 	{#if textHistoryId}
+		{@const historyText = textAssets.find(t => t.id === textHistoryId)}
 		<TextRevisionHistory
 			brandTextId={textHistoryId}
 			textLabel={textHistoryLabel || ''}
+			brandProfileId={profile?.id ?? ''}
+			canPushToProfile={historyText ? !!getMatchingProfileField(historyText.category, historyText.key) : false}
 			on:close={() => { textHistoryId = null; textHistoryLabel = null; }}
 			on:revert={() => { textHistoryId = null; textHistoryLabel = null; loadTabAssets('text'); }}
+			on:pushed={(e) => {
+				textHistoryId = null;
+				textHistoryLabel = null;
+				pushSuccessMessage = `Updated ${e.detail.label} on profile`;
+				loadProfile();
+				setTimeout(() => { pushSuccessMessage = null; }, 3000);
+			}}
 		/>
 	{/if}
 
@@ -1250,6 +1361,28 @@
 	}
 
 	.error-banner button {
+		background: none;
+		border: none;
+		color: var(--color-background);
+		cursor: pointer;
+		font-size: 1.2rem;
+		padding: 0 var(--spacing-xs);
+	}
+
+	/* Success banner */
+	.success-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background-color: var(--color-success, #22c55e);
+		color: var(--color-background);
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--spacing-md);
+		font-size: 0.85rem;
+	}
+
+	.success-banner button {
 		background: none;
 		border: none;
 		color: var(--color-background);
@@ -1613,7 +1746,8 @@
 	.edit-btn,
 	.cancel-btn,
 	.delete-btn,
-	.history-btn {
+	.history-btn,
+	.push-btn {
 		padding: var(--spacing-xs) var(--spacing-sm);
 		border: none;
 		border-radius: var(--radius-sm);
@@ -1676,6 +1810,20 @@
 	.delete-btn:hover {
 		background-color: var(--color-error);
 		color: var(--color-background);
+	}
+
+	.push-btn {
+		background-color: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.push-btn:hover {
+		background-color: var(--color-primary-hover);
+	}
+
+	.push-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.save-btn.small,

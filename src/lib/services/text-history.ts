@@ -161,6 +161,23 @@ export async function revertTextToRevision(
 }
 
 /**
+ * Get a single revision by its ID.
+ * Returns null if not found.
+ */
+export async function getRevisionById(
+  db: D1Database,
+  revisionId: string
+): Promise<TextRevision | null> {
+  const row = await db
+    .prepare('SELECT * FROM brand_text_revisions WHERE id = ?')
+    .bind(revisionId)
+    .first();
+
+  if (!row) return null;
+  return mapRowToTextRevision(row as Record<string, unknown>);
+}
+
+/**
  * Get the number of revisions for a text asset.
  */
 export async function getTextRevisionCount(

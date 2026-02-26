@@ -123,6 +123,23 @@ function mapRowToVariant(row: Record<string, unknown>): BrandMediaVariant {
 // ─── Brand Text Assets ──────────────────────────────────────────
 
 /**
+ * Get a text asset by its ID.
+ * Returns null if not found.
+ */
+export async function getBrandTextById(
+  db: D1Database,
+  textId: string
+): Promise<BrandText | null> {
+  const row = await db
+    .prepare('SELECT * FROM brand_texts WHERE id = ?')
+    .bind(textId)
+    .first<Record<string, unknown>>();
+
+  if (!row) return null;
+  return mapRowToText(row);
+}
+
+/**
  * Find a text asset by brand profile, category, and key.
  * Returns null if not found.
  */

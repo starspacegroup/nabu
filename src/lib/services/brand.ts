@@ -158,6 +158,26 @@ export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: str
 };
 
 /**
+ * Direct mapping from profile field key to the Text tab preset key.
+ * Used to pre-select the correct preset type when navigating from an empty profile field.
+ */
+export const FIELD_TO_PRESET_KEY: Record<string, { category: string; presetKey: string; }> = {
+  brandName: { category: 'names', presetKey: 'brand_name' },
+  tagline: { category: 'messaging', presetKey: 'tagline' },
+  missionStatement: { category: 'messaging', presetKey: 'mission_statement' },
+  visionStatement: { category: 'messaging', presetKey: 'vision_statement' },
+  elevatorPitch: { category: 'messaging', presetKey: 'elevator_pitch' },
+  valueProposition: { category: 'messaging', presetKey: 'value_proposition' },
+  brandPromise: { category: 'messaging', presetKey: 'brand_promise' },
+  toneOfVoice: { category: 'voice', presetKey: 'tone_guidelines' },
+  communicationStyle: { category: 'voice', presetKey: 'communication_style' },
+  originStory: { category: 'descriptions', presetKey: 'origin_story' },
+  marketPosition: { category: 'descriptions', presetKey: 'market_position' },
+  industry: { category: 'descriptions', presetKey: 'industry' },
+  logoConcept: { category: 'descriptions', presetKey: 'logo_concept' },
+};
+
+/**
  * Reverse mapping: given a text category + key, find the matching brand profile field.
  * Returns { fieldName, fieldLabel } if the text key maps to a profile field, or null.
  */

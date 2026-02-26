@@ -102,6 +102,21 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
       key: 'value_proposition',
       label: 'Value Proposition',
       promptTemplate: 'Write a clear value proposition statement that explains the unique benefit the brand offers to its target audience.'
+    },
+    {
+      key: 'mission_statement',
+      label: 'Mission Statement',
+      promptTemplate: 'Write a clear, inspiring mission statement (1-2 sentences) that defines the brand\'s purpose and what it aims to achieve for its customers.'
+    },
+    {
+      key: 'vision_statement',
+      label: 'Vision Statement',
+      promptTemplate: 'Write a forward-looking vision statement (1-2 sentences) that describes the future the brand is working to create.'
+    },
+    {
+      key: 'brand_promise',
+      label: 'Brand Promise',
+      promptTemplate: 'Write a concise brand promise (1 sentence) that communicates the core commitment the brand makes to its customers.'
     }
   ],
   descriptions: [
@@ -124,6 +139,26 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
       key: 'boilerplate',
       label: 'Press Boilerplate',
       promptTemplate: 'Write a professional press boilerplate paragraph (3-4 sentences) for use in press releases and media kits.'
+    },
+    {
+      key: 'origin_story',
+      label: 'Origin Story',
+      promptTemplate: 'Write a compelling origin story (200-300 words) about how and why the brand was founded, including the problem it set out to solve.'
+    },
+    {
+      key: 'market_position',
+      label: 'Market Position',
+      promptTemplate: 'Write a market positioning statement (2-3 sentences) that defines where the brand sits in its industry and what differentiates it from competitors.'
+    },
+    {
+      key: 'industry',
+      label: 'Industry Description',
+      promptTemplate: 'Write a brief industry description (1-2 sentences) that defines the market or sector the brand operates in.'
+    },
+    {
+      key: 'logo_concept',
+      label: 'Logo Concept',
+      promptTemplate: 'Describe a logo concept (3-5 sentences) that visually represents the brand identity, including suggested shapes, symbols, and visual metaphors.'
     }
   ],
   legal: [
@@ -180,6 +215,11 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
       key: 'writing_style',
       label: 'Writing Style Guide',
       promptTemplate: 'Write a brief writing style guide covering sentence length, formality level, punctuation preferences, and formatting rules.'
+    },
+    {
+      key: 'communication_style',
+      label: 'Communication Style',
+      promptTemplate: 'Define the brand\'s communication style (3-5 sentences) covering how formal or casual the brand is, preferred sentence structures, and how it engages with different audiences.'
     }
   ]
 };

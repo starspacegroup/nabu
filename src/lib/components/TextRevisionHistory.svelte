@@ -5,6 +5,8 @@
 
 	export let brandTextId: string;
 	export let textLabel: string;
+	export let brandProfileId: string = '';
+	export let canPushToProfile: boolean = false;
 
 	interface TextRevision {
 		id: string;
@@ -23,6 +25,7 @@
 	let isLoading = true;
 	let error: string | null = null;
 	let isReverting = false;
+	let isPushing = false;
 
 	onMount(async () => {
 		await loadRevisions();
@@ -62,6 +65,31 @@
 			error = err instanceof Error ? err.message : 'Failed to revert';
 		} finally {
 			isReverting = false;
+		}
+	}
+
+	async function pushToProfile(revisionId: string) {
+		if (!brandProfileId) return;
+		isPushing = true;
+		try {
+			const res = await fetch('/api/brand/push-to-profile', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					brandProfileId,
+					textId: brandTextId,
+					revisionId
+				})
+			});
+			if (!res.ok) throw new Error('Failed to push to profile');
+
+			const result = await res.json();
+			dispatch('pushed', { field: result.pushedField, label: result.pushedLabel });
+			dispatch('close');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to push to profile';
+		} finally {
+			isPushing = false;
 		}
 	}
 
@@ -173,15 +201,27 @@
 
 							<div class="revision-footer">
 								<span class="revision-date">{formatDate(rev.createdAt)}</span>
+							<div class="revision-actions">
+								{#if canPushToProfile}
+									<button
+										class="push-btn"
+										on:click={() => pushToProfile(rev.id)}
+										disabled={isPushing || isReverting}
+										title="Push this revision's value to the profile"
+									>
+										{isPushing ? '⏳...' : '📤 Push to Profile'}
+									</button>
+								{/if}
 								{#if !rev.isCurrent}
 									<button
 										class="revert-btn"
 										on:click={() => revertTo(rev.id)}
-										disabled={isReverting}
+										disabled={isReverting || isPushing}
 									>
 										{isReverting ? 'Reverting…' : '↩️ Revert to this version'}
 									</button>
 								{/if}
+							</div>
 							</div>
 						</div>
 					{/each}
@@ -400,6 +440,12 @@
 		justify-content: space-between;
 	}
 
+	.revision-actions {
+		display: flex;
+		gap: var(--spacing-xs);
+		align-items: center;
+	}
+
 	.revision-date {
 		font-size: 0.75rem;
 		color: var(--color-text-secondary);
@@ -421,6 +467,26 @@
 	}
 
 	.revert-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.push-btn {
+		font-size: 0.75rem;
+		padding: 2px 8px;
+		border: none;
+		border-radius: var(--radius-sm);
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+	}
+
+	.push-btn:hover {
+		background-color: var(--color-primary-hover);
+	}
+
+	.push-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
