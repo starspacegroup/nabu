@@ -19,6 +19,13 @@
 	let confirmArchiveId: string | null = null;
 	let creatingBrand = false;
 
+	// Archived brands state
+	let archivedBrands: BrandProfile[] = [];
+	let showArchived = false;
+	let isLoadingArchived = false;
+	let restoringId: string | null = null;
+	let confirmRestoreId: string | null = null;
+
 	onMount(async () => {
 		await loadBrands();
 	});
@@ -68,6 +75,10 @@
 
 			confirmArchiveId = null;
 			await loadBrands();
+			// Refresh archived list if it's visible
+			if (showArchived) {
+				await loadArchivedBrands();
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to archive';
 		} finally {
@@ -131,6 +142,48 @@
 			error = err instanceof Error ? err.message : 'Failed to create brand';
 		} finally {
 			creatingBrand = false;
+		}
+	}
+
+	async function toggleArchived() {
+		showArchived = !showArchived;
+		if (showArchived && archivedBrands.length === 0) {
+			await loadArchivedBrands();
+		}
+	}
+
+	async function loadArchivedBrands() {
+		isLoadingArchived = true;
+		try {
+			const res = await fetch('/api/brand/profiles/archived');
+			if (!res.ok) throw new Error('Failed to load archived brands');
+			const result = await res.json();
+			archivedBrands = result.profiles || [];
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load archived brands';
+		} finally {
+			isLoadingArchived = false;
+		}
+	}
+
+	async function restoreBrand(profileId: string) {
+		restoringId = profileId;
+		try {
+			const res = await fetch(`/api/brand/profile/${profileId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'unarchive' })
+			});
+
+			if (!res.ok) throw new Error('Failed to restore brand');
+
+			confirmRestoreId = null;
+			await loadBrands();
+			await loadArchivedBrands();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to restore brand';
+		} finally {
+			restoringId = null;
 		}
 	}
 </script>
@@ -328,6 +381,141 @@
 			{/each}
 		</div>
 	{/if}
+
+	<!-- Archived Brands Section -->
+	<section class="archived-section">
+		<button class="archived-toggle" on:click={toggleArchived} aria-expanded={showArchived}>
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="toggle-icon"
+				class:rotated={showArchived}
+			>
+				<polyline points="6 9 12 15 18 9" />
+			</svg>
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M21 8V21H3V8" />
+				<rect x="1" y="3" width="22" height="5" />
+				<line x1="10" y1="12" x2="14" y2="12" />
+			</svg>
+			Archived Brands
+			{#if showArchived && archivedBrands.length > 0}
+				<span class="archived-count">{archivedBrands.length}</span>
+			{/if}
+		</button>
+
+		{#if showArchived}
+			{#if isLoadingArchived}
+				<div class="archived-loading">
+					<div class="spinner small"></div>
+					<span>Loading archived brands...</span>
+				</div>
+			{:else if archivedBrands.length === 0}
+				<div class="archived-empty">
+					<p>No archived brands</p>
+				</div>
+			{:else}
+				<div class="archived-grid">
+					{#each archivedBrands as brand (brand.id)}
+						<article class="archived-card">
+							<div class="archived-card-content">
+								<div class="archived-brand-info">
+									<div class="brand-colors">
+										{#if brand.primaryColor}
+											<span
+												class="color-dot"
+												style="background-color: {brand.primaryColor}"
+											></span>
+										{/if}
+										{#if brand.secondaryColor}
+											<span
+												class="color-dot"
+												style="background-color: {brand.secondaryColor}"
+											></span>
+										{/if}
+										{#if brand.accentColor}
+											<span
+												class="color-dot"
+												style="background-color: {brand.accentColor}"
+											></span>
+										{/if}
+									</div>
+									<div class="archived-text">
+										<h3 class="archived-brand-name" class:codename={!brand.brandNameConfirmed}>
+											{brand.brandName || 'Unnamed Brand'}
+											{#if !brand.brandNameConfirmed}
+												<span class="codename-badge">Codename</span>
+											{/if}
+										</h3>
+										{#if brand.industry}
+											<span class="brand-industry">{brand.industry}</span>
+										{/if}
+										<span class="meta-date">Archived {formatDate(brand.updatedAt)}</span>
+									</div>
+								</div>
+								<div class="archived-actions">
+									{#if confirmRestoreId === brand.id}
+										<div class="confirm-archive">
+											<span>Restore?</span>
+											<button
+												class="confirm-yes restore"
+												disabled={restoringId === brand.id}
+												on:click={() => restoreBrand(brand.id)}
+											>
+												{restoringId === brand.id ? '...' : 'Yes'}
+											</button>
+											<button
+												class="confirm-no"
+												on:click={() => (confirmRestoreId = null)}
+											>
+												No
+											</button>
+										</div>
+									{:else}
+										<button
+											class="restore-btn"
+											title="Restore brand"
+											on:click={() => (confirmRestoreId = brand.id)}
+										>
+											<svg
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											>
+												<polyline points="1 4 1 10 7 10" />
+												<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+											</svg>
+											Restore
+										</button>
+									{/if}
+								</div>
+							</div>
+						</article>
+					{/each}
+				</div>
+			{/if}
+		{/if}
+	</section>
 </div>
 
 <style>
@@ -758,8 +946,18 @@
 		border-color: var(--color-error);
 	}
 
+	.confirm-yes.restore {
+		color: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
 	.confirm-yes:hover {
 		background-color: var(--color-error);
+		color: var(--color-background);
+	}
+
+	.confirm-yes.restore:hover {
+		background-color: var(--color-primary);
 		color: var(--color-background);
 	}
 
@@ -771,6 +969,167 @@
 		background-color: var(--color-surface-hover);
 	}
 
+	/* Archived brands section */
+	.archived-section {
+		margin-top: var(--spacing-xl);
+		border-top: 1px solid var(--color-border);
+		padding-top: var(--spacing-md);
+	}
+
+	.archived-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		background: none;
+		border: none;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		padding: var(--spacing-xs) 0;
+		transition: color var(--transition-fast);
+	}
+
+	.archived-toggle:hover {
+		color: var(--color-text);
+	}
+
+	.toggle-icon {
+		transition: transform var(--transition-fast);
+	}
+
+	.toggle-icon.rotated {
+		transform: rotate(180deg);
+	}
+
+	.archived-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		height: 20px;
+		padding: 0 6px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		background-color: var(--color-border);
+		color: var(--color-text-secondary);
+		border-radius: 10px;
+	}
+
+	.archived-loading {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-md) 0;
+		color: var(--color-text-secondary);
+		font-size: 0.85rem;
+	}
+
+	.spinner.small {
+		width: 16px;
+		height: 16px;
+		border-width: 2px;
+	}
+
+	.archived-empty {
+		padding: var(--spacing-md) 0;
+	}
+
+	.archived-empty p {
+		color: var(--color-text-secondary);
+		font-size: 0.85rem;
+		font-style: italic;
+	}
+
+	.archived-grid {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+		margin-top: var(--spacing-sm);
+	}
+
+	.archived-card {
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		opacity: 0.8;
+		transition:
+			opacity var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+
+	.archived-card:hover {
+		opacity: 1;
+		border-color: var(--color-primary);
+	}
+
+	.archived-card-content {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--spacing-sm) var(--spacing-md);
+		gap: var(--spacing-md);
+	}
+
+	.archived-brand-info {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		min-width: 0;
+	}
+
+	.archived-text {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
+		min-width: 0;
+	}
+
+	.archived-brand-name {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--color-text);
+		margin: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+	}
+
+	.archived-brand-name.codename {
+		font-style: italic;
+	}
+
+	.archived-actions {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.restore-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 10px;
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		font-size: 0.75rem;
+		font-weight: 500;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast),
+			background-color var(--transition-fast);
+	}
+
+	.restore-btn:hover {
+		color: var(--color-primary);
+		border-color: var(--color-primary);
+		background-color: var(--color-surface-hover);
+	}
+
 	@media (max-width: 480px) {
 		.page-header {
 			flex-direction: column;
@@ -778,6 +1137,11 @@
 
 		.page-title {
 			font-size: 1.4rem;
+		}
+
+		.archived-card-content {
+			flex-direction: column;
+			align-items: flex-start;
 		}
 	}
 </style>

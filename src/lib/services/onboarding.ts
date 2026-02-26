@@ -997,6 +997,18 @@ export async function archiveBrandProfile(db: D1Database, profileId: string): Pr
 }
 
 /**
+ * Unarchive a brand profile (restore from archive)
+ */
+export async function unarchiveBrandProfile(db: D1Database, profileId: string): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE brand_profiles SET status = 'in_progress', updated_at = datetime('now') WHERE id = ?"
+    )
+    .bind(profileId)
+    .run();
+}
+
+/**
  * Get the next step in the onboarding flow
  */
 export function getNextStep(currentStep: OnboardingStep): OnboardingStep | null {

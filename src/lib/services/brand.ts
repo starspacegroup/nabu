@@ -563,6 +563,27 @@ export async function getAllBrandProfilesByUser(
 }
 
 /**
+ * Get all archived brand profiles for a user, ordered by most recently updated.
+ */
+export async function getArchivedBrandProfilesByUser(
+  db: D1Database,
+  userId: string
+): Promise<BrandProfile[]> {
+  const result = await db
+    .prepare(
+      `SELECT * FROM brand_profiles 
+       WHERE user_id = ? AND status = 'archived'
+       ORDER BY updated_at DESC`
+    )
+    .bind(userId)
+    .all();
+
+  return (result.results || []).map((row) =>
+    mapRowToProfile(row as Record<string, unknown>)
+  );
+}
+
+/**
  * Get a specific brand profile, verified to belong to the given user.
  * Returns null if not found or belongs to a different user.
  */
