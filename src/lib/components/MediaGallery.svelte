@@ -2,10 +2,12 @@
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import MediaUpload from './MediaUpload.svelte';
 	import AIGenerateModal from './AIGenerateModal.svelte';
+	import ImageDetailModal from './ImageDetailModal.svelte';
 	import type { BrandMediaAsset } from '$lib/types/brand-assets';
 
 	const dispatch = createEventDispatcher<{
 		select: BrandMediaAsset;
+		setProfileImage: { asset: BrandMediaAsset; url: string };
 		refresh: void;
 	}>();
 
@@ -13,6 +15,37 @@
 	export let mediaType: 'image' | 'audio' | 'video' = 'image';
 	export let assets: BrandMediaAsset[] = [];
 	export let loading = false;
+	export let showSetAsProfile = false;
+
+	// Detail modal state
+	let detailAsset: BrandMediaAsset | null = null;
+	let detailOpen = false;
+
+	function openDetail(asset: BrandMediaAsset) {
+		detailAsset = asset;
+		detailOpen = true;
+	}
+
+	function closeDetail() {
+		detailOpen = false;
+		detailAsset = null;
+	}
+
+	function handleSetProfileImage(e: CustomEvent<{ asset: BrandMediaAsset; url: string }>) {
+		closeDetail();
+		dispatch('setProfileImage', e.detail);
+	}
+
+	function handleDetailDelete(e: CustomEvent<BrandMediaAsset>) {
+		closeDetail();
+		deleteAsset(e.detail);
+	}
+
+	function handleDetailRevisions(e: CustomEvent<BrandMediaAsset>) {
+		closeDetail();
+		loadRevisions(e.detail);
+	}
+
 	export let pendingGenerations: Array<{
 		id: string;
 		name: string;
@@ -374,7 +407,7 @@
 			{#each assets as asset (asset.id)}
 				<div class="asset-card">
 					<!-- Preview -->
-					<div class="asset-preview" on:click={() => dispatch('select', asset)} on:keydown={(e) => e.key === 'Enter' && dispatch('select', asset)} role="button" tabindex="0">
+					<div class="asset-preview" on:click={() => openDetail(asset)} on:keydown={(e) => e.key === 'Enter' && openDetail(asset)} role="button" tabindex="0">
 						{#if mediaType === 'image'}
 							<img src={getAssetUrl(asset)} alt={asset.name} loading="lazy" />
 						{:else if mediaType === 'audio'}
@@ -503,6 +536,19 @@
 	bind:open={aiModalOpen}
 	on:generate={handleAIGenerate}
 />
+
+<!-- Image Detail Modal -->
+{#if detailAsset}
+	<ImageDetailModal
+		asset={detailAsset}
+		open={detailOpen}
+		{showSetAsProfile}
+		on:close={closeDetail}
+		on:setProfileImage={handleSetProfileImage}
+		on:delete={handleDetailDelete}
+		on:revisions={handleDetailRevisions}
+	/>
+{/if}
 
 <style>
 	.media-gallery {

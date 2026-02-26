@@ -655,6 +655,40 @@
 		loadAssetSummary();
 	}
 
+	// Set an image asset as the brand's logo URL
+	let settingProfileImage = false;
+	let profileImageSuccess: string | null = null;
+
+	async function setImageAsProfileLogo(e: CustomEvent<{ asset: import('$lib/types/brand-assets').BrandMediaAsset; url: string }>) {
+		if (!profile || settingProfileImage) return;
+		const { asset, url } = e.detail;
+		settingProfileImage = true;
+		profileImageSuccess = null;
+		try {
+			const res = await fetch('/api/brand/update-field', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					profileId: profile.id,
+					fieldName: 'logoUrl',
+					newValue: url,
+					changeSource: 'manual',
+					changeReason: `Set from media asset: ${asset.name}`
+				})
+			});
+			if (!res.ok) {
+				throw new Error('Failed to set logo');
+			}
+			profileImageSuccess = `Logo updated from "${asset.name}"`;
+			await loadProfile();
+			setTimeout(() => { profileImageSuccess = null; }, 3000);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to set logo';
+		} finally {
+			settingProfileImage = false;
+		}
+	}
+
 	function formatDate(dateStr: string): string {
 		return new Date(dateStr).toLocaleDateString('en-US', {
 			month: 'short',
@@ -1094,12 +1128,17 @@
 		<!-- ═══ Images Tab ═══ -->
 		{:else if activeTab === 'images'}
 			<div class="asset-tab">
+				{#if profileImageSuccess}
+					<div class="success-banner">{profileImageSuccess}</div>
+				{/if}
 				<MediaGallery
 					brandProfileId={data.brandId ?? ''}
 					mediaType="image"
 					assets={imageAssets}
 					loading={assetsLoading}
+					showSetAsProfile={true}
 					on:refresh={refreshMediaAssets}
+					on:setProfileImage={setImageAsProfileLogo}
 				/>
 			</div>
 
