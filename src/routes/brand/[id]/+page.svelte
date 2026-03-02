@@ -884,6 +884,32 @@
 								on:colorchange={(e) => {
 									saveField(e.detail.key, 'color', e.detail.value);
 								}}
+								on:colorsbatchchange={async (e) => {
+									// Batch-save all colors in one pass, then reload once.
+									// Avoids the isSaving mutex and intermediate loadProfile() calls.
+									if (!profile || isSaving) return;
+									isSaving = true;
+									try {
+										for (const c of e.detail.colors) {
+											const res = await fetch('/api/brand/update-field', {
+												method: 'PATCH',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													profileId: profile.id,
+													fieldName: c.key,
+													newValue: c.value,
+													changeSource: 'manual'
+												})
+											});
+											if (!res.ok) throw new Error(`Failed to save ${c.key}`);
+										}
+										await loadProfile();
+									} catch (err) {
+										error = err instanceof Error ? err.message : 'Failed to save colors';
+									} finally {
+										isSaving = false;
+									}
+								}}
 								on:editlogo={() => switchTab('images')}
 								on:editfont={(e) => startEditing(e.detail.field, e.detail.field === 'typographyHeading' ? profile?.typographyHeading : profile?.typographyBody)}
 							/>

@@ -40,8 +40,10 @@
 		PRESET_THEMES,
 		type HarmonyType,
 		type BrandTheme,
-		type ContrastPair
+		type ContrastPair,
+		type HarmonyTriple
 	} from '$lib/utils/brand-colors';
+	import ColorHarmonyWheel from './ColorHarmonyWheel.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -621,6 +623,61 @@
 		}
 	}
 
+	function handleHarmonyApply(e: CustomEvent<HarmonyTriple>) {
+		const { primary, secondary, accent } = e.detail;
+
+		// Update local colors immediately for UI
+		const normalized = [
+			{ key: 'primaryColor', value: normalizeHex(primary) },
+			{ key: 'secondaryColor', value: normalizeHex(secondary) },
+			{ key: 'accentColor', value: normalizeHex(accent) }
+		].filter((c) => c.value) as { key: string; value: string }[];
+
+		for (const c of normalized) {
+			localColors[c.key] = c.value;
+		}
+		localColors = localColors;
+
+		// Dispatch a SINGLE batch event so the parent can save all fields sequentially
+		// (avoids race condition with the isSaving mutex in saveField)
+		dispatch('colorsbatchchange', {
+			colors: normalized.map((c) => ({ key: c.key, value: c.value }))
+		});
+
+		// Activate primary field and sync picker/slider state to the new primary
+		activeField = 'primaryColor';
+		activeTab = 'focal';
+
+		const newPrimary = normalized.find((c) => c.key === 'primaryColor')?.value;
+		if (newPrimary) {
+			const hsv = hexToHsv(newPrimary);
+			const hsl = hexToHsl(newPrimary);
+			if (hsv) {
+				activeHue = hsv.h;
+				activeSatHsv = hsv.s;
+				activeValHsv = hsv.v;
+			}
+			if (hsl) {
+				activeSatHsl = hsl.s;
+				activeLightHsl = hsl.l;
+			}
+		}
+
+		tick().then(() => {
+			drawSvPicker();
+			drawHueStrip();
+		});
+	}
+
+	function handleHarmonyPreview(e: CustomEvent<HarmonyTriple>) {
+		// Live preview while dragging the wheel — update local colors without dispatch
+		const { primary, secondary, accent } = e.detail;
+		localColors['primaryColor'] = normalizeHex(primary) || primary;
+		localColors['secondaryColor'] = normalizeHex(secondary) || secondary;
+		localColors['accentColor'] = normalizeHex(accent) || accent;
+		localColors = localColors;
+	}
+
 	function clearAll() {
 		for (const key of ALL_COLOR_KEYS) {
 			localColors[key] = '';
@@ -931,40 +988,19 @@
 		</button>
 		{#if showHarmony}
 			<div class="harmony-body">
-				<div class="harmony-types">
-					{#each HARMONY_TYPES as ht}
-						<button
-							class="harm-chip"
-							class:active={harmonyType === ht.type}
-							on:click={() => (harmonyType = ht.type)}
-							title={ht.desc}
-						>
-							<span class="harm-chip-icon">{ht.icon}</span>
-							{ht.label}
-						</button>
-					{/each}
-				</div>
-				{#if harmonyResults.length > 0}
-					<div class="harmony-results">
-						{#each harmonyResults as color}
-							{@const isDark = !shouldUseDarkText(color)}
-							<button
-								class="harmony-swatch"
-								style="background-color:{color}"
-								on:click={() => applyHarmonyColor(color)}
-								title="Apply {color} — {getColorName(color)}"
-								aria-label="Apply harmony color {color}"
-							>
-								<span class="harm-hex" class:light={isDark}>{color}</span>
-								<span class="harm-name" class:light={isDark}>{getColorName(color)}</span>
-							</button>
-						{/each}
-					</div>
-				{:else if activeField}
-					<p class="harmony-hint">Set a color to generate harmonies</p>
-				{:else}
-					<p class="harmony-hint">Select a color field first</p>
-				{/if}
+				<ColorHarmonyWheel
+					primaryColor={localColors['primaryColor'] || '#3b82f6'}
+					{harmonyType}
+					on:harmonyapply={handleHarmonyApply}
+					on:harmonypreview={handleHarmonyPreview}
+					on:harmonychange={(e) => {
+						const { primary, secondary, accent } = e.detail;
+						localColors['primaryColor'] = normalizeHex(primary) || primary;
+						localColors['secondaryColor'] = normalizeHex(secondary) || secondary;
+						localColors['accentColor'] = normalizeHex(accent) || accent;
+						localColors = localColors;
+					}}
+				/>
 			</div>
 		{/if}
 	</div>

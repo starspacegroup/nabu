@@ -17,10 +17,12 @@ const mockCtx = {
   fill: vi.fn(),
   stroke: vi.fn(),
   fillRect: vi.fn(),
+  fillText: vi.fn(),
   save: vi.fn(),
   restore: vi.fn(),
   translate: vi.fn(),
   rotate: vi.fn(),
+  setLineDash: vi.fn(),
   createRadialGradient: vi.fn(() => ({
     addColorStop: vi.fn()
   })),
@@ -30,6 +32,9 @@ const mockCtx = {
   fillStyle: '',
   strokeStyle: '',
   lineWidth: 0,
+  font: '',
+  textAlign: '',
+  textBaseline: '',
   scale: vi.fn()
 };
 
@@ -66,13 +71,13 @@ describe('BrandColorEditor', () => {
   });
 
   it('should render focal color labels in default tab', () => {
-    const { getByText } = render(BrandColorEditor, {
+    const { getAllByText } = render(BrandColorEditor, {
       props: { colors: {} }
     });
 
-    expect(getByText('Primary')).toBeTruthy();
-    expect(getByText('Secondary')).toBeTruthy();
-    expect(getByText('Accent')).toBeTruthy();
+    expect(getAllByText('Primary').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Secondary').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Accent').length).toBeGreaterThanOrEqual(1);
   });
 
   it('should show layout colors when layout tab is clicked', async () => {
@@ -185,7 +190,7 @@ describe('BrandColorEditor', () => {
     expect(getByText('Analogous')).toBeTruthy();
     expect(getByText('Triadic')).toBeTruthy();
     expect(getByText('Tetradic')).toBeTruthy();
-    expect(getByText('Split')).toBeTruthy();
+    expect(getByText('Split-Comp')).toBeTruthy();
     expect(getByText('Mono')).toBeTruthy();
   });
 
@@ -499,5 +504,35 @@ describe('BrandColorEditor', () => {
     expect(badges.length).toBeGreaterThan(0);
     // Focal tab should show "2/3"
     expect(badges[0].textContent).toBe('2/3');
+  });
+
+  // ─── Harmony Apply (batch save) ───────────────────
+
+  it('should dispatch colorsbatchchange with all 3 colors when Apply to Palette is clicked', async () => {
+    const handler = vi.fn();
+    const { component, getByText } = render(BrandColorEditor, {
+      props: { colors: { primaryColor: '#ff0000' } }
+    });
+
+    component.$on('colorsbatchchange', handler);
+
+    // Click "Apply to Palette" inside the harmony wheel
+    await fireEvent.click(getByText('Apply to Palette'));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const detail = handler.mock.calls[0][0].detail;
+    expect(detail.colors).toBeDefined();
+    expect(detail.colors.length).toBe(3);
+
+    // All three focal keys should be present
+    const keys = detail.colors.map((c: { key: string; value: string; }) => c.key);
+    expect(keys).toContain('primaryColor');
+    expect(keys).toContain('secondaryColor');
+    expect(keys).toContain('accentColor');
+
+    // All values should be valid hex
+    for (const c of detail.colors) {
+      expect(c.value).toMatch(/^#[0-9a-f]{6}$/);
+    }
   });
 });

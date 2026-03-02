@@ -674,6 +674,90 @@ export function buildContrastMatrix(theme: Partial<BrandTheme>): ContrastPair[] 
   return pairs;
 }
 
+// ─── Harmony Triple (Color Wheel) ────────────────────────
+
+/** A triple of focal colors derived from a harmony pattern */
+export interface HarmonyTriple {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+
+/**
+ * Get the angular offsets from the base hue for a given harmony type.
+ * Returns an array of degree offsets — first is always 0 (the primary).
+ */
+export function getHarmonyAngles(type: HarmonyType): number[] {
+  switch (type) {
+    case 'complementary':
+      return [0, 180];
+    case 'analogous':
+      return [0, -30, 30];
+    case 'triadic':
+      return [0, 120, 240];
+    case 'tetradic':
+      return [0, 90, 180, 270];
+    case 'split-complementary':
+      return [0, 150, 210];
+    case 'monochromatic':
+      return [0, 0, 0];
+  }
+}
+
+/**
+ * Generate a primary/secondary/accent triple from a base hex and harmony type.
+ * The primary is preserved as-is. Secondary and accent are derived from the pattern.
+ */
+export function generateHarmonyTriple(hex: string, type: HarmonyType): HarmonyTriple {
+  const hsl = hexToHsl(hex);
+  if (!hsl) return { primary: hex, secondary: hex, accent: hex };
+
+  const angles = getHarmonyAngles(type);
+
+  if (type === 'monochromatic') {
+    // Same hue, varied lightness
+    const secondary = hslToHex(hsl.h, hsl.s, Math.max(10, hsl.l - 20));
+    const accent = hslToHex(hsl.h, hsl.s, Math.min(90, hsl.l + 20));
+    return { primary: hex, secondary, accent };
+  }
+
+  if (type === 'complementary') {
+    // Two-point harmony: primary + complement, accent is a blend midpoint at 90°
+    const secondary = hslToHex(wrapHue(hsl.h + 180), hsl.s, hsl.l);
+    const accent = hslToHex(wrapHue(hsl.h + 90), Math.round(hsl.s * 0.8), hsl.l);
+    return { primary: hex, secondary, accent };
+  }
+
+  if (type === 'tetradic') {
+    // Four-point harmony: pick positions 1 and 2 (90° and 180°) as secondary/accent
+    const secondary = hslToHex(wrapHue(hsl.h + angles[1]), hsl.s, hsl.l);
+    const accent = hslToHex(wrapHue(hsl.h + angles[2]), hsl.s, hsl.l);
+    return { primary: hex, secondary, accent };
+  }
+
+  // 3-point harmonies: triadic, analogous, split-complementary
+  const secondary = hslToHex(wrapHue(hsl.h + angles[1]), hsl.s, hsl.l);
+  const accent = hslToHex(wrapHue(hsl.h + angles[2]), hsl.s, hsl.l);
+  return { primary: hex, secondary, accent };
+}
+
+/**
+ * Rotate all three harmony colors by a given number of degrees.
+ * Preserves the relative pattern — just shifts the base hue.
+ */
+export function rotateHarmony(triple: HarmonyTriple, degrees: number): HarmonyTriple {
+  function rotate(hexColor: string): string {
+    const h = hexToHsl(hexColor);
+    if (!h) return hexColor;
+    return hslToHex(wrapHue(h.h + degrees), h.s, h.l);
+  }
+  return {
+    primary: rotate(triple.primary),
+    secondary: rotate(triple.secondary),
+    accent: rotate(triple.accent)
+  };
+}
+
 // ─── Preset Themes ──────────────────────────────────────
 
 export const PRESET_THEMES: PresetTheme[] = [
