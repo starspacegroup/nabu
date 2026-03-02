@@ -6,6 +6,7 @@
 	import BrandFieldCard from '$lib/components/BrandFieldCard.svelte';
 	import BrandFieldHistory from '$lib/components/BrandFieldHistory.svelte';
 	import BrandTextPicker from '$lib/components/BrandTextPicker.svelte';
+	import BrandColorEditor from '$lib/components/BrandColorEditor.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import AITextQuickGenerate from '$lib/components/AITextQuickGenerate.svelte';
 	import TextRevisionHistory from '$lib/components/TextRevisionHistory.svelte';
@@ -854,31 +855,66 @@
 		{#if activeTab === 'profile'}
 			<div class="sections-grid">
 				{#each sections as section}
-					<section class="brand-section">
-						<div class="section-header">
-							<span class="section-icon">{section.icon}</span>
-							<h2 class="section-title">{section.title}</h2>
-						</div>
+					{#if section.id === 'visual'}
+						<!-- Visual Identity — uses the dedicated BrandColorEditor -->
+						<section class="brand-section brand-section--visual">
+							<div class="section-header">
+								<span class="section-icon">{section.icon}</span>
+								<h2 class="section-title">{section.title}</h2>
+							</div>
 
-						<div class="fields-list">
-							{#each section.fields as field (field.key)}
-								<BrandFieldCard
-									fieldKey={field.key}
-									label={field.label}
-									value={field.value}
-									type={field.type}
-									isEditing={editingField === field.key}
-									hasTextSuggestions={!!FIELD_TO_TEXT_MAPPING[field.key]}
-									editValue={editValue}
-									on:edit={() => startEditing(field.key, field.value)}
-									on:save={(e) => saveField(field.key, field.type, e.detail?.value)}
-									on:cancel={cancelEditing}
-									on:history={() => openHistory(field.key, field.label)}
-									on:picktext={() => openTextPicker(field.key, field.label)}
-								/>
-							{/each}
-						</div>
-					</section>
+							<BrandColorEditor
+								colors={{
+									primaryColor: profile?.primaryColor,
+									secondaryColor: profile?.secondaryColor,
+									accentColor: profile?.accentColor,
+									backgroundColor: profile?.backgroundColor,
+									surfaceColor: profile?.surfaceColor,
+									textColor: profile?.textColor,
+									textSecondaryColor: profile?.textSecondaryColor,
+									borderColor: profile?.borderColor,
+									successColor: profile?.successColor,
+									warningColor: profile?.warningColor,
+									errorColor: profile?.errorColor
+								}}
+								logoUrl={profile?.logoUrl}
+								logoConcept={profile?.logoConcept}
+								typographyHeading={profile?.typographyHeading}
+								typographyBody={profile?.typographyBody}
+								on:colorchange={(e) => {
+									saveField(e.detail.key, 'color', e.detail.value);
+								}}
+								on:editlogo={() => switchTab('images')}
+								on:editfont={(e) => startEditing(e.detail.field, e.detail.field === 'typographyHeading' ? profile?.typographyHeading : profile?.typographyBody)}
+							/>
+						</section>
+					{:else}
+						<section class="brand-section">
+							<div class="section-header">
+								<span class="section-icon">{section.icon}</span>
+								<h2 class="section-title">{section.title}</h2>
+							</div>
+
+							<div class="fields-list">
+								{#each section.fields as field (field.key)}
+									<BrandFieldCard
+										fieldKey={field.key}
+										label={field.label}
+										value={field.value}
+										type={field.type}
+										isEditing={editingField === field.key}
+										hasTextSuggestions={!!FIELD_TO_TEXT_MAPPING[field.key]}
+										editValue={editValue}
+										on:edit={() => startEditing(field.key, field.value)}
+										on:save={(e) => saveField(field.key, field.type, e.detail?.value)}
+										on:cancel={cancelEditing}
+										on:history={() => openHistory(field.key, field.label)}
+										on:picktext={() => openTextPicker(field.key, field.label)}
+									/>
+								{/each}
+							</div>
+						</section>
+					{/if}
 				{/each}
 			</div>
 
