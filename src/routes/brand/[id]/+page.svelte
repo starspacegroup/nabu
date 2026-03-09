@@ -1294,7 +1294,7 @@
 
 <style>
 	.brand-page {
-		max-width: 1060px;
+		max-width: 1400px;
 		margin: 0 auto;
 		padding: var(--spacing-lg) var(--spacing-md);
 		min-height: calc(100vh - 60px);
