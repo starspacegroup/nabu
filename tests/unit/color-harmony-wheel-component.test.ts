@@ -23,6 +23,8 @@ const mockCtx = {
   restore: vi.fn(),
   translate: vi.fn(),
   rotate: vi.fn(),
+  clip: vi.fn(),
+  drawImage: vi.fn(),
   setLineDash: vi.fn(),
   createRadialGradient: vi.fn(() => ({
     addColorStop: vi.fn()
@@ -30,6 +32,12 @@ const mockCtx = {
   createLinearGradient: vi.fn(() => ({
     addColorStop: vi.fn()
   })),
+  createImageData: vi.fn((w: number, h: number) => ({
+    data: new Uint8ClampedArray(w * h * 4),
+    width: w,
+    height: h
+  })),
+  putImageData: vi.fn(),
   fillStyle: '',
   strokeStyle: '',
   lineWidth: 0,

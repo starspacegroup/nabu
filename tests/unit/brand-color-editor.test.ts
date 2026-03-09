@@ -2,7 +2,7 @@
  * Tests for BrandColorEditor component.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/svelte';
+import { render, fireEvent, waitFor } from '@testing-library/svelte';
 import BrandColorEditor from '$lib/components/BrandColorEditor.svelte';
 
 // Mock canvas context
@@ -29,13 +29,28 @@ const mockCtx = {
   createLinearGradient: vi.fn(() => ({
     addColorStop: vi.fn()
   })),
+  createImageData: vi.fn((w: number, h: number) => ({
+    data: new Uint8ClampedArray(w * h * 4),
+    width: w,
+    height: h
+  })),
+  putImageData: vi.fn(),
+  getImageData: vi.fn((x: number, y: number, w: number, h: number) => ({
+    data: new Uint8ClampedArray(w * h * 4),
+    width: w,
+    height: h
+  })),
+  drawImage: vi.fn(),
+  clip: vi.fn(),
   fillStyle: '',
   strokeStyle: '',
   lineWidth: 0,
   font: '',
   textAlign: '',
   textBaseline: '',
-  scale: vi.fn()
+  scale: vi.fn(),
+  globalAlpha: 1,
+  globalCompositeOperation: 'source-over'
 };
 
 beforeEach(() => {
@@ -46,14 +61,12 @@ beforeEach(() => {
 describe('BrandColorEditor', () => {
   // ─── Structure ────────────────────────────────────
 
-  it('should render tab navigation with all groups', () => {
+  it('should render the BRAND COLORS section header', () => {
     const { getByText } = render(BrandColorEditor, {
       props: { colors: {} }
     });
 
-    expect(getByText('Focal')).toBeTruthy();
-    expect(getByText('Layout')).toBeTruthy();
-    expect(getByText('Status')).toBeTruthy();
+    expect(getByText('BRAND COLORS')).toBeTruthy();
   });
 
   it('should render the LOGO section label', () => {
@@ -70,40 +83,22 @@ describe('BrandColorEditor', () => {
     expect(getByText('TYPOGRAPHY')).toBeTruthy();
   });
 
-  it('should render focal color labels in default tab', () => {
-    const { getAllByText } = render(BrandColorEditor, {
-      props: { colors: {} }
-    });
-
-    expect(getAllByText('Primary').length).toBeGreaterThanOrEqual(1);
-    expect(getAllByText('Secondary').length).toBeGreaterThanOrEqual(1);
-    expect(getAllByText('Accent').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('should show layout colors when layout tab is clicked', async () => {
+  it('should render core brand color labels', () => {
     const { getByText } = render(BrandColorEditor, {
       props: { colors: {} }
     });
 
-    await fireEvent.click(getByText('Layout'));
-
-    expect(getByText('Background')).toBeTruthy();
-    expect(getByText('Surface')).toBeTruthy();
-    expect(getByText('Text')).toBeTruthy();
-    expect(getByText('Text Secondary')).toBeTruthy();
-    expect(getByText('Border')).toBeTruthy();
+    expect(getByText('Brand Color 1')).toBeTruthy();
+    expect(getByText('Brand Color 2')).toBeTruthy();
+    expect(getByText('Brand Color 3')).toBeTruthy();
   });
 
-  it('should show status colors when status tab is clicked', async () => {
+  it('should show Add Brand Color button when fewer than 5 colors', () => {
     const { getByText } = render(BrandColorEditor, {
       props: { colors: {} }
     });
 
-    await fireEvent.click(getByText('Status'));
-
-    expect(getByText('Success')).toBeTruthy();
-    expect(getByText('Warning')).toBeTruthy();
-    expect(getByText('Error')).toBeTruthy();
+    expect(getByText('Add Brand Color')).toBeTruthy();
   });
 
   // ─── Color values ────────────────────────────────
@@ -304,8 +299,7 @@ describe('BrandColorEditor', () => {
     const { getByText } = render(BrandColorEditor, {
       props: {
         colors: {
-          textColor: '#ffffff',
-          backgroundColor: '#000000'
+          primaryColor: '#3366cc'
         }
       }
     });
@@ -319,9 +313,7 @@ describe('BrandColorEditor', () => {
     const { getByText } = render(BrandColorEditor, {
       props: {
         colors: {
-          primaryColor: '#3366cc',
-          backgroundColor: '#000000',
-          textColor: '#ffffff'
+          primaryColor: '#3366cc'
         }
       }
     });
@@ -334,9 +326,7 @@ describe('BrandColorEditor', () => {
     const { container } = render(BrandColorEditor, {
       props: {
         colors: {
-          primaryColor: '#3366cc',
-          backgroundColor: '#111111',
-          textColor: '#ffffff'
+          primaryColor: '#3366cc'
         }
       }
     });
@@ -360,7 +350,7 @@ describe('BrandColorEditor', () => {
       props: { colors: { primaryColor: '#ff0000' } }
     });
 
-    const primaryRow = container.querySelector('[aria-label="Edit Primary color"]') as HTMLElement;
+    const primaryRow = container.querySelector('[aria-label="Edit Brand Color 1 color"]') as HTMLElement;
     expect(primaryRow).toBeTruthy();
 
     await fireEvent.click(primaryRow);
@@ -415,28 +405,32 @@ describe('BrandColorEditor', () => {
   // ─── HSL Sliders ──────────────────────────────────
 
   it('should show HSL sliders when a field is activated', async () => {
-    const { container, getByLabelText } = render(BrandColorEditor, {
+    const { container } = render(BrandColorEditor, {
       props: { colors: { primaryColor: '#ff0000' } }
     });
 
-    const primaryRow = container.querySelector('[aria-label="Edit Primary color"]') as HTMLElement;
+    const primaryRow = container.querySelector('[aria-label="Edit Brand Color 1 color"]') as HTMLElement;
     await fireEvent.click(primaryRow);
 
-    expect(getByLabelText('Hue value')).toBeTruthy();
-    expect(getByLabelText('Saturation value')).toBeTruthy();
-    expect(getByLabelText('Lightness value')).toBeTruthy();
+    await waitFor(() => {
+      expect(container.querySelector('[aria-label="Hue value"]')).toBeTruthy();
+      expect(container.querySelector('[aria-label="Saturation value"]')).toBeTruthy();
+      expect(container.querySelector('[aria-label="Lightness value"]')).toBeTruthy();
+    });
   });
 
   it('should show FINE-TUNE heading and HSL mode label when active', async () => {
-    const { container, getByText } = render(BrandColorEditor, {
+    const { container } = render(BrandColorEditor, {
       props: { colors: { primaryColor: '#ff0000' } }
     });
 
-    const primaryRow = container.querySelector('[aria-label="Edit Primary color"]') as HTMLElement;
+    const primaryRow = container.querySelector('[aria-label="Edit Brand Color 1 color"]') as HTMLElement;
     await fireEvent.click(primaryRow);
 
-    expect(getByText('FINE-TUNE')).toBeTruthy();
-    expect(getByText('HSL')).toBeTruthy();
+    await waitFor(() => {
+      expect(container.querySelector('.slider-heading')?.textContent).toBe('FINE-TUNE');
+      expect(container.querySelector('.slider-mode-label')?.textContent).toBe('HSL');
+    });
   });
 
   // ─── Clear button ─────────────────────────────────
@@ -461,7 +455,8 @@ describe('BrandColorEditor', () => {
     expect(paletteBar).toBeTruthy();
 
     const items = container.querySelectorAll('.pal-item');
-    expect(items.length).toBe(11); // All 11 color fields
+    // 3 core brand colors + 1 "add" button = 4
+    expect(items.length).toBe(4);
   });
 
   it('should highlight active field in palette bar', async () => {
@@ -469,7 +464,7 @@ describe('BrandColorEditor', () => {
       props: { colors: { primaryColor: '#ff0000' } }
     });
 
-    const primaryRow = container.querySelector('[aria-label="Edit Primary color"]') as HTMLElement;
+    const primaryRow = container.querySelector('[aria-label="Edit Brand Color 1 color"]') as HTMLElement;
     await fireEvent.click(primaryRow);
 
     const activePalItem = container.querySelector('.pal-item.active');
@@ -488,9 +483,9 @@ describe('BrandColorEditor', () => {
     expect(getByText('Highlight & CTA')).toBeTruthy();
   });
 
-  // ─── Tab badges ───────────────────────────────────
+  // ─── Filled badge ─────────────────────────────────
 
-  it('should show tab badge count when fields are filled', () => {
+  it('should show filled badge count when fields are filled', () => {
     const { container } = render(BrandColorEditor, {
       props: {
         colors: {
@@ -500,10 +495,10 @@ describe('BrandColorEditor', () => {
       }
     });
 
-    const badges = container.querySelectorAll('.tab-badge');
-    expect(badges.length).toBeGreaterThan(0);
-    // Focal tab should show "2/3"
-    expect(badges[0].textContent).toBe('2/3');
+    const badge = container.querySelector('.filled-badge');
+    expect(badge).toBeTruthy();
+    // 2 of 3 base colors filled
+    expect(badge?.textContent).toBe('2/3');
   });
 
   // ─── Harmony Apply (batch save) ───────────────────
@@ -519,16 +514,18 @@ describe('BrandColorEditor', () => {
     // Click "Apply to Palette" inside the harmony wheel
     await fireEvent.click(getByText('Apply to Palette'));
 
-    expect(handler).toHaveBeenCalledTimes(1);
-    const detail = handler.mock.calls[0][0].detail;
-    expect(detail.colors).toBeDefined();
-    expect(detail.colors.length).toBe(3);
+    // Should have been called at least once with brand color keys
+    expect(handler).toHaveBeenCalled();
+    // Find the harmony apply call (contains primaryColor, secondaryColor, accentColor)
+    const harmonyCalls = handler.mock.calls.filter((call: unknown[]) => {
+      const detail = (call[0] as { detail: { colors: { key: string }[] } }).detail;
+      const keys = detail.colors.map((c: { key: string }) => c.key);
+      return keys.includes('primaryColor') && keys.includes('secondaryColor') && keys.includes('accentColor');
+    });
+    expect(harmonyCalls.length).toBeGreaterThanOrEqual(1);
 
-    // All three focal keys should be present
-    const keys = detail.colors.map((c: { key: string; value: string; }) => c.key);
-    expect(keys).toContain('primaryColor');
-    expect(keys).toContain('secondaryColor');
-    expect(keys).toContain('accentColor');
+    const detail = (harmonyCalls[0][0] as { detail: { colors: { key: string; value: string }[] } }).detail;
+    expect(detail.colors.length).toBe(3);
 
     // All values should be valid hex
     for (const c of detail.colors) {

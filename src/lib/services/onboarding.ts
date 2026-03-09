@@ -624,6 +624,8 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     primaryColor: (row.primary_color as string) || undefined,
     secondaryColor: (row.secondary_color as string) || undefined,
     accentColor: (row.accent_color as string) || undefined,
+    brandColor4: (row.brand_color_4 as string) || undefined,
+    brandColor5: (row.brand_color_5 as string) || undefined,
     backgroundColor: (row.background_color as string) || undefined,
     surfaceColor: (row.surface_color as string) || undefined,
     textColor: (row.text_color as string) || undefined,

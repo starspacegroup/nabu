@@ -45,6 +45,7 @@
 	const OUTER_RADIUS = SIZE / 2 - 4;
 	const INNER_RADIUS = OUTER_RADIUS - 32;
 	const MARKER_RADIUS = 12;
+	const DISC_SATURATION = 85; // fixed saturation for the color disc
 
 	// Lightness ↔ radial mapping
 	const MIN_MARKER_R = 22;          // closest to center a marker can sit
@@ -81,6 +82,8 @@
 	let ctx: CanvasRenderingContext2D | null = null;
 	let draggingMarker: number | null = null;  // 0=P, 1=S, 2=A
 	let dragMode: 'marker' | 'rotate' | null = null;
+	let suppressReactiveReinit = false;         // prevents snap-back after drag ends
+	let cachedDiscCanvas: HTMLCanvasElement | null = null; // off-screen color disc cache
 
 	const HARMONY_OPTIONS: { type: HarmonyType; label: string; icon: string }[] = [
 		{ type: 'triadic', label: 'Triadic', icon: '△' },
@@ -162,12 +165,17 @@
 		const normPrev = normalizeHex(prevPrimaryColor) || prevPrimaryColor;
 		const propsChanged = normProp !== normPrev || harmonyType !== prevHarmonyType;
 
-		if (propsChanged && draggingMarker === null) {
+		if (propsChanged) {
+			// Always track current prop values to prevent stale comparisons
 			prevPrimaryColor = primaryColor;
 			prevHarmonyType = harmonyType;
-			markers = initMarkers();
-			triple = getTriple();
-			queueDraw();
+
+			// Only reinit if truly external (not during or just-after a drag)
+			if (draggingMarker === null && !suppressReactiveReinit) {
+				markers = initMarkers();
+				triple = getTriple();
+				queueDraw();
+			}
 		}
 	}
 
@@ -192,6 +200,81 @@
 		drawCenterLabel(c);
 		drawHarmonyPattern(c);
 		drawMarkers(c);
+	}
+
+	// ─── HSL→RGB for pixel rendering ─────────────────
+
+	function hslToRgbRaw(h: number, s: number, l: number): [number, number, number] {
+		s /= 100;
+		l /= 100;
+		const ch = (1 - Math.abs(2 * l - 1)) * s;
+		const x = ch * (1 - Math.abs(((h / 60) % 2) - 1));
+		const m = l - ch / 2;
+		let r = 0, g = 0, b = 0;
+		if (h < 60)       { r = ch; g = x; }
+		else if (h < 120) { r = x;  g = ch; }
+		else if (h < 180) { g = ch; b = x; }
+		else if (h < 240) { g = x;  b = ch; }
+		else if (h < 300) { r = x;  b = ch; }
+		else              { r = ch; b = x; }
+		return [
+			Math.round((r + m) * 255),
+			Math.round((g + m) * 255),
+			Math.round((b + m) * 255)
+		];
+	}
+
+	// ─── Cache the full-disc color image ─────────────
+
+	function ensureDiscCache(): void {
+		if (cachedDiscCanvas) return;
+		try {
+			cachedDiscCanvas = document.createElement('canvas');
+			cachedDiscCanvas.width = SIZE;
+			cachedDiscCanvas.height = SIZE;
+			const dc = cachedDiscCanvas.getContext('2d');
+			if (!dc || typeof dc.createImageData !== 'function') {
+				cachedDiscCanvas = null;
+				return;
+			}
+
+			const imageData = dc.createImageData(SIZE, SIZE);
+			const data = imageData.data;
+			const maxR = OUTER_RADIUS;
+
+			for (let py = 0; py < SIZE; py++) {
+				for (let px = 0; px < SIZE; px++) {
+					const dx = px - CENTER;
+					const dy = py - CENTER;
+					const r = Math.sqrt(dx * dx + dy * dy);
+					if (r > maxR || r < 1) continue;
+
+					// Hue from angle (0° = top, clockwise) — matches hue ring
+					let hue = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+					if (hue < 0) hue += 360;
+					hue = hue % 360;
+
+					// Lightness from radial position
+					const lightness = radiusToLightness(r);
+
+					// Saturation tapers toward center for a natural look
+					const t = Math.min(1, r / maxR);
+					const sat = 30 + t * (DISC_SATURATION - 30);
+
+					const [cr, cg, cb] = hslToRgbRaw(hue, sat, lightness);
+					const idx = (py * SIZE + px) * 4;
+					data[idx]     = cr;
+					data[idx + 1] = cg;
+					data[idx + 2] = cb;
+					data[idx + 3] = 255;
+				}
+			}
+
+			dc.putImageData(imageData, 0, 0);
+		} catch {
+			// Gracefully degrade if offscreen canvas APIs are unavailable (e.g. tests)
+			cachedDiscCanvas = null;
+		}
 	}
 
 	function drawHueRing(c: CanvasRenderingContext2D) {
@@ -225,23 +308,16 @@
 	}
 
 	function drawInnerCircle(c: CanvasRenderingContext2D) {
-		// Radial gradient hinting that center = dark, edge = bright
-		const grad = c.createRadialGradient(CENTER, CENTER, 0, CENTER, CENTER, INNER_RADIUS - 1);
-		grad.addColorStop(0, '#050508');
-		grad.addColorStop(0.6, '#0a0a12');
-		grad.addColorStop(1, '#161622');
-		c.beginPath();
-		c.arc(CENTER, CENTER, INNER_RADIUS - 1, 0, Math.PI * 2);
-		c.fillStyle = grad;
-		c.fill();
-
-		// Subtle concentric rings to suggest brightness levels
-		for (let r = 35; r < INNER_RADIUS; r += 28) {
+		// Draw the cached full-color disc (hue=angle, lightness=radius)
+		ensureDiscCache();
+		if (cachedDiscCanvas) {
+			c.save();
+			// Clip to inner circle so the outer hue ring isn't covered
 			c.beginPath();
-			c.arc(CENTER, CENTER, r, 0, Math.PI * 2);
-			c.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-			c.lineWidth = 0.5;
-			c.stroke();
+			c.arc(CENTER, CENTER, INNER_RADIUS - 1, 0, Math.PI * 2);
+			c.clip();
+			c.drawImage(cachedDiscCanvas, 0, 0);
+			c.restore();
 		}
 	}
 
@@ -332,17 +408,23 @@
 		const option = HARMONY_OPTIONS.find((o) => o.type === harmonyType);
 		if (!option) return;
 
-		c.fillStyle = 'rgba(255, 255, 255, 0.6)';
+		// Semi-transparent backdrop so text is readable over the color disc
+		c.beginPath();
+		c.arc(CENTER, CENTER, 28, 0, Math.PI * 2);
+		c.fillStyle = 'rgba(0, 0, 0, 0.55)';
+		c.fill();
+
+		c.fillStyle = 'rgba(255, 255, 255, 0.85)';
 		c.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
 		c.textAlign = 'center';
 		c.textBaseline = 'middle';
 		c.fillText(option.icon, CENTER, CENTER - 10);
 
-		c.fillStyle = 'rgba(255, 255, 255, 0.4)';
+		c.fillStyle = 'rgba(255, 255, 255, 0.7)';
 		c.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
 		c.fillText(option.label, CENTER, CENTER + 6);
 
-		c.fillStyle = 'rgba(255, 255, 255, 0.25)';
+		c.fillStyle = 'rgba(255, 255, 255, 0.5)';
 		c.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
 		c.fillText(`${Math.round(markers[0].hue)}°`, CENTER, CENTER + 22);
 	}
@@ -381,6 +463,8 @@
 	}
 
 	function handlePointerDown(e: MouseEvent) {
+		e.preventDefault(); // prevent browser drag / text-selection interference
+
 		const hit = hitTestMarker(e);
 
 		if (hit !== null) {
@@ -400,18 +484,27 @@
 
 	function handlePointerMove(e: MouseEvent) {
 		if (draggingMarker === null) return;
+		e.preventDefault(); // keep browser from interfering mid-drag
 		const { angle, radius } = getPointerInfo(e);
 		updateFromPointer(angle, radius);
 	}
 
 	function handlePointerUp() {
 		if (draggingMarker !== null) {
+			// Suppress the reactive reinit so releasing the drag doesn't snap back
+			suppressReactiveReinit = true;
 			draggingMarker = null;
 			dragMode = null;
-			// Sync tracking vars so reactive doesn't fight
-			prevPrimaryColor = normalizeHex(triple.primary) || triple.primary;
-			prevHarmonyType = harmonyType;
 			dispatch('harmonychange', { ...triple });
+			// Allow external prop changes to reinit again after framework settles
+			tick().then(() => {
+				tick().then(() => {
+					suppressReactiveReinit = false;
+					// Re-sync tracking to whatever the parent decided
+					prevPrimaryColor = primaryColor;
+					prevHarmonyType = harmonyType;
+				});
+			});
 		}
 	}
 

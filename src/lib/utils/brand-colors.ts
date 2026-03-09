@@ -40,6 +40,8 @@ export interface BrandTheme {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  brandColor4?: string;
+  brandColor5?: string;
   backgroundColor: string;
   surfaceColor: string;
   textColor: string;
@@ -625,6 +627,38 @@ export function generateFullTheme(primaryHex: string): BrandTheme {
   };
 }
 
+/**
+ * Generate derived theme colors (background, surface, text, border, status)
+ * from the user's brand colors. Uses the primary color for hue-tinting.
+ * Only derives layout & status — never overwrites the brand colors themselves.
+ */
+export function derivedThemeFromBrandColors(
+  brandColors: { primary: string; secondary?: string; accent?: string; color4?: string; color5?: string }
+): Omit<BrandTheme, 'primaryColor' | 'secondaryColor' | 'accentColor' | 'brandColor4' | 'brandColor5'> {
+  const hsl = hexToHsl(brandColors.primary);
+  const h = hsl?.h ?? 220;
+  const s = hsl?.s ?? 70;
+
+  const bgSat = Math.max(8, Math.round(s * 0.25));
+  const bg = hslToHex(h, bgSat, 6);
+  const surface = hslToHex(h, Math.max(6, Math.round(s * 0.2)), 11);
+  const txtSat = Math.max(5, Math.round(s * 0.08));
+  const txt = hslToHex(h, txtSat, 93);
+  const txtSec = hslToHex(h, Math.max(5, Math.round(s * 0.12)), 58);
+  const border = hslToHex(h, Math.max(6, Math.round(s * 0.15)), 20);
+
+  return {
+    backgroundColor: bg,
+    surfaceColor: surface,
+    textColor: txt,
+    textSecondaryColor: txtSec,
+    borderColor: border,
+    successColor: '#22c55e',
+    warningColor: '#f59e0b',
+    errorColor: '#ef4444'
+  };
+}
+
 // ─── Contrast Matrix ────────────────────────────────────
 
 export interface ContrastPair {
@@ -755,6 +789,289 @@ export function rotateHarmony(triple: HarmonyTriple, degrees: number): HarmonyTr
     primary: rotate(triple.primary),
     secondary: rotate(triple.secondary),
     accent: rotate(triple.accent)
+  };
+}
+
+// ─── Image Color Extraction ──────────────────────────────
+
+/** A color extracted from image pixel analysis */
+export interface ExtractedColor {
+  r: number;
+  g: number;
+  b: number;
+  hex: string;
+  population: number;
+}
+
+interface ExtractOptions {
+  maxColors?: number;
+  /** Min saturation (0-255 range) to keep a pixel — filters near-grey */
+  minSaturation?: number;
+  /** Min/max lightness (0-255 range) — filters near-black/white */
+  minLightness?: number;
+  maxLightness?: number;
+}
+
+/**
+ * Extract dominant colors from raw RGBA pixel data via simplified k-means.
+ * Works completely in-memory — no DOM dependency beyond the data you pass in.
+ *
+ * @param pixels - Uint8ClampedArray of RGBA pixel data
+ * @param width  - Image width (pixels)
+ * @param height - Image height (unused directly but kept for API clarity)
+ * @param opts   - Extraction options
+ */
+export function extractColorsFromPixels(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  opts: ExtractOptions = {}
+): ExtractedColor[] {
+  const {
+    maxColors = 6,
+    minSaturation = 15,
+    minLightness = 20,
+    maxLightness = 235
+  } = opts;
+
+  if (pixels.length < 4) return [];
+
+  // Step 1: Sample and filter pixels (skip transparent, near-white, near-black, and low-saturation)
+  interface PixelSample { r: number; g: number; b: number; }
+  const samples: PixelSample[] = [];
+  const totalPixels = pixels.length / 4;
+  // For performance: sample every Nth pixel for large images
+  const step = Math.max(1, Math.floor(totalPixels / 10000));
+
+  for (let i = 0; i < totalPixels; i += step) {
+    const idx = i * 4;
+    const a = pixels[idx + 3];
+    if (a < 128) continue; // skip transparent
+
+    const r = pixels[idx];
+    const g = pixels[idx + 1];
+    const b = pixels[idx + 2];
+
+    // Filter near-black and near-white
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    const lightness = (maxC + minC) / 2;
+    if (lightness < minLightness || lightness > maxLightness) continue;
+
+    // Filter low saturation (grey-ish)
+    const range = maxC - minC;
+    if (range < minSaturation) continue;
+
+    samples.push({ r, g, b });
+  }
+
+  if (samples.length === 0) {
+    // Fallback: if all pixels were filtered, try without saturation filter
+    for (let i = 0; i < totalPixels; i += step) {
+      const idx = i * 4;
+      const a = pixels[idx + 3];
+      if (a < 128) continue;
+      samples.push({ r: pixels[idx], g: pixels[idx + 1], b: pixels[idx + 2] });
+    }
+  }
+
+  if (samples.length === 0) return [];
+
+  // Step 2: K-means clustering
+  const k = Math.min(maxColors, samples.length);
+  // Seed centroids by picking evenly spaced samples
+  let centroids: [number, number, number][] = [];
+  for (let i = 0; i < k; i++) {
+    const s = samples[Math.floor((i / k) * samples.length)];
+    centroids.push([s.r, s.g, s.b]);
+  }
+
+  const assignments = new Int32Array(samples.length);
+  const MAX_ITERATIONS = 12;
+
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    let changed = false;
+
+    // Assign each sample to nearest centroid
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i];
+      let bestDist = Infinity;
+      let bestK = 0;
+      for (let c = 0; c < centroids.length; c++) {
+        const dr = s.r - centroids[c][0];
+        const dg = s.g - centroids[c][1];
+        const db = s.b - centroids[c][2];
+        const dist = dr * dr + dg * dg + db * db;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestK = c;
+        }
+      }
+      if (assignments[i] !== bestK) {
+        assignments[i] = bestK;
+        changed = true;
+      }
+    }
+
+    if (!changed) break;
+
+    // Recompute centroids
+    const sums = Array.from({ length: k }, () => [0, 0, 0, 0]); // r, g, b, count
+    for (let i = 0; i < samples.length; i++) {
+      const c = assignments[i];
+      sums[c][0] += samples[i].r;
+      sums[c][1] += samples[i].g;
+      sums[c][2] += samples[i].b;
+      sums[c][3]++;
+    }
+    centroids = sums.map((s, ci) => {
+      if (s[3] === 0) return centroids[ci];
+      return [Math.round(s[0] / s[3]), Math.round(s[1] / s[3]), Math.round(s[2] / s[3])] as [number, number, number];
+    });
+  }
+
+  // Step 3: Build result with population counts
+  const counts = new Int32Array(k);
+  for (let i = 0; i < samples.length; i++) {
+    counts[assignments[i]]++;
+  }
+
+  const result: ExtractedColor[] = [];
+  for (let c = 0; c < centroids.length; c++) {
+    if (counts[c] === 0) continue;
+    const [r, g, b] = centroids[c];
+    result.push({
+      r, g, b,
+      hex: rgbToHex(r, g, b),
+      population: counts[c]
+    });
+  }
+
+  // Sort by population descending
+  result.sort((a, b) => b.population - a.population);
+  return result.slice(0, maxColors);
+}
+
+/**
+ * Score and rank extracted colors based on vibrancy, saturation, and population.
+ * Higher score = more suitable as a brand color.
+ */
+export function scoreAndRankColors(
+  colors: ExtractedColor[]
+): (ExtractedColor & { score: number; })[] {
+  if (colors.length === 0) return [];
+
+  const maxPop = Math.max(...colors.map((c) => c.population));
+
+  const scored = colors.map((c) => {
+    const maxC = Math.max(c.r, c.g, c.b);
+    const minC = Math.min(c.r, c.g, c.b);
+    const range = maxC - minC;
+
+    // Saturation score (0-40): vibrant colors score higher
+    const satScore = Math.min(40, (range / 255) * 50);
+
+    // Population score (0-35): more common colors are more likely to be brand colors
+    const popScore = maxPop > 0 ? (c.population / maxPop) * 35 : 0;
+
+    // Lightness penalty: too dark or too bright are poor brand colors
+    const lightness = (maxC + minC) / 2;
+    let lightPenalty = 0;
+    if (lightness < 40) lightPenalty = (40 - lightness) * 0.3;
+    if (lightness > 220) lightPenalty = (lightness - 220) * 0.3;
+
+    // Colorfulness bonus (0-25): prefer colors that aren't too grey
+    const colorfulness = Math.min(25, range * 0.15);
+
+    const score = Math.round(satScore + popScore + colorfulness - lightPenalty);
+    return { ...c, score: Math.max(0, score) };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+/**
+ * Compute a perceptual color distance (simple weighted Euclidean in RGB).
+ * Returns a value 0-~765 — >80 is "visually distinct".
+ */
+function colorDistance(a: { r: number; g: number; b: number; }, b: { r: number; g: number; b: number; }): number {
+  // Weighted for human perception
+  const dr = (a.r - b.r) * 0.30;
+  const dg = (a.g - b.g) * 0.59;
+  const db = (a.b - b.b) * 0.11;
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+/**
+ * Build a primary/secondary/accent palette from ranked extracted colors.
+ * Ensures visual diversity — secondary and accent are chosen to be distinct from primary.
+ */
+export function buildPaletteFromExtracted(
+  rankedColors: (ExtractedColor & { score: number; })[]
+): HarmonyTriple {
+  // Fallback defaults
+  const defaultPrimary = '#3b82f6';
+  if (rankedColors.length === 0) {
+    const triple = generateHarmonyTriple(defaultPrimary, 'triadic');
+    return triple;
+  }
+
+  const primary = rankedColors[0];
+  const MIN_DISTANCE = 30; // minimum perceptual distance for secondary/accent
+
+  // Pick secondary: highest-scored color that's visually distinct from primary
+  let secondary: (ExtractedColor & { score: number; }) | null = null;
+  for (let i = 1; i < rankedColors.length; i++) {
+    if (colorDistance(primary, rankedColors[i]) >= MIN_DISTANCE) {
+      secondary = rankedColors[i];
+      break;
+    }
+  }
+
+  // Pick accent: distinct from both primary and secondary
+  let accent: (ExtractedColor & { score: number; }) | null = null;
+  if (secondary) {
+    for (let i = 1; i < rankedColors.length; i++) {
+      if (rankedColors[i] === secondary) continue;
+      if (
+        colorDistance(primary, rankedColors[i]) >= MIN_DISTANCE &&
+        colorDistance(secondary, rankedColors[i]) >= MIN_DISTANCE
+      ) {
+        accent = rankedColors[i];
+        break;
+      }
+    }
+  }
+
+  // If we didn't find enough distinct colors, generate from harmony
+  if (!secondary || !accent) {
+    const hsl = hexToHsl(primary.hex);
+    if (hsl) {
+      if (!secondary) {
+        secondary = {
+          ...primary,
+          hex: hslToHex(wrapHue(hsl.h + 120), hsl.s, hsl.l),
+          score: 0
+        };
+      }
+      if (!accent) {
+        accent = {
+          ...primary,
+          hex: hslToHex(wrapHue(hsl.h + 240), hsl.s, hsl.l),
+          score: 0
+        };
+      }
+    } else {
+      const triple = generateHarmonyTriple(primary.hex, 'triadic');
+      return triple;
+    }
+  }
+
+  return {
+    primary: primary.hex,
+    secondary: secondary.hex,
+    accent: accent.hex
   };
 }
 

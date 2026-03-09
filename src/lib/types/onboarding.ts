@@ -68,6 +68,8 @@ export interface BrandProfile {
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;
+  brandColor4?: string;
+  brandColor5?: string;
   backgroundColor?: string;
   surfaceColor?: string;
   textColor?: string;

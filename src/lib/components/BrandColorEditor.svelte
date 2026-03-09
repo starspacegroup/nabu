@@ -34,9 +34,13 @@
 		getContrastRatio,
 		getColorName,
 		generateFullTheme,
+		derivedThemeFromBrandColors,
 		buildContrastMatrix,
 		shouldUseDarkText,
 		blendColors,
+		extractColorsFromPixels,
+		scoreAndRankColors,
+		buildPaletteFromExtracted,
 		PRESET_THEMES,
 		type HarmonyType,
 		type BrandTheme,
@@ -61,72 +65,43 @@
 		key: string;
 		label: string;
 		desc: string;
+		removable?: boolean;
 	}
 
-	interface ColorGroup {
-		id: string;
-		title: string;
-		icon: string;
-		fields: ColorFieldDef[];
-	}
-
-	const COLOR_GROUPS: ColorGroup[] = [
-		{
-			id: 'focal',
-			title: 'Focal',
-			icon: '◆',
-			fields: [
-				{ key: 'primaryColor', label: 'Primary', desc: 'Main brand color' },
-				{ key: 'secondaryColor', label: 'Secondary', desc: 'Supporting accent' },
-				{ key: 'accentColor', label: 'Accent', desc: 'Highlight & CTA' }
-			]
-		},
-		{
-			id: 'backgrounds',
-			title: 'Layout',
-			icon: '▪',
-			fields: [
-				{ key: 'backgroundColor', label: 'Background', desc: 'Page background' },
-				{ key: 'surfaceColor', label: 'Surface', desc: 'Card/panel fill' },
-				{ key: 'textColor', label: 'Text', desc: 'Primary text' },
-				{ key: 'textSecondaryColor', label: 'Text Secondary', desc: 'Muted text' },
-				{ key: 'borderColor', label: 'Border', desc: 'Dividers & outlines' }
-			]
-		},
-		{
-			id: 'status',
-			title: 'Status',
-			icon: '●',
-			fields: [
-				{ key: 'successColor', label: 'Success', desc: 'Positive feedback' },
-				{ key: 'warningColor', label: 'Warning', desc: 'Caution state' },
-				{ key: 'errorColor', label: 'Error', desc: 'Destructive/error' }
-			]
-		}
+	/** The 3 core brand colors — always present */
+	const CORE_BRAND_FIELDS: ColorFieldDef[] = [
+		{ key: 'primaryColor', label: 'Brand Color 1', desc: 'Main brand color' },
+		{ key: 'secondaryColor', label: 'Brand Color 2', desc: 'Supporting accent' },
+		{ key: 'accentColor', label: 'Brand Color 3', desc: 'Highlight & CTA' }
 	];
 
-	const ALL_COLOR_KEYS = COLOR_GROUPS.flatMap((g) => g.fields.map((f) => f.key));
-	const ALL_FIELDS = COLOR_GROUPS.flatMap((g) => g.fields);
+	/** Optional brand colors 4 & 5 */
+	const EXTRA_BRAND_FIELDS: ColorFieldDef[] = [
+		{ key: 'brandColor4', label: 'Brand Color 4', desc: 'Additional brand color', removable: true },
+		{ key: 'brandColor5', label: 'Brand Color 5', desc: 'Additional brand color', removable: true }
+	];
+
+	const MAX_BRAND_COLORS = 5;
 
 	const PALETTE_LABELS: Record<string, string> = {
-		primaryColor: 'P',
-		secondaryColor: 'S',
-		accentColor: 'A',
-		backgroundColor: 'BG',
-		surfaceColor: 'SF',
-		textColor: 'T',
-		textSecondaryColor: 'T2',
-		borderColor: 'BD',
-		successColor: '✓',
-		warningColor: '!',
-		errorColor: '✕'
+		primaryColor: '1',
+		secondaryColor: '2',
+		accentColor: '3',
+		brandColor4: '4',
+		brandColor5: '5'
 	};
 
 	// ─── State ───────────────────────────────────────────
 
 	let localColors: Record<string, string> = {};
+	/** Derived layout/status colors auto-generated from brand colors */
+	let derivedColors: Record<string, string> = {};
 	let activeField: string | null = null;
-	let activeTab = 'focal';
+	/** How many extra color slots are active (0, 1, or 2) */
+	let extraColorCount = 0;
+
+	// All possible brand keys (used for initialization)
+	const ALL_POSSIBLE_KEYS = [...CORE_BRAND_FIELDS, ...EXTRA_BRAND_FIELDS].map((f) => f.key);
 
 	// Harmony
 	let harmonyType: HarmonyType = 'complementary';
@@ -158,15 +133,73 @@
 	// Clipboard feedback
 	let copyFeedbackField: string | null = null;
 
+	// Logo color extraction
+	let isExtractingColors = false;
+	let extractedPalette: { primary: string; secondary: string; accent: string } | null = null;
+	let logoExtractError: string | null = null;
+
 	// ─── Reactivity ──────────────────────────────────────
+
+	// Detect extra colors from parent and set count BEFORE visibleFields computes
+	$: {
+		let detected = 0;
+		if (colors['brandColor5']) detected = 2;
+		else if (colors['brandColor4']) detected = 1;
+		if (detected > extraColorCount) extraColorCount = detected;
+	}
+
+	/** Reactive list of currently visible brand color fields */
+	$: visibleFields = [
+		...CORE_BRAND_FIELDS,
+		...EXTRA_BRAND_FIELDS.slice(0, extraColorCount)
+	];
+	$: ALL_BRAND_KEYS = visibleFields.map((f) => f.key);
 
 	$: {
 		const newLocal: Record<string, string> = {};
-		for (const key of ALL_COLOR_KEYS) {
+		for (const key of ALL_POSSIBLE_KEYS) {
 			newLocal[key] = colors[key] || '';
 		}
 		localColors = newLocal;
 	}
+
+	// Track whether the component has fully mounted
+	let hasMounted = false;
+	/** Serialized snapshot of the last dispatched derived colors — used to prevent infinite loops */
+	let lastDispatchedDerived = '';
+
+	// Auto-derive layout/status colors whenever brand colors change
+	$: {
+		const primary = localColors['primaryColor'];
+		if (primary && isValidHex(primary)) {
+			derivedColors = derivedThemeFromBrandColors({ primary });
+		}
+	}
+
+	// Persist derived layout/status colors to DB after mount
+	// IMPORTANT: compare against the last dispatched snapshot to avoid
+	// an infinite loop (dispatch → parent saves → loadProfile → new colors
+	// prop → new localColors → new derivedColors → dispatch again).
+	$: if (hasMounted && Object.keys(derivedColors).length > 0) {
+		const _derived = { ...derivedColors };
+		const snapshot = JSON.stringify(_derived);
+		if (snapshot !== lastDispatchedDerived) {
+			lastDispatchedDerived = snapshot;
+			tick().then(() => {
+				dispatch('colorsbatchchange', {
+					colors: Object.entries(_derived).map(([key, value]) => ({ key, value }))
+				});
+			});
+		}
+	}
+
+	// Build a merged view used by preview + contrast (brand + derived)
+	$: mergedTheme = {
+		...derivedColors,
+		...Object.fromEntries(
+			Object.entries(localColors).filter(([_, v]) => v && isValidHex(v))
+		)
+	} as Record<string, string>;
 
 	$: if (activeField && localColors[activeField]) {
 		updateHarmony(localColors[activeField], harmonyType);
@@ -192,12 +225,12 @@
 		}
 	}
 
-	$: filledCount = ALL_COLOR_KEYS.filter(
+	$: filledCount = ALL_BRAND_KEYS.filter(
 		(k) => localColors[k] && isValidHex(localColors[k])
 	).length;
 	$: hasAnyColor = filledCount > 0;
 	$: contrastPairs = showContrastMatrix
-		? buildContrastMatrix(localColors as Partial<BrandTheme>)
+		? buildContrastMatrix(mergedTheme as Partial<BrandTheme>)
 		: [];
 
 	$: if (
@@ -213,9 +246,6 @@
 	$: if (hueCtx && activeHue !== undefined) {
 		drawHueStrip();
 	}
-
-	// Active group for the tab
-	$: activeGroup = COLOR_GROUPS.find((g) => g.id === activeTab) || COLOR_GROUPS[0];
 
 	// ─── Harmony ─────────────────────────────────────────
 
@@ -260,6 +290,7 @@
 	onMount(() => {
 		drawSvPicker();
 		drawHueStrip();
+		hasMounted = true;
 	});
 
 	function drawSvPicker() {
@@ -424,10 +455,59 @@
 		}
 	}
 
-	function handleSvPointerDown(e: MouseEvent) {
-		if (!activeField) return;
+	function handleSvPointerDown(e: MouseEvent | TouchEvent) {
+		if (!activeField) {
+			// Auto-select first empty brand color field on first tap
+			const emptyField = visibleFields.find((f) => !localColors[f.key] || localColors[f.key] === '');
+			if (emptyField) {
+				activeField = emptyField.key;
+			} else {
+				activeField = 'primaryColor';
+			}
+		}
 		isDraggingSv = true;
-		handleSvInteraction(e);
+		if ('touches' in e) {
+			e.preventDefault();
+			handleTouchSv(e);
+		} else {
+			handleSvInteraction(e);
+		}
+	}
+
+	function handleTouchSv(e: TouchEvent) {
+		if (!activeField || !svCanvas || !e.touches[0]) return;
+		const touch = e.touches[0];
+		const rect = svCanvas.getBoundingClientRect();
+		const scaleX = svWidth / rect.width;
+		const scaleY = svHeight / rect.height;
+		let x = (touch.clientX - rect.left) * scaleX;
+		let y = (touch.clientY - rect.top) * scaleY;
+		x = Math.max(0, Math.min(svWidth, x));
+		y = Math.max(0, Math.min(svHeight, y));
+
+		const s = Math.round((x / svWidth) * 100);
+		const v = Math.round((1 - y / svHeight) * 100);
+		activeSatHsv = s;
+		activeValHsv = v;
+		const hex = hsvToHex(Math.round(activeHue), s, v);
+		setColor(activeField, hex);
+		const hsl = hexToHsl(hex);
+		if (hsl) { activeSatHsl = hsl.s; activeLightHsl = hsl.l; }
+	}
+
+	function handleTouchHue(e: TouchEvent) {
+		if (!activeField || !hueCanvas || !e.touches[0]) return;
+		const touch = e.touches[0];
+		const rect = hueCanvas.getBoundingClientRect();
+		const scaleY = svHeight / rect.height;
+		let y = (touch.clientY - rect.top) * scaleY;
+		y = Math.max(0, Math.min(svHeight, y));
+		const h = Math.round((y / svHeight) * 360);
+		activeHue = h;
+		const hex = hsvToHex(h, Math.round(activeSatHsv), Math.round(activeValHsv));
+		setColor(activeField, hex);
+		const hsl = hexToHsl(hex);
+		if (hsl) { activeSatHsl = hsl.s; activeLightHsl = hsl.l; }
 	}
 
 	function handleHueInteraction(e: MouseEvent | PointerEvent) {
@@ -450,15 +530,25 @@
 		}
 	}
 
-	function handleHuePointerDown(e: MouseEvent) {
+	function handleHuePointerDown(e: MouseEvent | TouchEvent) {
 		if (!activeField) return;
 		isDraggingHue = true;
-		handleHueInteraction(e);
+		if ('touches' in e) {
+			e.preventDefault();
+			handleTouchHue(e);
+		} else {
+			handleHueInteraction(e);
+		}
 	}
 
-	function handleGlobalPointerMove(e: MouseEvent) {
-		if (isDraggingSv) handleSvInteraction(e);
-		if (isDraggingHue) handleHueInteraction(e);
+	function handleGlobalPointerMove(e: MouseEvent | TouchEvent) {
+		if ('touches' in e) {
+			if (isDraggingSv) handleTouchSv(e);
+			if (isDraggingHue) handleTouchHue(e);
+		} else {
+			if (isDraggingSv) handleSvInteraction(e);
+			if (isDraggingHue) handleHueInteraction(e);
+		}
 	}
 
 	function handleGlobalPointerUp() {
@@ -505,9 +595,6 @@
 
 	function handleFieldClick(key: string) {
 		activeField = key;
-		// Switch to the correct tab
-		const group = COLOR_GROUPS.find((g) => g.fields.some((f) => f.key === key));
-		if (group) activeTab = group.id;
 
 		const val = localColors[key];
 		if (val && isValidHex(val)) {
@@ -582,21 +669,24 @@
 	// ─── Preset & Generation ─────────────────────────────
 
 	function applyPreset(preset: (typeof PRESET_THEMES)[0]) {
-		for (const [key, value] of Object.entries(preset.colors)) {
-			setColor(key, value);
+		// Only apply brand color keys from the preset
+		for (const key of ALL_BRAND_KEYS) {
+			const value = (preset.colors as Record<string, string>)[key];
+			if (value) setColor(key, value);
 		}
 		showPresets = false;
 		activeField = 'primaryColor';
-		activeTab = 'focal';
 	}
 
 	function generateFromPrimary() {
 		const primary = localColors['primaryColor'];
 		if (!primary || !isValidHex(primary)) return;
 		const theme = generateFullTheme(primary);
-		for (const [key, value] of Object.entries(theme)) {
+		// Only fill empty brand color slots (not layout/status)
+		for (const key of ALL_BRAND_KEYS) {
 			if (key === 'primaryColor') continue;
-			if (!localColors[key] || localColors[key] === '') {
+			const value = (theme as Record<string, string>)[key];
+			if (value && (!localColors[key] || localColors[key] === '')) {
 				setColor(key, value);
 			}
 		}
@@ -606,18 +696,19 @@
 		const primary = localColors['primaryColor'];
 		if (!primary || !isValidHex(primary)) return;
 		const theme = generateFullTheme(primary);
-		for (const [key, value] of Object.entries(theme)) {
+		// Only generate brand colors (layout/status are auto-derived)
+		for (const key of ALL_BRAND_KEYS) {
 			if (key === 'primaryColor') continue;
-			setColor(key, value);
+			const value = (theme as Record<string, string>)[key];
+			if (value) setColor(key, value);
 		}
 	}
 
 	function applyHarmonyColor(hex: string) {
 		if (!activeField) return;
-		const focalFields = COLOR_GROUPS[0].fields.map((f) => f.key);
-		const emptyFocal = focalFields.find((k) => !localColors[k] || localColors[k] === '');
-		if (emptyFocal && emptyFocal !== activeField) {
-			setColor(emptyFocal, hex);
+		const emptySlot = ALL_BRAND_KEYS.find((k) => !localColors[k] || localColors[k] === '');
+		if (emptySlot && emptySlot !== activeField) {
+			setColor(emptySlot, hex);
 		} else {
 			setColor(activeField, hex);
 		}
@@ -646,7 +737,6 @@
 
 		// Activate primary field and sync picker/slider state to the new primary
 		activeField = 'primaryColor';
-		activeTab = 'focal';
 
 		const newPrimary = normalized.find((c) => c.key === 'primaryColor')?.value;
 		if (newPrimary) {
@@ -679,17 +769,96 @@
 	}
 
 	function clearAll() {
-		for (const key of ALL_COLOR_KEYS) {
+		for (const key of ALL_BRAND_KEYS) {
 			localColors[key] = '';
 		}
 		localColors = localColors;
-		for (const key of ALL_COLOR_KEYS) {
+		for (const key of ALL_BRAND_KEYS) {
 			dispatch('colorchange', { key, value: '' });
 		}
 	}
 
 	function handleLogoClick() {
 		dispatch('editlogo');
+	}
+
+	// ─── Logo Color Extraction ────────────────────────────
+
+	async function extractColorsFromLogo() {
+		if (!logoUrl || isExtractingColors) return;
+		isExtractingColors = true;
+		logoExtractError = null;
+		extractedPalette = null;
+
+		try {
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+
+			await new Promise<void>((resolve, reject) => {
+				img.onload = () => resolve();
+				img.onerror = () => reject(new Error('Failed to load logo image'));
+				img.src = logoUrl!;
+			});
+
+			// Draw to offscreen canvas and extract pixels
+			const maxDim = 200; // downsample for performance
+			const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+			const w = Math.round(img.width * scale);
+			const h = Math.round(img.height * scale);
+
+			const offscreen = document.createElement('canvas');
+			offscreen.width = w;
+			offscreen.height = h;
+			const ctx = offscreen.getContext('2d');
+			if (!ctx) throw new Error('Canvas not supported');
+
+			ctx.drawImage(img, 0, 0, w, h);
+			const imageData = ctx.getImageData(0, 0, w, h);
+
+			const raw = extractColorsFromPixels(imageData.data, w, h, { maxColors: 8 });
+			const ranked = scoreAndRankColors(raw);
+			extractedPalette = buildPaletteFromExtracted(ranked);
+		} catch (err) {
+			logoExtractError = err instanceof Error ? err.message : 'Extraction failed';
+		} finally {
+			isExtractingColors = false;
+		}
+	}
+
+	function applyExtractedColors() {
+		if (!extractedPalette) return;
+		const { primary, secondary, accent } = extractedPalette;
+
+		const normalized = [
+			{ key: 'primaryColor', value: normalizeHex(primary) },
+			{ key: 'secondaryColor', value: normalizeHex(secondary) },
+			{ key: 'accentColor', value: normalizeHex(accent) }
+		].filter((c) => c.value) as { key: string; value: string }[];
+
+		for (const c of normalized) {
+			localColors[c.key] = c.value;
+		}
+		localColors = localColors;
+
+		dispatch('colorsbatchchange', {
+			colors: normalized.map((c) => ({ key: c.key, value: c.value }))
+		});
+
+		activeField = 'primaryColor';
+		extractedPalette = null;
+
+		const hsv = hexToHsv(normalized[0]?.value || primary);
+		const hsl = hexToHsl(normalized[0]?.value || primary);
+		if (hsv) { activeHue = hsv.h; activeSatHsv = hsv.s; activeValHsv = hsv.v; }
+		if (hsl) { activeSatHsl = hsl.s; activeLightHsl = hsl.l; }
+
+		tick().then(() => { drawSvPicker(); drawHueStrip(); });
+	}
+
+	function applyExtractedAndGenerate() {
+		if (!extractedPalette) return;
+		// Apply extracted colors (layout/status are auto-derived)
+		applyExtractedColors();
 	}
 
 	function handleFontClick(field: string) {
@@ -705,7 +874,7 @@
 	}
 </script>
 
-<svelte:window on:mousemove={handleGlobalPointerMove} on:mouseup={handleGlobalPointerUp} />
+<svelte:window on:mousemove={handleGlobalPointerMove} on:mouseup={handleGlobalPointerUp} on:touchmove|passive={handleGlobalPointerMove} on:touchend={handleGlobalPointerUp} />
 
 <div class="color-editor">
 	<!-- ─── LOGO ─── -->
@@ -728,6 +897,66 @@
 		{#if logoConcept && !logoUrl}
 			<p class="logo-concept-text">{logoConcept}</p>
 		{/if}
+
+		<!-- Extract Colors from Logo -->
+		{#if logoUrl}
+			<div class="logo-extract-section">
+				{#if !extractedPalette && !isExtractingColors}
+					<button class="extract-btn" on:click={extractColorsFromLogo} aria-label="Extract colors from logo">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M12 2 L2 7 L12 12 L22 7 Z" />
+							<path d="M2 17 L12 22 L22 17" />
+							<path d="M2 12 L12 17 L22 12" />
+						</svg>
+						Extract Colors from Logo
+					</button>
+				{/if}
+
+				{#if isExtractingColors}
+					<div class="extract-loading">
+						<span class="extract-spinner"></span>
+						Analyzing logo colors...
+					</div>
+				{/if}
+
+				{#if logoExtractError}
+					<p class="extract-error">{logoExtractError}</p>
+				{/if}
+
+				{#if extractedPalette}
+					<div class="extracted-preview">
+						<span class="extract-label">Colors found in your logo:</span>
+						<div class="extracted-swatches">
+							{#each [
+								{ color: extractedPalette.primary, label: 'Primary' },
+								{ color: extractedPalette.secondary, label: 'Secondary' },
+								{ color: extractedPalette.accent, label: 'Accent' }
+							] as swatch}
+								<div class="extracted-swatch-card">
+									<span class="extracted-swatch" style="background-color: {swatch.color}"></span>
+									<span class="extracted-swatch-label">{swatch.label}</span>
+									<span class="extracted-swatch-hex">{swatch.color}</span>
+								</div>
+							{/each}
+						</div>
+						<div class="extracted-actions">
+							<button class="extract-apply-btn" on:click={applyExtractedAndGenerate}>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+								Apply &amp; Build Full Theme
+							</button>
+							<button class="extract-focal-btn" on:click={applyExtractedColors}>
+								Apply Focal Only
+							</button>
+							<button class="extract-dismiss-btn" on:click={() => (extractedPalette = null)}>
+								Dismiss
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- ─── GETTING STARTED ─── -->
@@ -737,6 +966,20 @@
 			<p class="getting-started-hint">
 				Choose a starting point for your palette, or build one from scratch below.
 			</p>
+
+			{#if logoUrl}
+				<button class="starter-btn starter-btn--featured" on:click={extractColorsFromLogo} disabled={isExtractingColors}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 2 L2 7 L12 12 L22 7 Z" />
+						<path d="M2 17 L12 22 L22 17" />
+						<path d="M2 12 L12 17 L22 12" />
+					</svg>
+					<div class="starter-text">
+						<strong>{isExtractingColors ? 'Analyzing...' : 'Extract from Logo'}</strong>
+						<span>Auto-detect brand colors from your logo</span>
+					</div>
+				</button>
+			{/if}
 
 			<button class="starter-btn" on:click={() => (showPresets = true)}>
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -782,32 +1025,42 @@
 	{/if}
 
 	<!-- ─── PALETTE OVERVIEW BAR ─── -->
-	<div class="palette-bar" role="group" aria-label="Theme color palette overview">
-		{#each COLOR_GROUPS as group, gi}
-			{#if gi > 0}
-				<span class="palette-sep" aria-hidden="true"></span>
-			{/if}
-			{#each group.fields as field}
-				{@const value = localColors[field.key] || ''}
-				{@const isActive = activeField === field.key}
-				<button
-					class="pal-item"
-					class:active={isActive}
-					on:click={() => handleFieldClick(field.key)}
-					title="{field.label}{value ? ': ' + value : ''}"
-					aria-label="Select {field.label}"
-				>
-					<span class="pal-swatch" class:empty={!value} style="background: {value || 'transparent'}">
-						{#if !value}
-							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-								<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-							</svg>
-						{/if}
-					</span>
-					<span class="pal-label">{PALETTE_LABELS[field.key] || ''}</span>
-				</button>
-			{/each}
+	<div class="palette-bar" role="group" aria-label="Brand color palette overview">
+		{#each visibleFields as field}
+			{@const value = localColors[field.key] || ''}
+			{@const isActive = activeField === field.key}
+			<button
+				class="pal-item"
+				class:active={isActive}
+				on:click={() => handleFieldClick(field.key)}
+				title="{field.label}{value ? ': ' + value : ''}"
+				aria-label="Select {field.label}"
+			>
+				<span class="pal-swatch" class:empty={!value} style="background: {value || 'transparent'}">
+					{#if !value}
+						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+							<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+						</svg>
+					{/if}
+				</span>
+				<span class="pal-label">{PALETTE_LABELS[field.key] || ''}</span>
+			</button>
 		{/each}
+		{#if visibleFields.length < MAX_BRAND_COLORS}
+			<button
+				class="pal-item pal-item--add"
+				on:click={() => { extraColorCount = Math.min(extraColorCount + 1, MAX_BRAND_COLORS - CORE_BRAND_FIELDS.length); }}
+				title="Add brand color"
+				aria-label="Add brand color"
+			>
+				<span class="pal-swatch empty">
+					<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+						<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+					</svg>
+				</span>
+				<span class="pal-label">+</span>
+			</button>
+		{/if}
 	</div>
 
 	<!-- ─── MAIN PICKER AREA ─── -->
@@ -822,6 +1075,7 @@
 					class="sv-picker"
 					class:disabled={!activeField}
 					on:mousedown={handleSvPointerDown}
+					on:touchstart|preventDefault={handleSvPointerDown}
 					aria-label="Color brightness and saturation picker"
 				></canvas>
 				{#if !activeField}
@@ -838,6 +1092,7 @@
 					class="hue-strip"
 					class:disabled={!activeField}
 					on:mousedown={handleHuePointerDown}
+					on:touchstart|preventDefault={handleHuePointerDown}
 					aria-label="Hue selector"
 				></canvas>
 			</div>
@@ -846,7 +1101,7 @@
 		<!-- Active field info + hex copy -->
 		{#if activeField}
 			{@const val = localColors[activeField] || ''}
-			{@const fieldDef = ALL_FIELDS.find((f) => f.key === activeField)}
+			{@const fieldDef = [...CORE_BRAND_FIELDS, ...EXTRA_BRAND_FIELDS].find((f) => f.key === activeField)}
 			<div class="active-bar">
 				<label class="active-swatch-wrap">
 					<span class="active-swatch" style="background: {val || 'transparent'}" class:empty={!val}></span>
@@ -1005,31 +1260,16 @@
 		{/if}
 	</div>
 
-	<!-- ─── TABBED COLOR FIELDS ─── -->
+	<!-- ─── BRAND COLOR FIELDS ─── -->
 	<div class="color-fields-section">
-		<!-- Tab bar -->
-		<div class="tab-bar" role="tablist">
-			{#each COLOR_GROUPS as group}
-				{@const groupFilled = group.fields.filter((f) => localColors[f.key] && isValidHex(localColors[f.key])).length}
-				<button
-					class="tab-btn"
-					class:active={activeTab === group.id}
-					on:click={() => (activeTab = group.id)}
-					role="tab"
-					aria-selected={activeTab === group.id}
-				>
-					<span class="tab-icon">{group.icon}</span>
-					<span class="tab-text">{group.title}</span>
-					{#if groupFilled > 0}
-						<span class="tab-badge">{groupFilled}/{group.fields.length}</span>
-					{/if}
-				</button>
-			{/each}
+		<div class="brand-fields-header">
+			<span class="section-label">BRAND COLORS</span>
+			<span class="filled-badge">{filledCount}/{visibleFields.length}</span>
 		</div>
 
-		<!-- Tab content -->
-		<div class="tab-content" role="tabpanel">
-			{#each activeGroup.fields as field}
+		<!-- Color field list -->
+		<div class="tab-content" role="list">
+			{#each visibleFields as field}
 				{@const value = localColors[field.key] || ''}
 				{@const isActive = activeField === field.key}
 				<div class="color-row" class:active={isActive}>
@@ -1067,12 +1307,38 @@
 								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
 							</button>
 						{/if}
+						{#if field.removable}
+							<button
+								class="remove-color-btn"
+								on:click|stopPropagation={() => {
+									clearColor(field.key);
+									extraColorCount = Math.max(0, extraColorCount - 1);
+								}}
+								aria-label="Remove {field.label}"
+								title="Remove color"
+							>
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+							</button>
+						{/if}
 					</div>
 				</div>
 			{/each}
 
-			<!-- Auto-generate buttons (shown in focal tab when primary is set) -->
-			{#if activeTab === 'focal' && localColors['primaryColor'] && isValidHex(localColors['primaryColor'])}
+			<!-- Add color button -->
+			{#if visibleFields.length < MAX_BRAND_COLORS}
+				<button
+					class="add-color-row"
+					on:click={() => { extraColorCount = Math.min(extraColorCount + 1, MAX_BRAND_COLORS - CORE_BRAND_FIELDS.length); }}
+				>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+						<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+					</svg>
+					Add Brand Color
+				</button>
+			{/if}
+
+			<!-- Auto-generate buttons (shown when primary is set) -->
+			{#if localColors['primaryColor'] && isValidHex(localColors['primaryColor'])}
 				<div class="generate-row">
 					<button class="gen-btn" on:click={generateFromPrimary} title="Fill empty fields automatically">
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1095,25 +1361,25 @@
 			<div
 				class="live-preview"
 				style="
-					background: {localColors.backgroundColor || '#0a0a0a'};
-					color: {localColors.textColor || '#f8f9fa'};
-					border-color: {localColors.borderColor || '#333'};
+					background: {mergedTheme.backgroundColor || '#0a0a0a'};
+					color: {mergedTheme.textColor || '#f8f9fa'};
+					border-color: {mergedTheme.borderColor || '#333'};
 				"
 			>
 				<!-- Mini nav -->
-				<div class="preview-nav" style="background: {localColors.surfaceColor || '#1a1a1a'}; border-bottom: 1px solid {localColors.borderColor || '#333'};">
+				<div class="preview-nav" style="background: {mergedTheme.surfaceColor || '#1a1a1a'}; border-bottom: 1px solid {mergedTheme.borderColor || '#333'};">
 					<span class="preview-brand" style="color: {localColors.primaryColor || '#3b82f6'}">⬡ Brand</span>
 					<div class="preview-links">
-						<span style="color: {localColors.textColor || '#f8f9fa'}">Home</span>
-						<span style="color: {localColors.textSecondaryColor || '#888'}">About</span>
+						<span style="color: {mergedTheme.textColor || '#f8f9fa'}">Home</span>
+						<span style="color: {mergedTheme.textSecondaryColor || '#888'}">About</span>
 						<span style="color: {localColors.accentColor || '#06b6d4'}">Contact</span>
 					</div>
 				</div>
 
 				<!-- Hero section -->
-				<div class="preview-hero" style="border-bottom: 1px solid {localColors.borderColor || '#333'};">
-					<h4 class="preview-hero-title" style="color: {localColors.textColor || '#f8f9fa'}">Your Brand,<br/>Realized</h4>
-					<p class="preview-hero-sub" style="color: {localColors.textSecondaryColor || '#888'}">See how your colors work together in context.</p>
+				<div class="preview-hero" style="border-bottom: 1px solid {mergedTheme.borderColor || '#333'};">
+					<h4 class="preview-hero-title" style="color: {mergedTheme.textColor || '#f8f9fa'}">Your Brand,<br/>Realized</h4>
+					<p class="preview-hero-sub" style="color: {mergedTheme.textSecondaryColor || '#888'}">See how your colors work together in context.</p>
 					<div class="preview-buttons">
 						<span class="preview-btn" style="background: {localColors.primaryColor || '#3b82f6'}; color: {localColors.primaryColor && shouldUseDarkText(localColors.primaryColor) ? '#000' : '#fff'}">Get Started</span>
 						<span class="preview-btn preview-btn--outline" style="border-color: {localColors.secondaryColor || '#8b5cf6'}; color: {localColors.secondaryColor || '#8b5cf6'}">Learn More</span>
@@ -1121,16 +1387,16 @@
 				</div>
 
 				<!-- Content card -->
-				<div class="preview-card" style="background: {localColors.surfaceColor || '#1a1a1a'}; border: 1px solid {localColors.borderColor || '#333'};">
-					<h5 class="preview-title" style="color: {localColors.textColor || '#f8f9fa'}">Feature Card</h5>
-					<p class="preview-subtitle" style="color: {localColors.textSecondaryColor || '#888'}">Components with your theme palette applied.</p>
-					<div class="preview-input" style="background: {localColors.backgroundColor || '#0a0a0a'}; border: 1px solid {localColors.borderColor || '#333'}; color: {localColors.textSecondaryColor || '#888'};">
+				<div class="preview-card" style="background: {mergedTheme.surfaceColor || '#1a1a1a'}; border: 1px solid {mergedTheme.borderColor || '#333'};">
+					<h5 class="preview-title" style="color: {mergedTheme.textColor || '#f8f9fa'}">Feature Card</h5>
+					<p class="preview-subtitle" style="color: {mergedTheme.textSecondaryColor || '#888'}">Components with your theme palette applied.</p>
+					<div class="preview-input" style="background: {mergedTheme.backgroundColor || '#0a0a0a'}; border: 1px solid {mergedTheme.borderColor || '#333'}; color: {mergedTheme.textSecondaryColor || '#888'};">
 						Search or type a command...
 					</div>
 					<div class="preview-status">
-						<span class="preview-badge" style="background: {localColors.successColor || '#22c55e'}">Success</span>
-						<span class="preview-badge" style="background: {localColors.warningColor || '#f59e0b'}">Warning</span>
-						<span class="preview-badge" style="background: {localColors.errorColor || '#ef4444'}">Error</span>
+						<span class="preview-badge" style="background: {mergedTheme.successColor || '#22c55e'}">Success</span>
+						<span class="preview-badge" style="background: {mergedTheme.warningColor || '#f59e0b'}">Warning</span>
+						<span class="preview-badge" style="background: {mergedTheme.errorColor || '#ef4444'}">Error</span>
 					</div>
 					<div class="preview-accent-bar">
 						<span class="preview-accent-dot" style="background: {localColors.accentColor || '#06b6d4'}"></span>
@@ -2015,56 +2281,18 @@
 		overflow: hidden;
 	}
 
-	.tab-bar {
+	.brand-fields-header {
 		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 10px 12px;
 		border-bottom: 1px solid var(--color-border);
 		background: var(--color-surface);
 	}
 
-	.tab-btn {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 5px;
-		padding: 10px 8px;
-		background: none;
-		border: none;
-		border-bottom: 2px solid transparent;
-		color: var(--color-text-secondary);
-		font-size: 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all var(--transition-fast);
-		position: relative;
-	}
-
-	.tab-btn:hover {
-		color: var(--color-text);
-		background: var(--color-surface-hover);
-	}
-
-	.tab-btn.active {
-		color: var(--color-primary);
-		border-bottom-color: var(--color-primary);
-	}
-
-	.tab-icon {
+	.filled-badge {
 		font-size: 0.65rem;
-		opacity: 0.6;
-	}
-
-	.tab-btn.active .tab-icon {
-		opacity: 1;
-	}
-
-	.tab-text {
-		line-height: 1;
-	}
-
-	.tab-badge {
-		font-size: 0.55rem;
-		padding: 1px 5px;
+		padding: 1px 6px;
 		border-radius: 8px;
 		background: var(--color-border);
 		color: var(--color-text-secondary);
@@ -2072,9 +2300,58 @@
 		line-height: 1.2;
 	}
 
-	.tab-btn.active .tab-badge {
-		background: var(--color-primary);
-		color: var(--color-background);
+	.add-color-row {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 10px;
+		background: none;
+		border: 1px dashed var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		font-size: 0.75rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		margin-top: 2px;
+	}
+
+	.add-color-row:hover {
+		border-color: var(--color-primary);
+		color: var(--color-primary);
+		background: var(--color-surface-hover);
+	}
+
+	.remove-color-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		padding: 0;
+		background: none;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		flex-shrink: 0;
+	}
+
+	.remove-color-btn:hover {
+		color: var(--color-error);
+		border-color: var(--color-error);
+		background: color-mix(in srgb, var(--color-error) 10%, transparent);
+	}
+
+	.pal-item--add {
+		opacity: 0.5;
+		transition: opacity var(--transition-fast);
+	}
+
+	.pal-item--add:hover {
+		opacity: 1;
 	}
 
 	.tab-content {
@@ -2554,5 +2831,352 @@
 
 	.action-link--danger:hover {
 		color: var(--color-error);
+	}
+
+	/* ═══════════════════════════════════════════════════
+	   LOGO EXTRACTION UI
+	   ═══════════════════════════════════════════════════ */
+
+	.logo-extract-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+		margin-top: var(--spacing-sm);
+	}
+
+	.extract-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: 7px var(--spacing-md);
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-primary);
+		background: none;
+		border: 1px solid var(--color-primary);
+		border-radius: 20px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.extract-btn:hover:not(:disabled) {
+		background: var(--color-primary);
+		color: var(--color-background);
+	}
+
+	.extract-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.extract-loading {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		font-size: 0.75rem;
+		color: var(--color-text-secondary);
+		padding: var(--spacing-xs) 0;
+	}
+
+	.extract-spinner {
+		display: inline-block;
+		width: 16px;
+		height: 16px;
+		border: 2px solid var(--color-border);
+		border-top-color: var(--color-primary);
+		border-radius: 50%;
+		animation: spin 0.6s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.extract-error {
+		font-size: 0.75rem;
+		color: var(--color-error);
+		padding: var(--spacing-xs) 0;
+	}
+
+	.extracted-preview {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-sm);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.extracted-label {
+		font-size: 0.65rem;
+		font-weight: 700;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.extracted-swatches {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+
+	.extracted-swatch-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 3px;
+	}
+
+	.extracted-swatch-color {
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+		border: 2px solid var(--color-border);
+	}
+
+	.extracted-swatch-hex {
+		font-size: 0.55rem;
+		font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+		color: var(--color-text-secondary);
+	}
+
+	.extracted-actions {
+		display: flex;
+		gap: var(--spacing-xs);
+		flex-wrap: wrap;
+	}
+
+	.extract-apply-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: 6px var(--spacing-md);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--color-background);
+		background: var(--color-primary);
+		border: none;
+		border-radius: 20px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.extract-apply-btn:hover {
+		filter: brightness(1.1);
+	}
+
+	.extract-focal-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: 6px var(--spacing-md);
+		font-size: 0.72rem;
+		font-weight: 500;
+		color: var(--color-text);
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: 20px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.extract-focal-btn:hover {
+		border-color: var(--color-text-secondary);
+		background: var(--color-surface-hover);
+	}
+
+	.extract-dismiss-btn {
+		display: inline-flex;
+		align-items: center;
+		padding: 6px var(--spacing-sm);
+		font-size: 0.72rem;
+		color: var(--color-text-secondary);
+		background: none;
+		border: none;
+		cursor: pointer;
+		transition: color var(--transition-fast);
+	}
+
+	.extract-dismiss-btn:hover {
+		color: var(--color-text);
+	}
+
+	.starter-btn--featured {
+		border-color: var(--color-primary);
+		background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.06);
+	}
+
+	.starter-btn--featured:hover {
+		background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.12);
+	}
+
+	/* ═══════════════════════════════════════════════════
+	   MOBILE-FIRST RESPONSIVE
+	   ═══════════════════════════════════════════════════ */
+
+	@media (max-width: 480px) {
+		.picker-container {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.sv-wrap {
+			max-width: 100%;
+		}
+
+		.hue-wrap {
+			display: flex;
+			justify-content: stretch;
+		}
+
+		.hue-strip {
+			width: 100% !important;
+			height: 28px !important;
+		}
+
+		.active-bar {
+			flex-wrap: wrap;
+			gap: var(--spacing-xs);
+		}
+
+		.hex-copy {
+			margin-left: auto;
+		}
+
+		.color-row {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: var(--spacing-xs);
+		}
+
+		.field-controls {
+			margin-left: 0;
+			width: 100%;
+			justify-content: space-between;
+		}
+
+		.hex-input {
+			flex: 1;
+		}
+
+		.harmony-results {
+			gap: var(--spacing-xs);
+		}
+
+		.harmony-swatch {
+			min-width: 44px;
+			height: 44px;
+		}
+
+		.presets-grid {
+			grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		}
+
+		.contrast-pair {
+			flex-wrap: wrap;
+			gap: 4px;
+		}
+
+		.contrast-detail {
+			flex-wrap: wrap;
+		}
+
+		.generate-row {
+			flex-direction: column;
+		}
+
+		.gen-btn {
+			justify-content: center;
+		}
+
+		.preview-links {
+			display: none;
+		}
+
+		.extracted-swatches {
+			justify-content: center;
+		}
+
+		.extracted-actions {
+			justify-content: center;
+		}
+
+		.actions-row {
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.starter-btn {
+			gap: var(--spacing-sm);
+		}
+	}
+
+	@media (max-width: 360px) {
+		.palette-bar {
+			gap: 2px;
+			padding: 2px;
+		}
+
+		.pal-swatch {
+			width: 22px;
+			height: 22px;
+		}
+
+		.pal-label {
+			display: none;
+		}
+
+		.active-swatch {
+			width: 32px;
+			height: 32px;
+		}
+
+		.swatch {
+			width: 28px;
+			height: 28px;
+		}
+	}
+
+	/* Ensure tap targets on touch devices */
+	@media (pointer: coarse) {
+		.pal-item {
+			min-width: 44px;
+			min-height: 44px;
+		}
+
+		.color-row-main {
+			min-height: 44px;
+		}
+
+		.harm-chip {
+			padding: 8px 14px;
+		}
+
+		.gen-btn {
+			padding: 10px var(--spacing-md);
+		}
+
+		.clear-btn {
+			width: 32px;
+			height: 32px;
+		}
+
+		.hsl-range::-webkit-slider-thumb {
+			width: 24px;
+			height: 24px;
+		}
+
+		.hsl-range::-moz-range-thumb {
+			width: 24px;
+			height: 24px;
+		}
+
+		.extract-btn,
+		.extract-apply-btn,
+		.extract-focal-btn {
+			padding: 10px var(--spacing-md);
+		}
 	}
 </style>

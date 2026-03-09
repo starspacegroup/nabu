@@ -195,8 +195,10 @@
 		loadAssetSummary();
 	});
 
+	let initialLoadDone = false;
+
 	async function loadProfile() {
-		isLoading = true;
+		if (!initialLoadDone) isLoading = true;
 		error = null;
 		try {
 			const res = await fetch(`/api/brand/profile?id=${data.brandId}`);
@@ -214,6 +216,7 @@
 			error = err instanceof Error ? err.message : 'Failed to load';
 		} finally {
 			isLoading = false;
+			initialLoadDone = true;
 		}
 	}
 
@@ -868,14 +871,8 @@
 									primaryColor: profile?.primaryColor,
 									secondaryColor: profile?.secondaryColor,
 									accentColor: profile?.accentColor,
-									backgroundColor: profile?.backgroundColor,
-									surfaceColor: profile?.surfaceColor,
-									textColor: profile?.textColor,
-									textSecondaryColor: profile?.textSecondaryColor,
-									borderColor: profile?.borderColor,
-									successColor: profile?.successColor,
-									warningColor: profile?.warningColor,
-									errorColor: profile?.errorColor
+									brandColor4: profile?.brandColor4,
+									brandColor5: profile?.brandColor5
 								}}
 								logoUrl={profile?.logoUrl}
 								logoConcept={profile?.logoConcept}
@@ -885,12 +882,13 @@
 									saveField(e.detail.key, 'color', e.detail.value);
 								}}
 								on:colorsbatchchange={async (e) => {
-									// Batch-save all colors in one pass, then reload once.
-									// Avoids the isSaving mutex and intermediate loadProfile() calls.
+									// Batch-save only colors that actually changed.
 									if (!profile || isSaving) return;
+									const changed = e.detail.colors.filter((c) => profile?.[c.key] !== c.value);
+									if (changed.length === 0) return;
 									isSaving = true;
 									try {
-										for (const c of e.detail.colors) {
+										for (const c of changed) {
 											const res = await fetch('/api/brand/update-field', {
 												method: 'PATCH',
 												headers: { 'Content-Type': 'application/json' },
