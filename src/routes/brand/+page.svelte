@@ -32,7 +32,6 @@
 	}
 
 	// Action states
-	let duplicatingId: string | null = null;
 	let archivingId: string | null = null;
 	let confirmArchiveId: string | null = null;
 	let creatingBrand = false;
@@ -73,43 +72,226 @@
 
 	// Drag-and-drop state
 	let dragIndex: number | null = null;
-	let dropTarget: number | null = null;
+	let dropSlot: number | null = null; // insertion index (between cards)
 	let isSavingOrder = false;
+	let isDragging = false;
+	let gridEl: HTMLElement;
+	let indicatorStyle = '';
 
-	function handleDragStart(index: number) {
-		dragIndex = index;
+	// Touch drag state
+	let touchDragging = false;
+	let touchClone: HTMLElement | null = null;
+	let touchStartTimer: ReturnType<typeof setTimeout> | null = null;
+	let touchStartX = 0;
+	let touchStartY = 0;
+
+	function getCardElements(): HTMLElement[] {
+		if (!gridEl) return [];
+		return Array.from(gridEl.querySelectorAll('.brand-card'));
 	}
 
-	function handleDragOver(event: DragEvent, index: number) {
+	function calcDropSlot(clientX: number, clientY: number) {
+		const cards = getCardElements();
+		if (cards.length === 0) return;
+
+		// Build an array of card rects
+		const rects = cards.map((c) => c.getBoundingClientRect());
+
+		// Group cards by visual row (same top offset ± tolerance)
+		const rows: { indices: number[]; rects: DOMRect[] }[] = [];
+		for (let i = 0; i < rects.length; i++) {
+			const r = rects[i];
+			const lastRow = rows[rows.length - 1];
+			if (lastRow && Math.abs(r.top - lastRow.rects[0].top) < 20) {
+				lastRow.indices.push(i);
+				lastRow.rects.push(r);
+			} else {
+				rows.push({ indices: [i], rects: [r] });
+			}
+		}
+
+		// Find closest gap
+		let bestSlot: number | null = null;
+		let bestDist = Infinity;
+		let bestX = 0;
+		let bestY = 0;
+		let bestH = 0;
+
+		for (const row of rows) {
+			const rowTop = Math.min(...row.rects.map((r) => r.top));
+			const rowBottom = Math.max(...row.rects.map((r) => r.bottom));
+			const rowH = rowBottom - rowTop;
+
+			// Check gap before each card in this row + gap after last card
+			for (let j = 0; j <= row.indices.length; j++) {
+				const slotIndex = j === 0 ? row.indices[0] : row.indices[j - 1] + 1;
+
+				// Skip no-op positions (adjacent to dragged card)
+				if (dragIndex !== null && (slotIndex === dragIndex || slotIndex === dragIndex + 1)) continue;
+
+				let gapX: number;
+				if (j === 0) {
+					gapX = row.rects[0].left - 4;
+				} else if (j === row.indices.length) {
+					gapX = row.rects[j - 1].right + 4;
+				} else {
+					gapX = (row.rects[j - 1].right + row.rects[j].left) / 2;
+				}
+				const gapY = rowTop + rowH / 2;
+
+				const dist = Math.hypot(clientX - gapX, clientY - gapY);
+				if (dist < bestDist) {
+					bestDist = dist;
+					bestSlot = slotIndex;
+					bestX = gapX;
+					bestY = rowTop;
+					bestH = rowH;
+				}
+			}
+		}
+
+		// Only show indicator if cursor is reasonably close
+		if (bestSlot !== null && bestDist < 300) {
+			dropSlot = bestSlot;
+			const gridRect = gridEl.getBoundingClientRect();
+			const x = bestX - gridRect.left;
+			const y = bestY - gridRect.top;
+			indicatorStyle = `left: ${x}px; top: ${y}px; height: ${bestH}px; opacity: 1;`;
+		} else {
+			dropSlot = null;
+			indicatorStyle = 'opacity: 0;';
+		}
+	}
+
+	function handleDragStart(event: DragEvent, index: number) {
+		if (sortMode !== 'custom') return;
+		dragIndex = index;
+		isDragging = true;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', String(index));
+		}
+	}
+
+	function handleGridDragOver(event: DragEvent) {
+		if (!isDragging || dragIndex === null) return;
 		event.preventDefault();
 		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-		dropTarget = index;
+		calcDropSlot(event.clientX, event.clientY);
 	}
 
-	function handleDragLeave() {
-		dropTarget = null;
-	}
-
-	async function handleDrop(index: number) {
-		if (dragIndex === null || dragIndex === index) {
-			dragIndex = null;
-			dropTarget = null;
+	async function handleGridDrop(event: DragEvent) {
+		event.preventDefault();
+		if (dragIndex === null || dropSlot === null) {
+			handleDragEnd();
+			return;
+		}
+		if (dropSlot === dragIndex || dropSlot === dragIndex + 1) {
+			handleDragEnd();
 			return;
 		}
 
 		const reordered = [...brands];
 		const [moved] = reordered.splice(dragIndex, 1);
-		reordered.splice(index, 0, moved);
+		const insertAt = dropSlot > dragIndex ? dropSlot - 1 : dropSlot;
+		reordered.splice(insertAt, 0, moved);
 		brands = reordered;
-		dragIndex = null;
-		dropTarget = null;
-
+		handleDragEnd();
 		await saveOrder(reordered);
 	}
 
 	function handleDragEnd() {
 		dragIndex = null;
-		dropTarget = null;
+		dropSlot = null;
+		isDragging = false;
+		indicatorStyle = 'opacity: 0;';
+	}
+
+	// Touch drag support — long press to initiate
+	function handleTouchStart(event: TouchEvent, index: number) {
+		if (sortMode !== 'custom') return;
+		const touch = event.touches[0];
+		touchStartX = touch.clientX;
+		touchStartY = touch.clientY;
+
+		touchStartTimer = setTimeout(() => {
+			touchDragging = true;
+			isDragging = true;
+			dragIndex = index;
+
+			const card = (event.currentTarget as HTMLElement);
+			const rect = card.getBoundingClientRect();
+
+			touchClone = card.cloneNode(true) as HTMLElement;
+			touchClone.classList.add('touch-drag-clone');
+			touchClone.style.width = `${rect.width}px`;
+			touchClone.style.height = `${rect.height}px`;
+			touchClone.style.left = `${rect.left}px`;
+			touchClone.style.top = `${rect.top}px`;
+			document.body.appendChild(touchClone);
+
+			if (navigator.vibrate) navigator.vibrate(30);
+		}, 250);
+
+		const cancelTouch = () => {
+			if (touchStartTimer) {
+				clearTimeout(touchStartTimer);
+				touchStartTimer = null;
+			}
+		};
+
+		const earlyMove = (e: TouchEvent) => {
+			const dx = Math.abs(e.touches[0].clientX - touchStartX);
+			const dy = Math.abs(e.touches[0].clientY - touchStartY);
+			if (!touchDragging && (dx > 8 || dy > 8)) {
+				cancelTouch();
+				document.removeEventListener('touchmove', earlyMove);
+			}
+		};
+
+		document.addEventListener('touchmove', earlyMove, { passive: true });
+		document.addEventListener('touchend', () => {
+			cancelTouch();
+			document.removeEventListener('touchmove', earlyMove);
+		}, { once: true });
+	}
+
+	function handleTouchMove(event: TouchEvent) {
+		if (!touchDragging || dragIndex === null) return;
+		event.preventDefault();
+
+		const touch = event.touches[0];
+
+		if (touchClone) {
+			touchClone.style.left = `${touch.clientX - touchClone.offsetWidth / 2}px`;
+			touchClone.style.top = `${touch.clientY - touchClone.offsetHeight / 2}px`;
+		}
+
+		calcDropSlot(touch.clientX, touch.clientY);
+	}
+
+	async function handleTouchEnd() {
+		if (!touchDragging) return;
+
+		if (touchClone) {
+			touchClone.remove();
+			touchClone = null;
+		}
+
+		if (dragIndex !== null && dropSlot !== null && dropSlot !== dragIndex && dropSlot !== dragIndex + 1) {
+			const reordered = [...brands];
+			const [moved] = reordered.splice(dragIndex, 1);
+			const insertAt = dropSlot > dragIndex ? dropSlot - 1 : dropSlot;
+			reordered.splice(insertAt, 0, moved);
+			brands = reordered;
+			await saveOrder(reordered);
+		}
+
+		touchDragging = false;
+		isDragging = false;
+		dragIndex = null;
+		dropSlot = null;
+		indicatorStyle = 'opacity: 0;';
 	}
 
 	async function saveOrder(ordered: BrandProfile[]) {
@@ -144,25 +326,6 @@
 			error = err instanceof Error ? err.message : 'Failed to load brands';
 		} finally {
 			isLoading = false;
-		}
-	}
-
-	async function duplicateBrand(profileId: string) {
-		duplicatingId = profileId;
-		try {
-			const res = await fetch('/api/brand/profiles/duplicate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ sourceProfileId: profileId })
-			});
-
-			if (!res.ok) throw new Error('Failed to duplicate brand');
-
-			await loadBrands();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to duplicate';
-		} finally {
-			duplicatingId = null;
 		}
 	}
 
@@ -374,22 +537,62 @@
 			</button>
 		</div>
 	{:else}
-		<div class="brands-grid">
+		<div
+			class="brands-grid"
+			class:is-dragging={isDragging}
+			bind:this={gridEl}
+			on:dragover={handleGridDragOver}
+			on:drop={handleGridDrop}
+			role="list"
+			aria-label="Brand cards"
+		>
+			<!-- Floating drop indicator line -->
+			{#if isDragging}
+				<div class="drop-indicator-line" style={indicatorStyle}></div>
+			{/if}
 			{#each displayBrands as brand, i (brand.id)}
 				{@const stats = getCompletionStats(brand)}
 				<article
 					class="brand-card"
 					class:has-logo={brand.logoUrl}
-					class:drag-over={dropTarget === i && dragIndex !== i}
 					class:dragging={dragIndex === i}
 					draggable={sortMode === 'custom'}
-					on:dragstart={() => handleDragStart(i)}
-					on:dragover={(e) => handleDragOver(e, i)}
-					on:dragleave={handleDragLeave}
-					on:drop={() => handleDrop(i)}
+					on:dragstart={(e) => handleDragStart(e, i)}
 					on:dragend={handleDragEnd}
+					on:touchstart={(e) => handleTouchStart(e, i)}
+					on:touchmove|nonpassive={handleTouchMove}
+					on:touchend={handleTouchEnd}
 					style="{brand.typographyBody ? `font-family: '${brand.typographyBody}', sans-serif;` : ''}{brand.logoUrl ? `--card-bg-image: url(${brand.logoUrl});` : ''}"
 				>
+					{#if confirmArchiveId === brand.id}
+						<div class="close-confirm">
+							<span>Archive?</span>
+							<button
+								class="confirm-yes"
+								disabled={archivingId === brand.id}
+								on:click|stopPropagation={() => archiveBrand(brand.id)}
+							>
+								{archivingId === brand.id ? '...' : 'Yes'}
+							</button>
+							<button
+								class="confirm-no"
+								on:click|stopPropagation={() => (confirmArchiveId = null)}
+							>
+								No
+							</button>
+						</div>
+					{:else}
+						<button
+							class="close-btn"
+							title="Archive brand"
+							on:click|stopPropagation={() => (confirmArchiveId = brand.id)}
+						>
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<line x1="18" y1="6" x2="6" y2="18" />
+								<line x1="6" y1="6" x2="18" y2="18" />
+							</svg>
+						</button>
+					{/if}
 					{#if sortMode === 'custom'}
 						<div class="drag-handle" aria-label="Drag to reorder">
 							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -470,73 +673,7 @@
 						</div>
 					</a>
 
-					<div class="card-actions">
-						<button
-							class="action-btn"
-							title="Duplicate brand"
-							disabled={duplicatingId === brand.id}
-							on:click|stopPropagation={() => duplicateBrand(brand.id)}
-						>
-							{#if duplicatingId === brand.id}
-								<span class="btn-spinner"></span>
-							{:else}
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-									<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-								</svg>
-							{/if}
-						</button>
 
-						{#if confirmArchiveId === brand.id}
-							<div class="confirm-archive">
-								<span>Archive?</span>
-								<button
-									class="confirm-yes"
-									disabled={archivingId === brand.id}
-									on:click|stopPropagation={() => archiveBrand(brand.id)}
-								>
-									{archivingId === brand.id ? '...' : 'Yes'}
-								</button>
-								<button
-									class="confirm-no"
-									on:click|stopPropagation={() => (confirmArchiveId = null)}
-								>
-									No
-								</button>
-							</div>
-						{:else}
-							<button
-								class="action-btn danger"
-								title="Archive brand"
-								on:click|stopPropagation={() => (confirmArchiveId = brand.id)}
-							>
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<polyline points="3 6 5 6 21 6" />
-									<path
-										d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-									/>
-								</svg>
-							</button>
-						{/if}
-					</div>
 				</article>
 			{/each}
 		</div>
@@ -888,6 +1025,7 @@
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: var(--spacing-md);
+		position: relative;
 	}
 
 	@media (min-width: 640px) {
@@ -935,18 +1073,69 @@
 	}
 
 	.brand-card.dragging {
-		opacity: 0.4;
+		opacity: 0.25;
+		transform: scale(0.96);
+		border: 2px dashed var(--color-text-secondary);
+		box-shadow: none;
 	}
 
-	.brand-card.drag-over {
-		border-color: var(--color-primary);
-		box-shadow: 0 0 0 2px var(--color-primary);
+	.brand-card.dragging:hover {
+		box-shadow: none;
+		border-color: var(--color-text-secondary);
+	}
+
+	/* Floating drop indicator — a vertical line that follows the cursor between cards */
+	.drop-indicator-line {
+		position: absolute;
+		width: 3px;
+		background-color: var(--color-primary);
+		border-radius: 3px;
+		z-index: 10;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.12s ease, left 0.1s ease, top 0.1s ease, height 0.1s ease;
+		transform: translateX(-50%);
+	}
+
+	.drop-indicator-line::before,
+	.drop-indicator-line::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		width: 10px;
+		height: 10px;
+		background-color: var(--color-primary);
+		border-radius: 50%;
+		transform: translateX(-50%);
+		box-shadow: 0 0 8px var(--color-primary);
+	}
+
+	.drop-indicator-line::before {
+		top: -4px;
+	}
+
+	.drop-indicator-line::after {
+		bottom: -4px;
+	}
+
+	/* Touch drag clone */
+	:global(.touch-drag-clone) {
+		position: fixed;
+		z-index: 9999;
+		opacity: 0.8;
+		pointer-events: none;
+		border-radius: var(--radius-lg);
+		box-shadow:
+			0 20px 60px rgba(0, 0, 0, 0.3),
+			0 0 0 2px var(--color-primary);
+		transform: rotate(1.5deg) scale(1.05);
+		transition: none;
 	}
 
 	.drag-handle {
 		position: absolute;
 		top: var(--spacing-xs);
-		right: var(--spacing-xs);
+		left: var(--spacing-xs);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -1112,65 +1301,54 @@
 		color: var(--color-text-secondary);
 	}
 
-	/* Card actions */
-	.card-actions {
+	/* Close button (top-right X) */
+	.close-btn {
+		position: absolute;
+		top: var(--spacing-xs);
+		right: var(--spacing-xs);
 		display: flex;
 		align-items: center;
-		gap: var(--spacing-xs);
-		padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm);
-		border-top: 1px solid var(--color-border);
-		margin-top: auto;
-	}
-
-	.action-btn {
-		display: inline-flex;
-		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
+		width: 24px;
+		height: 24px;
 		background: none;
-		border: 1px solid var(--color-border);
+		border: none;
 		border-radius: var(--radius-sm);
 		color: var(--color-text-secondary);
 		cursor: pointer;
+		opacity: 0;
+		z-index: 2;
 		transition:
+			opacity var(--transition-fast),
 			color var(--transition-fast),
-			border-color var(--transition-fast),
 			background-color var(--transition-fast);
 	}
 
-	.action-btn:hover {
-		color: var(--color-primary);
-		border-color: var(--color-primary);
+	.brand-card:hover .close-btn {
+		opacity: 0.7;
+	}
+
+	.close-btn:hover {
+		opacity: 1 !important;
+		color: var(--color-error);
 		background-color: var(--color-surface-hover);
 	}
 
-	.action-btn.danger:hover {
-		color: var(--color-error);
-		border-color: var(--color-error);
-	}
-
-	.action-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-spinner {
-		width: 12px;
-		height: 12px;
-		border: 2px solid var(--color-border);
-		border-top-color: var(--color-primary);
-		border-radius: 50%;
-		animation: spin 0.6s linear infinite;
-	}
-
-	/* Confirm archive */
-	.confirm-archive {
+	/* Close confirm (top-right) */
+	.close-confirm {
+		position: absolute;
+		top: var(--spacing-xs);
+		right: var(--spacing-xs);
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-xs);
+		padding: 2px var(--spacing-xs);
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
 		font-size: 0.75rem;
 		color: var(--color-text-secondary);
+		z-index: 2;
 	}
 
 	.confirm-yes,
