@@ -218,6 +218,7 @@ Make this FUN. Ask: "If your brand walked into a party, how would people describ
       'warningColor',
       'errorColor',
       'colorPalette',
+      'typographyLogo',
       'typographyHeading',
       'typographyBody',
       'logoConcept'
@@ -464,6 +465,8 @@ export function buildBrandContextString(brandData: Partial<BrandProfile>): strin
   if (brandData.accentColor) contextParts.push(`Accent Color: ${brandData.accentColor}`);
   if (brandData.colorPalette?.length)
     contextParts.push(`Color Palette: ${brandData.colorPalette.join(', ')}`);
+  if (brandData.typographyLogo)
+    contextParts.push(`Logo Font: ${brandData.typographyLogo}`);
   if (brandData.typographyHeading)
     contextParts.push(`Heading Font: ${brandData.typographyHeading}`);
   if (brandData.typographyBody)
@@ -635,6 +638,7 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     warningColor: (row.warning_color as string) || undefined,
     errorColor: (row.error_color as string) || undefined,
     colorPalette: row.color_palette ? JSON.parse(row.color_palette as string) : undefined,
+    typographyLogo: (row.typography_logo as string) || undefined,
     typographyHeading: (row.typography_heading as string) || undefined,
     typographyBody: (row.typography_body as string) || undefined,
     logoConcept: (row.logo_concept as string) || undefined,
@@ -649,6 +653,7 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     brandValues: row.brand_values ? JSON.parse(row.brand_values as string) : undefined,
     brandPromise: (row.brand_promise as string) || undefined,
     styleGuide: row.style_guide ? JSON.parse(row.style_guide as string) : undefined,
+    sortOrder: (row.sort_order as number) ?? 0,
     onboardingStep: row.onboarding_step as OnboardingStep,
     conversationId: (row.conversation_id as string) || undefined,
     createdAt: row.created_at as string,
@@ -803,6 +808,7 @@ export async function updateBrandProfile(
     primaryColor: 'primary_color',
     secondaryColor: 'secondary_color',
     accentColor: 'accent_color',
+    typographyLogo: 'typography_logo',
     typographyHeading: 'typography_heading',
     typographyBody: 'typography_body',
     logoConcept: 'logo_concept',
@@ -1070,7 +1076,7 @@ const KNOWN_EXTRACTION_FIELDS = new Set([
   'backgroundColor', 'surfaceColor', 'textColor', 'textSecondaryColor',
   'borderColor', 'successColor', 'warningColor', 'errorColor',
   'colorPalette',
-  'typographyHeading', 'typographyBody', 'logoConcept',
+  'typographyLogo', 'typographyHeading', 'typographyBody', 'logoConcept',
   'competitors', 'uniqueSellingPoints', 'marketPosition',
   'originStory', 'brandValues', 'brandPromise'
 ]);

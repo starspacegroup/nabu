@@ -98,6 +98,17 @@
 	let isLoading = true;
 	let error: string | null = null;
 
+	// Section collapse state
+	let collapsedSections: Record<string, boolean> = {};
+
+	function toggleSection(sectionId: string) {
+		collapsedSections[sectionId] = !collapsedSections[sectionId];
+		collapsedSections = collapsedSections;
+	}
+
+	$: visualSection = sections.find(s => s.id === 'visual') ?? null;
+	$: otherSections = sections.filter(s => s.id !== 'visual');
+
 	// Tab navigation
 	let activeTab: 'profile' | 'text' | 'images' | 'audio' | 'videos' = 'profile';
 
@@ -856,90 +867,97 @@
 
 		<!-- ═══ Profile Tab ═══ -->
 		{#if activeTab === 'profile'}
-			<div class="sections-grid">
-				{#each sections as section}
-					{#if section.id === 'visual'}
-						<!-- Visual Identity — uses the dedicated BrandColorEditor -->
-						<section class="brand-section brand-section--visual">
-							<div class="section-header">
-								<span class="section-icon">{section.icon}</span>
-								<h2 class="section-title">{section.title}</h2>
-							</div>
+			<!-- Visual Identity — full width at top -->
+			{#if visualSection}
+				<section class="brand-section brand-section--visual">
+					<button class="section-header section-header--toggle" on:click={() => toggleSection('visual')} aria-expanded={!collapsedSections['visual']}>
+						<span class="section-icon">{visualSection.icon}</span>
+						<h2 class="section-title">{visualSection.title}</h2>
+						<svg class="collapse-chevron" class:collapsed={collapsedSections['visual']} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+					</button>
 
-							<BrandColorEditor
-								colors={{
-									primaryColor: profile?.primaryColor,
-									secondaryColor: profile?.secondaryColor,
-									accentColor: profile?.accentColor,
-									brandColor4: profile?.brandColor4,
-									brandColor5: profile?.brandColor5
-								}}
-								logoUrl={profile?.logoUrl}
-								logoConcept={profile?.logoConcept}
-								typographyHeading={profile?.typographyHeading}
-								typographyBody={profile?.typographyBody}
-								on:colorchange={(e) => {
-									saveField(e.detail.key, 'color', e.detail.value);
-								}}
-								on:colorsbatchchange={async (e) => {
-									// Batch-save only colors that actually changed.
-									if (!profile || isSaving) return;
-									const changed = e.detail.colors.filter((c) => profile?.[c.key] !== c.value);
-									if (changed.length === 0) return;
-									isSaving = true;
-									try {
-										for (const c of changed) {
-											const res = await fetch('/api/brand/update-field', {
-												method: 'PATCH',
-												headers: { 'Content-Type': 'application/json' },
-												body: JSON.stringify({
-													profileId: profile.id,
-													fieldName: c.key,
-													newValue: c.value,
-													changeSource: 'manual'
-												})
-											});
-											if (!res.ok) throw new Error(`Failed to save ${c.key}`);
-										}
-										await loadProfile();
-									} catch (err) {
-										error = err instanceof Error ? err.message : 'Failed to save colors';
-									} finally {
-										isSaving = false;
-									}
-								}}
-								on:editlogo={() => switchTab('images')}
-								on:fontchange={async (e) => {
-									if (!profile) return;
-									try {
-										isSaving = true;
+					{#if !collapsedSections['visual']}
+						<BrandColorEditor
+							colors={{
+								primaryColor: profile?.primaryColor,
+								secondaryColor: profile?.secondaryColor,
+								accentColor: profile?.accentColor,
+								brandColor4: profile?.brandColor4,
+								brandColor5: profile?.brandColor5
+							}}
+							logoUrl={profile?.logoUrl}
+							logoConcept={profile?.logoConcept}
+							typographyLogo={profile?.typographyLogo}
+							typographyHeading={profile?.typographyHeading}
+							typographyBody={profile?.typographyBody}
+							on:colorchange={(e) => {
+								saveField(e.detail.key, 'color', e.detail.value);
+							}}
+							on:colorsbatchchange={async (e) => {
+								if (!profile || isSaving) return;
+								const changed = e.detail.colors.filter((c) => profile?.[c.key] !== c.value);
+								if (changed.length === 0) return;
+								isSaving = true;
+								try {
+									for (const c of changed) {
 										const res = await fetch('/api/brand/update-field', {
 											method: 'PATCH',
 											headers: { 'Content-Type': 'application/json' },
 											body: JSON.stringify({
 												profileId: profile.id,
-												fieldName: e.detail.field,
-												newValue: e.detail.value,
+												fieldName: c.key,
+												newValue: c.value,
 												changeSource: 'manual'
 											})
 										});
-										if (!res.ok) throw new Error('Failed to save font');
-										await loadProfile();
-									} catch (err) {
-										error = err instanceof Error ? err.message : 'Failed to save font';
-									} finally {
-										isSaving = false;
+										if (!res.ok) throw new Error(`Failed to save ${c.key}`);
 									}
-								}}
-							/>
-						</section>
-					{:else}
-						<section class="brand-section">
-							<div class="section-header">
-								<span class="section-icon">{section.icon}</span>
-								<h2 class="section-title">{section.title}</h2>
-							</div>
+									await loadProfile();
+								} catch (err) {
+									error = err instanceof Error ? err.message : 'Failed to save colors';
+								} finally {
+									isSaving = false;
+								}
+							}}
+							on:editlogo={() => switchTab('images')}
+							on:fontchange={async (e) => {
+								if (!profile) return;
+								try {
+									isSaving = true;
+									const res = await fetch('/api/brand/update-field', {
+										method: 'PATCH',
+										headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({
+											profileId: profile.id,
+											fieldName: e.detail.field,
+											newValue: e.detail.value,
+											changeSource: 'manual'
+										})
+									});
+									if (!res.ok) throw new Error('Failed to save font');
+									await loadProfile();
+								} catch (err) {
+									error = err instanceof Error ? err.message : 'Failed to save font';
+								} finally {
+									isSaving = false;
+								}
+							}}
+						/>
+					{/if}
+				</section>
+			{/if}
 
+			<!-- Other sections in grid -->
+			<div class="sections-grid">
+				{#each otherSections as section}
+					<section class="brand-section">
+						<button class="section-header section-header--toggle" on:click={() => toggleSection(section.id)} aria-expanded={!collapsedSections[section.id]}>
+							<span class="section-icon">{section.icon}</span>
+							<h2 class="section-title">{section.title}</h2>
+							<svg class="collapse-chevron" class:collapsed={collapsedSections[section.id]} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+						</button>
+
+						{#if !collapsedSections[section.id]}
 							<div class="fields-list">
 								{#each section.fields as field (field.key)}
 									<BrandFieldCard
@@ -958,8 +976,8 @@
 									/>
 								{/each}
 							</div>
-						</section>
-					{/if}
+						{/if}
+					</section>
 				{/each}
 			</div>
 
@@ -1576,6 +1594,10 @@
 
 	/* ─── Profile Sections Grid ──────────────────────────── */
 
+	.brand-section--visual {
+		margin-bottom: var(--spacing-lg);
+	}
+
 	.sections-grid {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -1602,6 +1624,32 @@
 		margin-bottom: var(--spacing-md);
 		padding-bottom: var(--spacing-sm);
 		border-bottom: 1px solid var(--color-border);
+	}
+
+	.section-header--toggle {
+		width: 100%;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--color-border);
+		cursor: pointer;
+		color: inherit;
+		padding: 0 0 var(--spacing-sm);
+		transition: color var(--transition-fast);
+	}
+
+	.section-header--toggle:hover {
+		color: var(--color-primary);
+	}
+
+	.collapse-chevron {
+		margin-left: auto;
+		color: var(--color-text-secondary);
+		transition: transform var(--transition-fast);
+		flex-shrink: 0;
+	}
+
+	.collapse-chevron.collapsed {
+		transform: rotate(-90deg);
 	}
 
 	.section-icon {

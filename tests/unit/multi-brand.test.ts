@@ -67,6 +67,7 @@ function makeMockProfile(overrides: Partial<BrandProfile> = {}): Record<string, 
     secondary_color: null,
     accent_color: null,
     color_palette: null,
+    typography_logo: null,
     typography_heading: null,
     typography_body: null,
     logo_concept: null,
@@ -79,6 +80,7 @@ function makeMockProfile(overrides: Partial<BrandProfile> = {}): Record<string, 
     brand_values: null,
     brand_promise: null,
     style_guide: null,
+    sort_order: 0,
     onboarding_step: overrides.onboardingStep || 'complete',
     conversation_id: null,
     created_at: overrides.createdAt || '2025-01-01T00:00:00Z',
@@ -136,7 +138,7 @@ describe('Multi-Brand Management', () => {
       expect(profiles).toEqual([]);
     });
 
-    it('should order profiles by updated_at DESC', async () => {
+    it('should order profiles by sort_order then updated_at DESC', async () => {
       const mockProfiles = [
         makeMockProfile({
           id: 'brand-2',
@@ -158,7 +160,27 @@ describe('Multi-Brand Management', () => {
       expect(profiles[1].brandName).toBe('Old');
 
       const prepareCall = mockDB.prepare.mock.calls[0][0] as string;
-      expect(prepareCall).toContain('ORDER BY updated_at DESC');
+      expect(prepareCall).toContain('ORDER BY sort_order ASC, updated_at DESC');
+    });
+
+    it('should include typography fields in returned profiles', async () => {
+      const mockProfiles = [
+        makeMockProfile({
+          id: 'brand-1',
+          brandName: 'Font Brand',
+        }),
+      ];
+      // Override typography fields on the raw DB row
+      (mockProfiles[0] as Record<string, unknown>).typography_heading = 'Montserrat';
+      (mockProfiles[0] as Record<string, unknown>).typography_body = 'Open Sans';
+
+      mockDB._mockAll.mockResolvedValueOnce({ results: mockProfiles });
+
+      const profiles = await getAllBrandProfilesByUser(mockDB as any, 'user-1');
+
+      expect(profiles).toHaveLength(1);
+      expect(profiles[0].typographyHeading).toBe('Montserrat');
+      expect(profiles[0].typographyBody).toBe('Open Sans');
     });
   });
 
@@ -297,6 +319,34 @@ describe('Multi-Brand Management', () => {
 
       expect(profile).not.toBeNull();
       expect(profile!.id).toBe('brand-2');
+    });
+  });
+
+  describe('sortOrder field mapping', () => {
+    it('should include sortOrder in mapped profile', async () => {
+      const mockProfiles = [
+        { ...makeMockProfile({ id: 'brand-1', brandName: 'First' }), sort_order: 0 },
+        { ...makeMockProfile({ id: 'brand-2', brandName: 'Second' }), sort_order: 1 },
+      ];
+
+      mockDB._mockAll.mockResolvedValueOnce({ results: mockProfiles });
+
+      const profiles = await getAllBrandProfilesByUser(mockDB as any, 'user-1');
+
+      expect(profiles[0].sortOrder).toBe(0);
+      expect(profiles[1].sortOrder).toBe(1);
+    });
+
+    it('should default sortOrder to 0 when null', async () => {
+      const mockProfiles = [
+        { ...makeMockProfile({ id: 'brand-1' }), sort_order: null },
+      ];
+
+      mockDB._mockAll.mockResolvedValueOnce({ results: mockProfiles });
+
+      const profiles = await getAllBrandProfilesByUser(mockDB as any, 'user-1');
+
+      expect(profiles[0].sortOrder).toBe(0);
     });
   });
 });

@@ -79,8 +79,10 @@ export interface BrandProfile {
   warningColor?: string;
   errorColor?: string;
   colorPalette?: string[];
+  typographyLogo?: string;
   typographyHeading?: string;
   typographyBody?: string;
+  sortOrder?: number;
   logoConcept?: string;
   logoUrl?: string;
 

@@ -12,6 +12,24 @@
 	let brands: BrandProfile[] = [];
 	let isLoading = true;
 	let error: string | null = null;
+	let loadedFonts = new Set<string>();
+
+	function loadGoogleFont(family: string) {
+		if (!family || loadedFonts.has(family)) return;
+		loadedFonts.add(family);
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700&display=swap`;
+		document.head.appendChild(link);
+	}
+
+	$: if (brands.length > 0) {
+		for (const b of brands) {
+			if (b.typographyLogo) loadGoogleFont(b.typographyLogo);
+			if (b.typographyHeading) loadGoogleFont(b.typographyHeading);
+			if (b.typographyBody) loadGoogleFont(b.typographyBody);
+		}
+	}
 
 	// Action states
 	let duplicatingId: string | null = null;
@@ -25,6 +43,90 @@
 	let isLoadingArchived = false;
 	let restoringId: string | null = null;
 	let confirmRestoreId: string | null = null;
+
+	// Sort/filter state
+	type SortMode = 'custom' | 'newest' | 'oldest' | 'most-complete' | 'least-complete' | 'alpha-az' | 'alpha-za';
+	let sortMode: SortMode = 'custom';
+
+	$: displayBrands = sortBrands(brands, sortMode);
+
+	function sortBrands(list: BrandProfile[], mode: SortMode): BrandProfile[] {
+		if (mode === 'custom') return list;
+		const sorted = [...list];
+		switch (mode) {
+			case 'newest':
+				return sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+			case 'oldest':
+				return sorted.sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+			case 'most-complete':
+				return sorted.sort((a, b) => getCompletionStats(b).percent - getCompletionStats(a).percent);
+			case 'least-complete':
+				return sorted.sort((a, b) => getCompletionStats(a).percent - getCompletionStats(b).percent);
+			case 'alpha-az':
+				return sorted.sort((a, b) => (a.brandName || '').localeCompare(b.brandName || ''));
+			case 'alpha-za':
+				return sorted.sort((a, b) => (b.brandName || '').localeCompare(a.brandName || ''));
+			default:
+				return sorted;
+		}
+	}
+
+	// Drag-and-drop state
+	let dragIndex: number | null = null;
+	let dropTarget: number | null = null;
+	let isSavingOrder = false;
+
+	function handleDragStart(index: number) {
+		dragIndex = index;
+	}
+
+	function handleDragOver(event: DragEvent, index: number) {
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		dropTarget = index;
+	}
+
+	function handleDragLeave() {
+		dropTarget = null;
+	}
+
+	async function handleDrop(index: number) {
+		if (dragIndex === null || dragIndex === index) {
+			dragIndex = null;
+			dropTarget = null;
+			return;
+		}
+
+		const reordered = [...brands];
+		const [moved] = reordered.splice(dragIndex, 1);
+		reordered.splice(index, 0, moved);
+		brands = reordered;
+		dragIndex = null;
+		dropTarget = null;
+
+		await saveOrder(reordered);
+	}
+
+	function handleDragEnd() {
+		dragIndex = null;
+		dropTarget = null;
+	}
+
+	async function saveOrder(ordered: BrandProfile[]) {
+		isSavingOrder = true;
+		try {
+			const res = await fetch('/api/brand/profiles/reorder', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orderedIds: ordered.map((b) => b.id) })
+			});
+			if (!res.ok) throw new Error('Failed to save order');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to save order';
+		} finally {
+			isSavingOrder = false;
+		}
+	}
 
 	onMount(async () => {
 		await loadBrands();
@@ -112,6 +214,7 @@
 			brand.warningColor,
 			brand.errorColor,
 			brand.colorPalette,
+			brand.typographyLogo,
 			brand.typographyHeading,
 			brand.typographyBody,
 			brand.logoConcept,
@@ -208,6 +311,23 @@
 			<p class="page-subtitle">Manage your brand profiles</p>
 		</div>
 		<div class="header-actions">
+			{#if brands.length > 1}
+				<div class="sort-control">
+					<label for="sort-select" class="sort-label">Sort</label>
+					<select id="sort-select" class="sort-select" bind:value={sortMode}>
+						<option value="custom">Custom Order</option>
+						<option value="newest">Newest First</option>
+						<option value="oldest">Oldest First</option>
+						<option value="most-complete">Most Complete</option>
+						<option value="least-complete">Least Complete</option>
+						<option value="alpha-az">A → Z</option>
+						<option value="alpha-za">Z → A</option>
+					</select>
+					{#if isSavingOrder}
+						<span class="sort-saving">Saving…</span>
+					{/if}
+				</div>
+			{/if}
 			<button class="create-button" on:click={createNewBrand} disabled={creatingBrand}>
 				{#if creatingBrand}
 					<div class="button-spinner"></div>
@@ -255,66 +375,98 @@
 		</div>
 	{:else}
 		<div class="brands-grid">
-			{#each brands as brand (brand.id)}
+			{#each displayBrands as brand, i (brand.id)}
 				{@const stats = getCompletionStats(brand)}
-				<article class="brand-card">
-					<a href="/brand/{brand.id}" class="card-link">
-						<div class="card-header">
-							<div class="brand-colors">
-								{#if brand.primaryColor}
-									<span
-										class="color-dot"
-										style="background-color: {brand.primaryColor}"
-									></span>
-								{/if}
-								{#if brand.secondaryColor}
-									<span
-										class="color-dot"
-										style="background-color: {brand.secondaryColor}"
-									></span>
-								{/if}
-								{#if brand.accentColor}
-									<span
-										class="color-dot"
-										style="background-color: {brand.accentColor}"
-									></span>
-								{/if}
-								{#if !brand.primaryColor && !brand.secondaryColor && !brand.accentColor}
-									<span class="color-dot placeholder-dot"></span>
-								{/if}
-							</div>
-							<span class="status-badge" class:completed={brand.status === 'completed'}>
-								{brand.status === 'completed' ? 'Complete' : 'In Progress'}
-							</span>
+				<article
+					class="brand-card"
+					class:has-logo={brand.logoUrl}
+					class:drag-over={dropTarget === i && dragIndex !== i}
+					class:dragging={dragIndex === i}
+					draggable={sortMode === 'custom'}
+					on:dragstart={() => handleDragStart(i)}
+					on:dragover={(e) => handleDragOver(e, i)}
+					on:dragleave={handleDragLeave}
+					on:drop={() => handleDrop(i)}
+					on:dragend={handleDragEnd}
+					style="{brand.typographyBody ? `font-family: '${brand.typographyBody}', sans-serif;` : ''}{brand.logoUrl ? `--card-bg-image: url(${brand.logoUrl});` : ''}"
+				>
+					{#if sortMode === 'custom'}
+						<div class="drag-handle" aria-label="Drag to reorder">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="9" cy="6" r="1" fill="currentColor" /><circle cx="15" cy="6" r="1" fill="currentColor" />
+								<circle cx="9" cy="12" r="1" fill="currentColor" /><circle cx="15" cy="12" r="1" fill="currentColor" />
+								<circle cx="9" cy="18" r="1" fill="currentColor" /><circle cx="15" cy="18" r="1" fill="currentColor" />
+							</svg>
 						</div>
-
-						<h2 class="brand-name" class:codename={!brand.brandNameConfirmed}>
+					{/if}
+					<a href="/brand/{brand.id}" class="card-link">
+						<h2
+							class="brand-name"
+							class:codename={!brand.brandNameConfirmed}
+							style={brand.typographyLogo ? `font-family: '${brand.typographyLogo}', sans-serif` : brand.typographyHeading ? `font-family: '${brand.typographyHeading}', sans-serif` : ''}
+						>
+							{#if brand.logoUrl}
+								<img
+									src={brand.logoUrl}
+									alt=""
+									class="brand-name-icon"
+								/>
+							{/if}
 							{brand.brandName || 'New Brand'}
 							{#if !brand.brandNameConfirmed}
 								<span class="codename-badge">Codename</span>
 							{/if}
 						</h2>
 
+						<div class="brand-colors">
+							{#if brand.primaryColor}
+								<span
+									class="color-dot"
+									style="background-color: {brand.primaryColor}"
+								></span>
+							{/if}
+							{#if brand.secondaryColor}
+								<span
+									class="color-dot"
+									style="background-color: {brand.secondaryColor}"
+								></span>
+							{/if}
+							{#if brand.accentColor}
+								<span
+									class="color-dot"
+									style="background-color: {brand.accentColor}"
+								></span>
+							{/if}
+							{#if !brand.primaryColor && !brand.secondaryColor && !brand.accentColor && !brand.logoUrl}
+								<span class="color-dot placeholder-dot"></span>
+							{/if}
+						</div>
+
 						{#if brand.tagline}
-							<p class="brand-tagline">{brand.tagline}</p>
+							<p
+								class="brand-tagline"
+								style={brand.typographyBody ? `font-family: '${brand.typographyBody}', sans-serif` : ''}
+							>{brand.tagline}</p>
 						{/if}
 
 						{#if brand.industry}
 							<span class="brand-industry">{brand.industry}</span>
 						{/if}
 
-						<div class="completion-bar">
-							<div class="completion-info">
-								<span class="completion-text">{stats.percent}% complete</span>
-								<span class="completion-count">{stats.filled}/{stats.total}</span>
+						<div class="card-bottom">
+							<div class="completion-bar">
+								<div class="completion-info">
+									<span class="completion-text">{stats.percent}% complete</span>
+									<span class="completion-count">{stats.filled}/{stats.total}</span>
+								</div>
+								<div class="progress-track">
+									<div class="progress-fill" style="width: {stats.percent}%"></div>
+								</div>
 							</div>
-							<div class="progress-track">
-								<div class="progress-fill" style="width: {stats.percent}%"></div>
-							</div>
-						</div>
 
-						<div class="card-meta">
-							<span class="meta-date">Updated {formatDate(brand.updatedAt)}</span>
+							<div class="card-meta">
+								<span class="meta-date">Updated {formatDate(brand.updatedAt)}</span>
+							</div>
 						</div>
 					</a>
 
@@ -528,7 +680,7 @@
 
 <style>
 	.brands-page {
-		max-width: 960px;
+		max-width: 1200px;
 		margin: 0 auto;
 		padding: var(--spacing-lg) var(--spacing-md);
 		min-height: calc(100vh - 60px);
@@ -555,6 +707,42 @@
 		color: var(--color-text-secondary);
 		font-size: 0.9rem;
 		margin: var(--spacing-xs) 0 0;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	/* Sort controls */
+	.sort-control {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+	}
+
+	.sort-label {
+		font-size: 0.8rem;
+		font-weight: 500;
+		color: var(--color-text-secondary);
+		white-space: nowrap;
+	}
+
+	.sort-select {
+		font-size: 0.8rem;
+		padding: 4px 8px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background-color: var(--color-surface);
+		color: var(--color-text);
+		cursor: pointer;
+	}
+
+	.sort-saving {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		white-space: nowrap;
 	}
 
 	.create-button {
@@ -721,9 +909,24 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
 		overflow: hidden;
+		display: flex;
+		flex-direction: column;
 		transition:
 			border-color var(--transition-fast),
 			box-shadow var(--transition-fast);
+	}
+
+	.brand-card.has-logo::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background-image: var(--card-bg-image);
+		background-position: center;
+		background-repeat: no-repeat;
+		background-size: cover;
+		opacity: 0.12;
+		pointer-events: none;
+		z-index: 0;
 	}
 
 	.brand-card:hover {
@@ -731,28 +934,68 @@
 		box-shadow: var(--shadow-md);
 	}
 
+	.brand-card.dragging {
+		opacity: 0.4;
+	}
+
+	.brand-card.drag-over {
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 2px var(--color-primary);
+	}
+
+	.drag-handle {
+		position: absolute;
+		top: var(--spacing-xs);
+		right: var(--spacing-xs);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		color: var(--color-text-secondary);
+		opacity: 0;
+		cursor: grab;
+		z-index: 1;
+		transition: opacity var(--transition-fast);
+	}
+
+	.brand-card:hover .drag-handle {
+		opacity: 0.6;
+	}
+
+	.drag-handle:hover {
+		opacity: 1 !important;
+	}
+
 	.card-link {
-		display: block;
+		display: flex;
+		flex-direction: column;
 		padding: var(--spacing-lg);
 		text-decoration: none;
 		color: inherit;
+		position: relative;
+		flex: 1;
 	}
 
-	.card-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: var(--spacing-sm);
+	.card-bottom {
+		margin-top: auto;
 	}
+
+	.brand-card.has-logo .card-link {
+		position: relative;
+		z-index: 1;
+	}
+
 
 	.brand-colors {
 		display: flex;
-		gap: 4px;
+		gap: 6px;
+		margin-bottom: var(--spacing-sm);
 	}
 
 	.color-dot {
-		width: 16px;
-		height: 16px;
+		width: 22px;
+		height: 22px;
 		border-radius: 50%;
 		border: 1px solid var(--color-border);
 	}
@@ -761,24 +1004,16 @@
 		background-color: var(--color-border);
 	}
 
-	.status-badge {
-		font-size: 0.7rem;
-		font-weight: 600;
-		padding: 2px 8px;
+	.brand-name-icon {
+		width: 1.35rem;
+		height: 1.35rem;
+		object-fit: contain;
 		border-radius: var(--radius-sm);
-		background-color: var(--color-border);
-		color: var(--color-text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-
-	.status-badge.completed {
-		background-color: var(--color-primary);
-		color: var(--color-background);
+		flex-shrink: 0;
 	}
 
 	.brand-name {
-		font-size: 1.1rem;
+		font-size: 1.35rem;
 		font-weight: 700;
 		color: var(--color-text);
 		margin: 0 0 var(--spacing-xs);
@@ -884,6 +1119,7 @@
 		gap: var(--spacing-xs);
 		padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm);
 		border-top: 1px solid var(--color-border);
+		margin-top: auto;
 	}
 
 	.action-btn {

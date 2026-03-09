@@ -67,6 +67,7 @@ export const BRAND_FIELD_LABELS: Record<string, string> = {
   warningColor: 'Warning',
   errorColor: 'Error',
   colorPalette: 'Color Palette',
+  typographyLogo: 'Logo Font',
   typographyHeading: 'Heading Font',
   typographyBody: 'Body Font',
   logoConcept: 'Logo Concept',
@@ -111,6 +112,7 @@ const FIELD_TO_COLUMN: Record<string, string> = {
   warningColor: 'warning_color',
   errorColor: 'error_color',
   colorPalette: 'color_palette',
+  typographyLogo: 'typography_logo',
   typographyHeading: 'typography_heading',
   typographyBody: 'typography_body',
   logoConcept: 'logo_concept',
@@ -122,7 +124,8 @@ const FIELD_TO_COLUMN: Record<string, string> = {
   originStory: 'origin_story',
   brandValues: 'brand_values',
   brandPromise: 'brand_promise',
-  styleGuide: 'style_guide'
+  styleGuide: 'style_guide',
+  sortOrder: 'sort_order'
 };
 
 /** Fields stored as JSON arrays in the database */
@@ -565,6 +568,7 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
         { key: 'warningColor', label: 'Warning', value: profile.warningColor, type: 'color' },
         { key: 'errorColor', label: 'Error', value: profile.errorColor, type: 'color' },
         { key: 'colorPalette', label: 'Color Palette', value: profile.colorPalette, type: 'list' },
+        { key: 'typographyLogo', label: 'Logo Font', value: profile.typographyLogo, type: 'text' },
         { key: 'typographyHeading', label: 'Heading Font', value: profile.typographyHeading, type: 'text' },
         { key: 'typographyBody', label: 'Body Font', value: profile.typographyBody, type: 'text' }
       ]
@@ -606,7 +610,7 @@ export async function getAllBrandProfilesByUser(
     .prepare(
       `SELECT * FROM brand_profiles 
        WHERE user_id = ? AND status IN ('in_progress', 'completed')
-       ORDER BY updated_at DESC`
+       ORDER BY sort_order ASC, updated_at DESC`
     )
     .bind(userId)
     .all();
@@ -690,7 +694,7 @@ export async function duplicateBrandProfile(
         brand_archetype, brand_personality_traits, tone_of_voice, communication_style,
         target_audience, customer_pain_points, value_proposition,
         primary_color, secondary_color, accent_color, color_palette,
-        typography_heading, typography_body, logo_concept, logo_url,
+        typography_logo, typography_heading, typography_body, logo_concept, logo_url,
         industry, competitors, unique_selling_points, market_position,
         origin_story, brand_values, brand_promise, style_guide,
         onboarding_step, created_at, updated_at
@@ -700,7 +704,7 @@ export async function duplicateBrandProfile(
         ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?
@@ -724,6 +728,7 @@ export async function duplicateBrandProfile(
       source.secondary_color ?? null,
       source.accent_color ?? null,
       source.color_palette ?? null,
+      source.typography_logo ?? null,
       source.typography_heading ?? null,
       source.typography_body ?? null,
       source.logo_concept ?? null,
@@ -765,6 +770,7 @@ export async function duplicateBrandProfile(
     brandPromise: (source.brand_promise as string) || undefined,
     logoConcept: (source.logo_concept as string) || undefined,
     logoUrl: (source.logo_url as string) || undefined,
+    typographyLogo: (source.typography_logo as string) || undefined,
     typographyHeading: (source.typography_heading as string) || undefined,
     typographyBody: (source.typography_body as string) || undefined,
     onboardingStep: (source.onboarding_step as BrandProfile['onboardingStep']) || 'complete',

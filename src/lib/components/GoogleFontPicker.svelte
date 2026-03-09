@@ -10,7 +10,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	export let field: 'typographyHeading' | 'typographyBody';
+	export let field: 'typographyLogo' | 'typographyHeading' | 'typographyBody';
 	export let currentFont: string | undefined = undefined;
 
 	interface GoogleFont {
@@ -41,7 +41,7 @@
 		return matchesSearch && matchesCategory;
 	});
 
-	$: title = field === 'typographyHeading' ? 'Choose Heading Font' : 'Choose Body Font';
+	$: title = field === 'typographyLogo' ? 'Choose Logo Font' : field === 'typographyHeading' ? 'Choose Heading Font' : 'Choose Body Font';
 
 	async function loadFonts() {
 		try {

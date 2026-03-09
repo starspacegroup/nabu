@@ -51,7 +51,7 @@ async function flushAll() {
 }
 
 /** Helper to render and wait for fonts to load */
-async function renderAndLoad(props: { field: 'typographyHeading' | 'typographyBody'; currentFont?: string; }) {
+async function renderAndLoad(props: { field: 'typographyLogo' | 'typographyHeading' | 'typographyBody'; currentFont?: string; }) {
   const result = render(GoogleFontPicker, { props });
   await flushAll();
   return result;

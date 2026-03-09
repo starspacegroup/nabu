@@ -57,6 +57,7 @@
 	export let colors: Record<string, string | undefined> = {};
 	export let logoUrl: string | undefined = undefined;
 	export let logoConcept: string | undefined = undefined;
+	export let typographyLogo: string | undefined = undefined;
 	export let typographyHeading: string | undefined = undefined;
 	export let typographyBody: string | undefined = undefined;
 
@@ -862,14 +863,46 @@
 		applyExtractedColors();
 	}
 
-	let fontPickerField: 'typographyHeading' | 'typographyBody' | null = null;
+	let fontPickerField: 'typographyLogo' | 'typographyHeading' | 'typographyBody' | null = null;
 
-	function handleFontClick(field: 'typographyHeading' | 'typographyBody') {
+	// Local font state for instant preview (before server round-trip)
+	let localLogoFont: string | undefined = typographyLogo;
+	let localHeadingFont: string | undefined = typographyHeading;
+	let localBodyFont: string | undefined = typographyBody;
+	$: localLogoFont = typographyLogo;
+	$: localHeadingFont = typographyHeading;
+	$: localBodyFont = typographyBody;
+
+	const loadedPreviewFonts = new Set<string>();
+	function loadGoogleFontForPreview(family: string) {
+		if (!family || loadedPreviewFonts.has(family)) return;
+		loadedPreviewFonts.add(family);
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700;800&display=swap`;
+		document.head.appendChild(link);
+	}
+
+	// Load fonts that arrive via props
+	$: if (typographyLogo) loadGoogleFontForPreview(typographyLogo);
+	$: if (typographyHeading) loadGoogleFontForPreview(typographyHeading);
+	$: if (typographyBody) loadGoogleFontForPreview(typographyBody);
+
+	function handleFontClick(field: 'typographyLogo' | 'typographyHeading' | 'typographyBody') {
 		fontPickerField = fontPickerField === field ? null : field;
 	}
 
 	function handleFontSelect(e: CustomEvent<{ field: string; font: string }>) {
 		fontPickerField = null;
+		// Update local state immediately for instant preview
+		if (e.detail.field === 'typographyLogo') {
+			localLogoFont = e.detail.font;
+		} else if (e.detail.field === 'typographyHeading') {
+			localHeadingFont = e.detail.font;
+		} else if (e.detail.field === 'typographyBody') {
+			localBodyFont = e.detail.font;
+		}
+		loadGoogleFontForPreview(e.detail.font);
 		dispatch('fontchange', { field: e.detail.field, value: e.detail.font });
 	}
 
@@ -1376,11 +1409,12 @@
 					background: {mergedTheme.backgroundColor || '#0a0a0a'};
 					color: {mergedTheme.textColor || '#f8f9fa'};
 					border-color: {mergedTheme.borderColor || '#333'};
+					{localBodyFont ? `font-family: '${localBodyFont}', sans-serif;` : ''}
 				"
 			>
 				<!-- Mini nav -->
 				<div class="preview-nav" style="background: {mergedTheme.surfaceColor || '#1a1a1a'}; border-bottom: 1px solid {mergedTheme.borderColor || '#333'};">
-					<span class="preview-brand" style="color: {localColors.primaryColor || '#3b82f6'}">⬡ Brand</span>
+					<span class="preview-brand" style="color: {localColors.primaryColor || '#3b82f6'}; {localLogoFont ? `font-family: '${localLogoFont}', sans-serif` : localHeadingFont ? `font-family: '${localHeadingFont}', sans-serif` : ''}">⬡ Brand</span>
 					<div class="preview-links">
 						<span style="color: {mergedTheme.textColor || '#f8f9fa'}">Home</span>
 						<span style="color: {mergedTheme.textSecondaryColor || '#888'}">About</span>
@@ -1390,7 +1424,7 @@
 
 				<!-- Hero section -->
 				<div class="preview-hero" style="border-bottom: 1px solid {mergedTheme.borderColor || '#333'};">
-					<h4 class="preview-hero-title" style="color: {mergedTheme.textColor || '#f8f9fa'}">Your Brand,<br/>Realized</h4>
+					<h4 class="preview-hero-title" style="color: {mergedTheme.textColor || '#f8f9fa'}; {localHeadingFont ? `font-family: '${localHeadingFont}', sans-serif` : ''}">Your Brand,<br/>Realized</h4>
 					<p class="preview-hero-sub" style="color: {mergedTheme.textSecondaryColor || '#888'}">See how your colors work together in context.</p>
 					<div class="preview-buttons">
 						<span class="preview-btn" style="background: {localColors.primaryColor || '#3b82f6'}; color: {localColors.primaryColor && shouldUseDarkText(localColors.primaryColor) ? '#000' : '#fff'}">Get Started</span>
@@ -1400,7 +1434,7 @@
 
 				<!-- Content card -->
 				<div class="preview-card" style="background: {mergedTheme.surfaceColor || '#1a1a1a'}; border: 1px solid {mergedTheme.borderColor || '#333'};">
-					<h5 class="preview-title" style="color: {mergedTheme.textColor || '#f8f9fa'}">Feature Card</h5>
+					<h5 class="preview-title" style="color: {mergedTheme.textColor || '#f8f9fa'}; {localHeadingFont ? `font-family: '${localHeadingFont}', sans-serif` : ''}">Feature Card</h5>
 					<p class="preview-subtitle" style="color: {mergedTheme.textSecondaryColor || '#888'}">Components with your theme palette applied.</p>
 					<div class="preview-input" style="background: {mergedTheme.backgroundColor || '#0a0a0a'}; border: 1px solid {mergedTheme.borderColor || '#333'}; color: {mergedTheme.textSecondaryColor || '#888'};">
 						Search or type a command...
@@ -1471,30 +1505,44 @@
 	<!-- ─── TYPOGRAPHY ─── -->
 	<div class="editor-section">
 		<h3 class="section-label">TYPOGRAPHY</h3>
+		<button class="font-row" class:open={fontPickerField === 'typographyLogo'} on:click={() => handleFontClick('typographyLogo')}>
+			<span class="font-label">Logo Font</span>
+			<span class="font-value" class:empty={!localLogoFont} style={localLogoFont ? `font-family: '${localLogoFont}', sans-serif` : ''}>
+				{localLogoFont || 'Choose logo font...'}
+			</span>
+		</button>
+		{#if fontPickerField === 'typographyLogo'}
+			<GoogleFontPicker
+				field="typographyLogo"
+				currentFont={localLogoFont}
+				on:select={handleFontSelect}
+				on:close={handleFontPickerClose}
+			/>
+		{/if}
 		<button class="font-row" class:open={fontPickerField === 'typographyHeading'} on:click={() => handleFontClick('typographyHeading')}>
 			<span class="font-label">Heading Font</span>
-			<span class="font-value" class:empty={!typographyHeading}>
-				{typographyHeading || 'Choose heading font...'}
+			<span class="font-value" class:empty={!localHeadingFont} style={localHeadingFont ? `font-family: '${localHeadingFont}', sans-serif` : ''}>
+				{localHeadingFont || 'Choose heading font...'}
 			</span>
 		</button>
 		{#if fontPickerField === 'typographyHeading'}
 			<GoogleFontPicker
 				field="typographyHeading"
-				currentFont={typographyHeading}
+				currentFont={localHeadingFont}
 				on:select={handleFontSelect}
 				on:close={handleFontPickerClose}
 			/>
 		{/if}
 		<button class="font-row" class:open={fontPickerField === 'typographyBody'} on:click={() => handleFontClick('typographyBody')}>
 			<span class="font-label">Body Font</span>
-			<span class="font-value" class:empty={!typographyBody}>
-				{typographyBody || 'Choose body font...'}
+			<span class="font-value" class:empty={!localBodyFont} style={localBodyFont ? `font-family: '${localBodyFont}', sans-serif` : ''}>
+				{localBodyFont || 'Choose body font...'}
 			</span>
 		</button>
 		{#if fontPickerField === 'typographyBody'}
 			<GoogleFontPicker
 				field="typographyBody"
-				currentFont={typographyBody}
+				currentFont={localBodyFont}
 				on:select={handleFontSelect}
 				on:close={handleFontPickerClose}
 			/>
