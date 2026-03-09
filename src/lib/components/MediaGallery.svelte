@@ -7,7 +7,7 @@
 
 	const dispatch = createEventDispatcher<{
 		select: BrandMediaAsset;
-		setProfileImage: { asset: BrandMediaAsset; url: string };
+		setProfileImage: { asset: BrandMediaAsset; url: string; variant: 'icon' | 'horizontal' | 'vertical' };
 		refresh: void;
 	}>();
 
@@ -31,7 +31,7 @@
 		detailAsset = null;
 	}
 
-	function handleSetProfileImage(e: CustomEvent<{ asset: BrandMediaAsset; url: string }>) {
+	function handleSetProfileImage(e: CustomEvent<{ asset: BrandMediaAsset; url: string; variant: 'icon' | 'horizontal' | 'vertical' }>) {
 		closeDetail();
 		dispatch('setProfileImage', e.detail);
 	}

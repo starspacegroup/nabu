@@ -674,9 +674,23 @@
 	let settingProfileImage = false;
 	let profileImageSuccess: string | null = null;
 
-	async function setImageAsProfileLogo(e: CustomEvent<{ asset: import('$lib/types/brand-assets').BrandMediaAsset; url: string }>) {
+	const LOGO_VARIANT_FIELDS: Record<string, string> = {
+		icon: 'logoUrl',
+		horizontal: 'logoHorizontalUrl',
+		vertical: 'logoVerticalUrl'
+	};
+
+	const LOGO_VARIANT_LABELS: Record<string, string> = {
+		icon: 'Icon',
+		horizontal: 'Horizontal',
+		vertical: 'Vertical'
+	};
+
+	async function setImageAsProfileLogo(e: CustomEvent<{ asset: import('$lib/types/brand-assets').BrandMediaAsset; url: string; variant?: 'icon' | 'horizontal' | 'vertical' }>) {
 		if (!profile || settingProfileImage) return;
-		const { asset, url } = e.detail;
+		const { asset, url, variant = 'icon' } = e.detail;
+		const fieldName = LOGO_VARIANT_FIELDS[variant] || 'logoUrl';
+		const variantLabel = LOGO_VARIANT_LABELS[variant] || 'Icon';
 		settingProfileImage = true;
 		profileImageSuccess = null;
 		try {
@@ -685,16 +699,16 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					profileId: profile.id,
-					fieldName: 'logoUrl',
+					fieldName,
 					newValue: url,
 					changeSource: 'manual',
-					changeReason: `Set from media asset: ${asset.name}`
+					changeReason: `Set ${variantLabel} logo from media asset: ${asset.name}`
 				})
 			});
 			if (!res.ok) {
 				throw new Error('Failed to set logo');
 			}
-			profileImageSuccess = `Logo updated from "${asset.name}"`;
+			profileImageSuccess = `${variantLabel} logo updated from "${asset.name}"`;
 			await loadProfile();
 			setTimeout(() => { profileImageSuccess = null; }, 3000);
 		} catch (err) {
@@ -886,6 +900,8 @@
 								brandColor5: profile?.brandColor5
 							}}
 							logoUrl={profile?.logoUrl}
+							logoHorizontalUrl={profile?.logoHorizontalUrl}
+							logoVerticalUrl={profile?.logoVerticalUrl}
 							logoConcept={profile?.logoConcept}
 							typographyLogo={profile?.typographyLogo}
 							typographyHeading={profile?.typographyHeading}

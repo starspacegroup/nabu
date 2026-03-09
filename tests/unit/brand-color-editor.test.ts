@@ -144,7 +144,9 @@ describe('BrandColorEditor', () => {
       props: { colors: {}, logoConcept: 'Abstract watermark logo' }
     });
 
-    expect(getByText('View logo concept')).toBeTruthy();
+    expect(getByText('Icon')).toBeTruthy();
+    expect(getByText('Horizontal')).toBeTruthy();
+    expect(getByText('Vertical')).toBeTruthy();
     expect(getByText('Abstract watermark logo')).toBeTruthy();
   });
 
@@ -250,7 +252,7 @@ describe('BrandColorEditor', () => {
 
     component.$on('editlogo', handler);
 
-    await fireEvent.click(getByLabelText('Edit logo'));
+    await fireEvent.click(getByLabelText('Edit icon logo'));
     expect(handler).toHaveBeenCalled();
   });
 

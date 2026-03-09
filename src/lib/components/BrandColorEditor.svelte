@@ -56,6 +56,8 @@
 
 	export let colors: Record<string, string | undefined> = {};
 	export let logoUrl: string | undefined = undefined;
+	export let logoHorizontalUrl: string | undefined = undefined;
+	export let logoVerticalUrl: string | undefined = undefined;
 	export let logoConcept: string | undefined = undefined;
 	export let typographyLogo: string | undefined = undefined;
 	export let typographyHeading: string | undefined = undefined;
@@ -925,20 +927,65 @@
 	<!-- ─── LOGO ─── -->
 	<div class="editor-section">
 		<h3 class="section-label">LOGO</h3>
-		<button class="logo-area" on:click={handleLogoClick} aria-label="Edit logo">
-			{#if logoUrl}
-				<img src={logoUrl} alt="Brand logo" class="logo-image" />
-			{:else}
-				<div class="logo-placeholder">
-					<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-						<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-						<circle cx="8.5" cy="8.5" r="1.5" />
-						<polyline points="21 15 16 10 5 21" />
-					</svg>
-					<span class="logo-hint">{logoConcept ? 'View logo concept' : 'Upload or generate a logo'}</span>
-				</div>
-			{/if}
-		</button>
+
+		<!-- Logo Variants Grid -->
+		<div class="logo-variants-grid">
+			<!-- Icon (Square) -->
+			<div class="logo-variant">
+				<span class="logo-variant-label">Icon</span>
+				<button class="logo-area logo-area--icon" on:click={handleLogoClick} aria-label="Edit icon logo">
+					{#if logoUrl}
+						<img src={logoUrl} alt="Brand logo icon" class="logo-image" />
+					{:else}
+						<div class="logo-placeholder">
+							<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+								<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+								<circle cx="8.5" cy="8.5" r="1.5" />
+								<polyline points="21 15 16 10 5 21" />
+							</svg>
+						</div>
+					{/if}
+				</button>
+			</div>
+
+			<!-- Horizontal (Icon + Name side by side) -->
+			<div class="logo-variant logo-variant--wide">
+				<span class="logo-variant-label">Horizontal</span>
+				<button class="logo-area logo-area--horizontal" on:click={() => dispatch('editlogo', { variant: 'horizontal' })} aria-label="Edit horizontal logo">
+					{#if logoHorizontalUrl}
+						<img src={logoHorizontalUrl} alt="Horizontal brand logo" class="logo-image" />
+					{:else}
+						<div class="logo-placeholder">
+							<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+								<rect x="1" y="5" width="14" height="14" rx="2" ry="2" />
+								<line x1="17" y1="8" x2="23" y2="8" />
+								<line x1="17" y1="12" x2="23" y2="12" />
+								<line x1="17" y1="16" x2="21" y2="16" />
+							</svg>
+						</div>
+					{/if}
+				</button>
+			</div>
+
+			<!-- Vertical (Icon above Name) -->
+			<div class="logo-variant">
+				<span class="logo-variant-label">Vertical</span>
+				<button class="logo-area logo-area--vertical" on:click={() => dispatch('editlogo', { variant: 'vertical' })} aria-label="Edit vertical logo">
+					{#if logoVerticalUrl}
+						<img src={logoVerticalUrl} alt="Vertical brand logo" class="logo-image" />
+					{:else}
+						<div class="logo-placeholder">
+							<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+								<rect x="5" y="2" width="14" height="14" rx="2" ry="2" />
+								<line x1="6" y1="19" x2="18" y2="19" />
+								<line x1="8" y1="22" x2="16" y2="22" />
+							</svg>
+						</div>
+					{/if}
+				</button>
+			</div>
+		</div>
+
 		{#if logoConcept && !logoUrl}
 			<p class="logo-concept-text">{logoConcept}</p>
 		{/if}
@@ -1589,19 +1636,59 @@
 	   LOGO
 	   ═══════════════════════════════════════════════════ */
 
+	.logo-variants-grid {
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		gap: var(--spacing-sm);
+		align-items: start;
+	}
+
+	.logo-variant {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+	}
+
+	.logo-variant--wide {
+		min-width: 0;
+	}
+
+	.logo-variant-label {
+		font-size: 0.65rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		text-align: center;
+	}
+
 	.logo-area {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 100%;
-		min-height: 120px;
 		border: 1px dashed var(--color-border);
 		border-radius: var(--radius-lg);
 		background: var(--color-surface);
 		cursor: pointer;
 		transition: all var(--transition-fast);
 		overflow: hidden;
-		padding: var(--spacing-md);
+		padding: var(--spacing-sm);
+	}
+
+	.logo-area--icon {
+		width: 80px;
+		height: 80px;
+		aspect-ratio: 1;
+	}
+
+	.logo-area--horizontal {
+		width: 100%;
+		min-height: 80px;
+	}
+
+	.logo-area--vertical {
+		width: 80px;
+		min-height: 100px;
 	}
 
 	.logo-area:hover {
@@ -1610,9 +1697,22 @@
 	}
 
 	.logo-image {
-		max-width: 200px;
-		max-height: 120px;
+		max-width: 100%;
+		max-height: 100%;
 		object-fit: contain;
+	}
+
+	.logo-area--icon .logo-image {
+		max-width: 72px;
+		max-height: 72px;
+	}
+
+	.logo-area--horizontal .logo-image {
+		max-height: 72px;
+	}
+
+	.logo-area--vertical .logo-image {
+		max-width: 72px;
 	}
 
 	.logo-placeholder {

@@ -4,7 +4,7 @@
 
 	const dispatch = createEventDispatcher<{
 		close: void;
-		setProfileImage: { asset: BrandMediaAsset; url: string };
+		setProfileImage: { asset: BrandMediaAsset; url: string; variant: 'icon' | 'horizontal' | 'vertical' };
 		delete: BrandMediaAsset;
 		revisions: BrandMediaAsset;
 	}>();
@@ -68,9 +68,12 @@
 		}
 	}
 
-	function handleSetAsProfile() {
+	let logoMenuOpen = false;
+
+	function handleSetAsProfile(variant: 'icon' | 'horizontal' | 'vertical') {
 		const url = getAssetUrl(asset);
-		dispatch('setProfileImage', { asset, url });
+		dispatch('setProfileImage', { asset, url, variant });
+		logoMenuOpen = false;
 	}
 
 	$: imageUrl = getAssetUrl(asset);
@@ -197,12 +200,31 @@
 					<!-- Actions -->
 					<div class="modal-actions">
 						{#if showSetAsProfile}
-							<button class="action-btn primary-action" on:click={handleSetAsProfile}>
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-									<path d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" />
-								</svg>
-								Set as Brand Logo
-							</button>
+							<div class="logo-set-group">
+								<button class="action-btn primary-action" on:click={() => { logoMenuOpen = !logoMenuOpen; }}>
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+										<path d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" />
+									</svg>
+									Set as Brand Logo
+									<svg class="chevron" class:open={logoMenuOpen} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
+								</button>
+								{#if logoMenuOpen}
+									<div class="logo-variant-menu">
+										<button class="logo-variant-option" on:click={() => handleSetAsProfile('icon')}>
+											<span class="variant-icon">◻️</span>
+											Icon (Square)
+										</button>
+										<button class="logo-variant-option" on:click={() => handleSetAsProfile('horizontal')}>
+											<span class="variant-icon">▬</span>
+											Horizontal
+										</button>
+										<button class="logo-variant-option" on:click={() => handleSetAsProfile('vertical')}>
+											<span class="variant-icon">▮</span>
+											Vertical
+										</button>
+									</div>
+								{/if}
+							</div>
 						{/if}
 						<button class="action-btn" on:click={() => dispatch('revisions', asset)}>
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -506,6 +528,62 @@
 
 	.primary-action:hover {
 		background-color: var(--color-primary-hover);
+	}
+
+	.logo-set-group {
+		position: relative;
+	}
+
+	.primary-action .chevron {
+		width: 14px;
+		height: 14px;
+		transition: transform var(--transition-fast);
+	}
+
+	.primary-action .chevron.open {
+		transform: rotate(180deg);
+	}
+
+	.logo-variant-menu {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		margin-top: 4px;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+		z-index: 10;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.logo-variant-option {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		width: 100%;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: none;
+		background: none;
+		color: var(--color-text);
+		font-size: 0.85rem;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	.logo-variant-option:hover {
+		background: var(--color-surface-hover);
+	}
+
+	.logo-variant-option + .logo-variant-option {
+		border-top: 1px solid var(--color-border);
+	}
+
+	.variant-icon {
+		font-size: 1rem;
+		width: 20px;
+		text-align: center;
 	}
 
 	.danger-action:hover {

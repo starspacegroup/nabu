@@ -643,6 +643,8 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     typographyBody: (row.typography_body as string) || undefined,
     logoConcept: (row.logo_concept as string) || undefined,
     logoUrl: (row.logo_url as string) || undefined,
+    logoHorizontalUrl: (row.logo_horizontal_url as string) || undefined,
+    logoVerticalUrl: (row.logo_vertical_url as string) || undefined,
     industry: (row.industry as string) || undefined,
     competitors: row.competitors ? JSON.parse(row.competitors as string) : undefined,
     uniqueSellingPoints: row.unique_selling_points
@@ -813,6 +815,8 @@ export async function updateBrandProfile(
     typographyBody: 'typography_body',
     logoConcept: 'logo_concept',
     logoUrl: 'logo_url',
+    logoHorizontalUrl: 'logo_horizontal_url',
+    logoVerticalUrl: 'logo_vertical_url',
     industry: 'industry',
     marketPosition: 'market_position',
     originStory: 'origin_story',

@@ -85,6 +85,8 @@ export interface BrandProfile {
   sortOrder?: number;
   logoConcept?: string;
   logoUrl?: string;
+  logoHorizontalUrl?: string;
+  logoVerticalUrl?: string;
 
   // Market positioning
   industry?: string;
