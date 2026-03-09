@@ -254,17 +254,16 @@ describe('BrandColorEditor', () => {
     expect(handler).toHaveBeenCalled();
   });
 
-  it('should dispatch editfont event when font row is clicked', async () => {
-    const handler = vi.fn();
-    const { component, getByText } = render(BrandColorEditor, {
+  it('should open font picker when font row is clicked', async () => {
+    const { getByText, container } = render(BrandColorEditor, {
       props: { colors: {} }
     });
 
-    component.$on('editfont', handler);
-
     await fireEvent.click(getByText('Heading Font').closest('button')!);
-    expect(handler).toHaveBeenCalled();
-    expect(handler.mock.calls[0][0].detail.field).toBe('typographyHeading');
+
+    // The font picker should now be visible
+    const fontPicker = container.querySelector('.font-picker');
+    expect(fontPicker).toBeTruthy();
   });
 
   // ─── Auto-generation ──────────────────────────────
@@ -518,13 +517,13 @@ describe('BrandColorEditor', () => {
     expect(handler).toHaveBeenCalled();
     // Find the harmony apply call (contains primaryColor, secondaryColor, accentColor)
     const harmonyCalls = handler.mock.calls.filter((call: unknown[]) => {
-      const detail = (call[0] as { detail: { colors: { key: string }[] } }).detail;
-      const keys = detail.colors.map((c: { key: string }) => c.key);
+      const detail = (call[0] as { detail: { colors: { key: string; }[]; }; }).detail;
+      const keys = detail.colors.map((c: { key: string; }) => c.key);
       return keys.includes('primaryColor') && keys.includes('secondaryColor') && keys.includes('accentColor');
     });
     expect(harmonyCalls.length).toBeGreaterThanOrEqual(1);
 
-    const detail = (harmonyCalls[0][0] as { detail: { colors: { key: string; value: string }[] } }).detail;
+    const detail = (harmonyCalls[0][0] as { detail: { colors: { key: string; value: string; }[]; }; }).detail;
     expect(detail.colors.length).toBe(3);
 
     // All values should be valid hex

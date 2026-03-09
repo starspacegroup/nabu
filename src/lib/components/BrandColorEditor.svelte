@@ -48,6 +48,7 @@
 		type HarmonyTriple
 	} from '$lib/utils/brand-colors';
 	import ColorHarmonyWheel from './ColorHarmonyWheel.svelte';
+	import GoogleFontPicker from './GoogleFontPicker.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -861,8 +862,19 @@
 		applyExtractedColors();
 	}
 
-	function handleFontClick(field: string) {
-		dispatch('editfont', { field });
+	let fontPickerField: 'typographyHeading' | 'typographyBody' | null = null;
+
+	function handleFontClick(field: 'typographyHeading' | 'typographyBody') {
+		fontPickerField = fontPickerField === field ? null : field;
+	}
+
+	function handleFontSelect(e: CustomEvent<{ field: string; font: string }>) {
+		fontPickerField = null;
+		dispatch('fontchange', { field: e.detail.field, value: e.detail.font });
+	}
+
+	function handleFontPickerClose() {
+		fontPickerField = null;
 	}
 
 	// ─── Contrast helpers ────────────────────────────────
@@ -1459,18 +1471,34 @@
 	<!-- ─── TYPOGRAPHY ─── -->
 	<div class="editor-section">
 		<h3 class="section-label">TYPOGRAPHY</h3>
-		<button class="font-row" on:click={() => handleFontClick('typographyHeading')}>
+		<button class="font-row" class:open={fontPickerField === 'typographyHeading'} on:click={() => handleFontClick('typographyHeading')}>
 			<span class="font-label">Heading Font</span>
 			<span class="font-value" class:empty={!typographyHeading}>
-				{typographyHeading || 'Add heading font...'}
+				{typographyHeading || 'Choose heading font...'}
 			</span>
 		</button>
-		<button class="font-row" on:click={() => handleFontClick('typographyBody')}>
+		{#if fontPickerField === 'typographyHeading'}
+			<GoogleFontPicker
+				field="typographyHeading"
+				currentFont={typographyHeading}
+				on:select={handleFontSelect}
+				on:close={handleFontPickerClose}
+			/>
+		{/if}
+		<button class="font-row" class:open={fontPickerField === 'typographyBody'} on:click={() => handleFontClick('typographyBody')}>
 			<span class="font-label">Body Font</span>
 			<span class="font-value" class:empty={!typographyBody}>
-				{typographyBody || 'Add body font...'}
+				{typographyBody || 'Choose body font...'}
 			</span>
 		</button>
+		{#if fontPickerField === 'typographyBody'}
+			<GoogleFontPicker
+				field="typographyBody"
+				currentFont={typographyBody}
+				on:select={handleFontSelect}
+				on:close={handleFontPickerClose}
+			/>
+		{/if}
 	</div>
 
 	<!-- ─── FOOTER ACTIONS ─── -->
@@ -2784,6 +2812,11 @@
 
 	.font-row:hover {
 		border-color: var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.font-row.open {
+		border-color: var(--color-primary);
 		background: var(--color-surface);
 	}
 

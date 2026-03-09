@@ -909,7 +909,28 @@
 									}
 								}}
 								on:editlogo={() => switchTab('images')}
-								on:editfont={(e) => startEditing(e.detail.field, e.detail.field === 'typographyHeading' ? profile?.typographyHeading : profile?.typographyBody)}
+								on:fontchange={async (e) => {
+									if (!profile) return;
+									try {
+										isSaving = true;
+										const res = await fetch('/api/brand/update-field', {
+											method: 'PATCH',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({
+												profileId: profile.id,
+												fieldName: e.detail.field,
+												newValue: e.detail.value,
+												changeSource: 'manual'
+											})
+										});
+										if (!res.ok) throw new Error('Failed to save font');
+										await loadProfile();
+									} catch (err) {
+										error = err instanceof Error ? err.message : 'Failed to save font';
+									} finally {
+										isSaving = false;
+									}
+								}}
 							/>
 						</section>
 					{:else}
