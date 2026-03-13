@@ -198,6 +198,13 @@
 					</div>
 				{:else}
 					<a
+						href="/pricing"
+						class:active={$page.url.pathname === '/pricing'}
+						on:click={closeMobileMenu}
+					>
+						Pricing
+					</a>
+					<a
 						href="/auth/login"
 						class:active={$page.url.pathname.startsWith('/auth')}
 						on:click={closeMobileMenu}

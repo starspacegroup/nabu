@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
 	import { page } from '$app/stores';
 	import { openCommandPalette } from '$lib/stores/commandPalette';
+	import PricingSection from '$lib/components/PricingSection.svelte';
 	import { onMount } from 'svelte';
 
 	export let data: { user: App.Locals['user']; hasAIProviders: boolean };
@@ -416,6 +417,9 @@
 		</div>
 	</section>
 
+	<!-- ======== PRICING ======== -->
+	<PricingSection isLoggedIn={!!data.user} />
+
 	<!-- ======== CTA ======== -->
 	<section class="cta-section">
 		<div class="cta-card">
@@ -688,6 +692,7 @@
 		width: 1px;
 		height: 36px;
 		background: var(--color-border);
+		display: none;
 	}
 
 	/* ===== SECTIONS ===== */
@@ -1135,6 +1140,10 @@
 
 		.proof-grid {
 			flex-wrap: nowrap;
+		}
+
+		.proof-divider {
+			display: block;
 		}
 	}
 

@@ -103,6 +103,13 @@
 			icon: '✨'
 		},
 		{
+			id: 'pricing',
+			label: 'Pricing',
+			description: 'View plans and pricing',
+			action: () => goto('/pricing'),
+			icon: '💰'
+		},
+		{
 			id: 'theme-light',
 			label: 'Light Theme',
 			description: `Switch to light mode${currentSystemTheme === 'light' ? ' (System preset)' : ''}`,
