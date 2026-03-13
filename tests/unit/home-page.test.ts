@@ -1,7 +1,5 @@
-import { goto } from '$app/navigation';
 import { showCommandPalette } from '$lib/stores/commandPalette';
-import { fireEvent, render, screen } from '@testing-library/svelte';
-import { get } from 'svelte/store';
+import { render, screen } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Page from '../../src/routes/+page.svelte';
 
@@ -13,9 +11,8 @@ vi.mock('$app/navigation', () => ({
 // NOTE: These tests are skipped due to SvelteKit's page store issue in vitest.
 // The page store cannot be subscribed to outside a Svelte component context.
 // See: https://svelte.dev/docs/kit/state-management#avoid-shared-state-on-the-server
-describe.skip('Home Page Hero', () => {
+describe.skip('Home Page – Marketing Landing', () => {
 	beforeEach(() => {
-		// Reset the command palette store before each test
 		showCommandPalette.set(false);
 	});
 
@@ -23,121 +20,104 @@ describe.skip('Home Page Hero', () => {
 		showCommandPalette.set(false);
 	});
 
-	it('should render the main title', () => {
-		render(Page);
-		const title = screen.getByText('NebulaKit');
+	it('should render the hero title', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		const title = screen.getByText(/No brand yet/i);
 		expect(title).toBeTruthy();
 	});
 
-	it('should render the subtitle with correct text', () => {
-		render(Page);
-		const subtitle = screen.getByText(/A full-stack SvelteKit \+ Cloudflare starter/i);
-		expect(subtitle).toBeTruthy();
+	it('should render the hero description', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		const description = screen.getByText(/Whether you're starting from zero/i);
+		expect(description).toBeTruthy();
 	});
 
-	it('should render the search input with placeholder', () => {
-		render(Page);
-		const searchInput = screen.getByPlaceholderText('Start typing or ask something...');
-		expect(searchInput).toBeTruthy();
+	it('should render the badge', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		const badge = screen.getByText(/Brand Building & Marketing Automation/i);
+		expect(badge).toBeTruthy();
 	});
 
-	it('should render all command options', () => {
-		render(Page);
-		expect(screen.getByText('Log in')).toBeTruthy();
-		expect(screen.getByText('Sign up')).toBeTruthy();
-		expect(screen.getByText('Ask something...')).toBeTruthy();
+	it('should render CTA buttons for unauthenticated users', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Start Building Your Brand')).toBeTruthy();
+		expect(screen.getByText('Sign In')).toBeTruthy();
 	});
 
-	it('should navigate to login page when Log in is clicked', async () => {
-		render(Page);
-		const loginButton = screen.getByText('Log in').closest('button');
-		expect(loginButton).toBeTruthy();
-
-		if (loginButton) {
-			await fireEvent.click(loginButton);
-			expect(goto).toHaveBeenCalledWith('/auth/login');
-		}
+	it('should render app buttons for authenticated users', () => {
+		const user = { id: '1', login: 'testuser', email: 'test@test.com', isOwner: false };
+		render(Page, { props: { data: { user, hasAIProviders: false } } });
+		expect(screen.getByText('Build Your Brand')).toBeTruthy();
+		expect(screen.getByText('Go to Dashboard')).toBeTruthy();
 	});
 
-	it('should navigate to signup page when Sign up is clicked', async () => {
-		render(Page);
-		const signupButton = screen.getByText('Sign up').closest('button');
-		expect(signupButton).toBeTruthy();
-
-		if (signupButton) {
-			await fireEvent.click(signupButton);
-			expect(goto).toHaveBeenCalledWith('/auth/signup');
-		}
+	it('should render admin link for admin users', () => {
+		const user = { id: '1', login: 'admin', email: 'admin@test.com', isOwner: true, isAdmin: true };
+		render(Page, { props: { data: { user, hasAIProviders: false } } });
+		expect(screen.getByText('Admin Dashboard')).toBeTruthy();
 	});
 
-	it('should navigate to chat page when Ask something is clicked', async () => {
-		render(Page);
-		const askButton = screen.getByText('Ask something...').closest('button');
-		expect(askButton).toBeTruthy();
-
-		if (askButton) {
-			await fireEvent.click(askButton);
-			expect(goto).toHaveBeenCalledWith('/chat');
-		}
+	it('should render brand identity feature cards', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Start From Scratch')).toBeTruthy();
+		expect(screen.getByText('Colors & Visual Identity')).toBeTruthy();
+		expect(screen.getByText('Logo & Typography')).toBeTruthy();
+		expect(screen.getByText('Brand Voice & Copy')).toBeTruthy();
+		expect(screen.getByText('Media & Asset Library')).toBeTruthy();
+		expect(screen.getByText('Version History & Multi-Brand')).toBeTruthy();
 	});
 
-	it('should open command palette when search input is clicked', async () => {
-		render(Page);
-		const searchInput = screen.getByPlaceholderText(
-			'Start typing or ask something...'
-		) as HTMLInputElement;
-
-		await fireEvent.click(searchInput);
-
-		// Check if command palette store is set to true
-		expect(get(showCommandPalette)).toBe(true);
+	it('should render content type cards', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Text & Copy')).toBeTruthy();
+		expect(screen.getByText('Audio')).toBeTruthy();
+		expect(screen.getByText('Images')).toBeTruthy();
+		expect(screen.getByText('Videos')).toBeTruthy();
 	});
 
-	it('should open command palette when search input is focused', async () => {
-		render(Page);
-		const searchInput = screen.getByPlaceholderText('Start typing or ask something...');
-
-		await fireEvent.focus(searchInput);
-
-		// Check if command palette store is set to true
-		expect(get(showCommandPalette)).toBe(true);
+	it('should render the auto-publish banner', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Schedule & auto-publish to social media')).toBeTruthy();
 	});
 
-	it('should open command palette when typing in search input', async () => {
-		render(Page);
-		const searchInput = screen.getByPlaceholderText('Start typing or ask something...');
-
-		await fireEvent.keyDown(searchInput, { key: 'a' });
-
-		// Check if command palette store is set to true
-		expect(get(showCommandPalette)).toBe(true);
+	it('should render how-it-works steps', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Create Your Brand')).toBeTruthy();
+		expect(screen.getByText('Create Your Content')).toBeTruthy();
+		expect(screen.getByText('Automate & Publish')).toBeTruthy();
 	});
 
-	it('should render cosmic background elements', () => {
-		const { container } = render(Page);
-
-		// Check for cosmic background
-		const cosmicBg = container.querySelector('.cosmic-bg');
-		expect(cosmicBg).toBeTruthy();
-
-		// Check for stars
-		const stars = container.querySelector('.stars-layer');
-		expect(stars).toBeTruthy();
-
-		// Check for planets
-		const planets = container.querySelectorAll('.planet');
-		expect(planets.length).toBeGreaterThan(0);
+	it('should render the audience section', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('New Founders')).toBeTruthy();
+		expect(screen.getByText('Small Business Owners')).toBeTruthy();
+		expect(screen.getByText('Content Creators')).toBeTruthy();
 	});
 
-	it('should render AI indicator with animation bars', () => {
-		const { container } = render(Page);
-		const bars = container.querySelectorAll('.bar');
-		expect(bars.length).toBe(3);
+	it('should render the CTA section', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Your brand starts here')).toBeTruthy();
 	});
 
-	it('should have accessible search input', () => {
-		render(Page);
-		const searchInput = screen.getByLabelText('Search or ask a question');
-		expect(searchInput).toBeTruthy();
+	it('should render the search trigger with keyboard shortcut', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		const searchButton = screen.getByLabelText('Open command palette');
+		expect(searchButton).toBeTruthy();
+		expect(screen.getByText('Ctrl+K')).toBeTruthy();
+	});
+
+	it('should render value prop stats', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		expect(screen.getByText('Zero')).toBeTruthy();
+		expect(screen.getByText('Brand Required to Start')).toBeTruthy();
+		expect(screen.getByText('Complete')).toBeTruthy();
+		expect(screen.getByText('Auto')).toBeTruthy();
+		expect(screen.getByText('All-in-One')).toBeTruthy();
+	});
+
+	it('should have proper meta description', () => {
+		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		const meta = document.querySelector('meta[name="description"]');
+		expect(meta?.getAttribute('content')).toContain('No brand? No problem');
 	});
 });
