@@ -533,7 +533,7 @@ describe('Brand Service - Deep Branch Coverage', () => {
       expect(updateBindCall[0]).toBeNull();
     });
 
-    it('should JSON.stringify non-string value for JSON_ARRAY_FIELDS', async () => {
+    it('should join array values for text fields (e.g. brandPersonalityTraits)', async () => {
       mockDB._mockFirst
         .mockResolvedValueOnce({ brand_personality_traits: null })
         .mockResolvedValueOnce({ max_version: 0 });
@@ -542,31 +542,31 @@ describe('Brand Service - Deep Branch Coverage', () => {
         newValue: ['bold', 'creative'], changeSource: 'ai'
       });
       const updateBindCall = mockDB._mockBind.mock.calls[1];
-      expect(updateBindCall[0]).toBe('["bold","creative"]');
+      expect(updateBindCall[0]).toBe('bold, creative');
     });
 
-    it('should keep string value for JSON_ARRAY_FIELDS when already a string', async () => {
+    it('should store string value as-is for text fields like brandPersonalityTraits', async () => {
       mockDB._mockFirst
-        .mockResolvedValueOnce({ brand_personality_traits: '["old"]' })
+        .mockResolvedValueOnce({ brand_personality_traits: '"old"' })
         .mockResolvedValueOnce({ max_version: 1 });
       await updateBrandFieldWithVersion(mockDB as any, {
         profileId: 'bp-1', userId: 'u-1', fieldName: 'brandPersonalityTraits',
-        newValue: '["bold","creative"]', changeSource: 'manual'
+        newValue: 'bold, creative', changeSource: 'manual'
       });
       const updateBindCall = mockDB._mockBind.mock.calls[1];
-      expect(updateBindCall[0]).toBe('["bold","creative"]');
+      expect(updateBindCall[0]).toBe('bold, creative');
     });
 
-    it('should JSON.stringify non-string value for JSON_OBJECT_FIELDS', async () => {
+    it('should String() non-object value for fields no longer in JSON_OBJECT_FIELDS', async () => {
       mockDB._mockFirst
         .mockResolvedValueOnce({ target_audience: null })
         .mockResolvedValueOnce({ max_version: 0 });
       await updateBrandFieldWithVersion(mockDB as any, {
         profileId: 'bp-1', userId: 'u-1', fieldName: 'targetAudience',
-        newValue: { age: '25-40', interests: ['tech'] }, changeSource: 'ai'
+        newValue: 'Adults aged 25-40 interested in tech', changeSource: 'ai'
       });
       const updateBindCall = mockDB._mockBind.mock.calls[1];
-      expect(JSON.parse(updateBindCall[0])).toEqual({ age: '25-40', interests: ['tech'] });
+      expect(updateBindCall[0]).toBe('Adults aged 25-40 interested in tech');
     });
 
     it('should String() non-null value for regular string fields', async () => {

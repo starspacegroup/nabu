@@ -55,13 +55,13 @@ export interface BrandProfile {
 
   // Personality & psychology
   brandArchetype?: BrandArchetype;
-  brandPersonalityTraits?: string[];
+  brandPersonalityTraits?: string;
   toneOfVoice?: string;
   communicationStyle?: string;
 
   // Target audience
-  targetAudience?: TargetAudience;
-  customerPainPoints?: string[];
+  targetAudience?: string;
+  customerPainPoints?: string;
   valueProposition?: string;
 
   // Visual identity
@@ -90,13 +90,13 @@ export interface BrandProfile {
 
   // Market positioning
   industry?: string;
-  competitors?: string[];
-  uniqueSellingPoints?: string[];
+  competitors?: string;
+  uniqueSellingPoints?: string;
   marketPosition?: MarketPosition;
 
   // Brand story
   originStory?: string;
-  brandValues?: string[];
+  brandValues?: string;
   brandPromise?: string;
 
   // Style guide

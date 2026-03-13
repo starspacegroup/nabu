@@ -472,6 +472,10 @@
 		if (tab !== 'profile') {
 			loadTabAssets(tab);
 		}
+		// Scroll to top when switching tabs so user sees the content from the start
+		requestAnimationFrame(() => {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		});
 	}
 
 	// Text CRUD

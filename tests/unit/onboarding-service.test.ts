@@ -297,7 +297,7 @@ describe('Brand Onboarding Service', () => {
       expect(result!.id).toBe('bp-123');
       expect(result!.brandName).toBe('TestBrand');
       expect(result!.onboardingStep).toBe('brand_identity');
-      expect(result!.brandPersonalityTraits).toEqual(['bold', 'innovative']);
+      expect(result!.brandPersonalityTraits).toEqual('bold, innovative');
     });
 
     it('should map brand_name_confirmed field correctly', async () => {
@@ -361,6 +361,75 @@ describe('Brand Onboarding Service', () => {
 
       const result = await getBrandProfile(mockDB as any, 'nonexistent');
       expect(result).toBeNull();
+    });
+
+    it('should convert JSON arrays to readable strings for text fields', async () => {
+      const mockProfile = {
+        id: 'bp-789',
+        user_id: 'user-123',
+        status: 'completed',
+        brand_name: 'TestBrand',
+        onboarding_step: 'complete',
+        brand_personality_traits: '["bold","innovative","playful"]',
+        color_palette: '["#FF0000","#00FF00"]',
+        target_audience: '{"demographics":{"ageRange":"25-35"}}',
+        brand_values: '["quality","innovation","trust"]',
+        competitors: '["Competitor A","Competitor B"]',
+        unique_selling_points: '["Fast delivery","Low cost"]',
+        customer_pain_points: '["High cost","Slow service"]',
+        style_guide: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      };
+
+      mockDB._mockFirst.mockResolvedValueOnce(mockProfile);
+
+      const result = await getBrandProfile(mockDB as any, 'bp-789');
+
+      expect(result).toBeDefined();
+      // JSON arrays should be converted to comma-separated strings
+      expect(result!.brandPersonalityTraits).toBe('bold, innovative, playful');
+      expect(result!.brandValues).toBe('quality, innovation, trust');
+      expect(result!.competitors).toBe('Competitor A, Competitor B');
+      expect(result!.uniqueSellingPoints).toBe('Fast delivery, Low cost');
+      expect(result!.customerPainPoints).toBe('High cost, Slow service');
+      // JSON object returns raw string for user to re-edit
+      expect(result!.targetAudience).toBe('{"demographics":{"ageRange":"25-35"}}');
+      // colorPalette remains as parsed JSON array (not converted)
+      expect(result!.colorPalette).toEqual(['#FF0000', '#00FF00']);
+    });
+
+    it('should handle plain text strings for text fields', async () => {
+      const mockProfile = {
+        id: 'bp-790',
+        user_id: 'user-123',
+        status: 'completed',
+        brand_name: 'TestBrand',
+        onboarding_step: 'complete',
+        brand_personality_traits: 'bold, innovative, playful',
+        color_palette: null,
+        target_audience: 'Millennials interested in tech',
+        brand_values: 'quality, innovation, trust',
+        competitors: 'Competitor A, Competitor B',
+        unique_selling_points: 'Fast delivery, Low cost',
+        customer_pain_points: 'High cost, Slow service',
+        style_guide: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      };
+
+      mockDB._mockFirst.mockResolvedValueOnce(mockProfile);
+
+      const result = await getBrandProfile(mockDB as any, 'bp-790');
+
+      expect(result).toBeDefined();
+      // Plain strings should pass through unchanged
+      expect(result!.brandPersonalityTraits).toBe('bold, innovative, playful');
+      expect(result!.targetAudience).toBe('Millennials interested in tech');
+      expect(result!.brandValues).toBe('quality, innovation, trust');
+      expect(result!.competitors).toBe('Competitor A, Competitor B');
+      expect(result!.uniqueSellingPoints).toBe('Fast delivery, Low cost');
+      expect(result!.customerPainPoints).toBe('High cost, Slow service');
     });
   });
 

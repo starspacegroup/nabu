@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     brandArchetype: profile.brandArchetype,
     brandPersonalityTraits: profile.brandPersonalityTraits,
     valueProposition: profile.valueProposition,
-    targetAudience: profile.targetAudience ? JSON.parse(JSON.stringify(profile.targetAudience)) : undefined,
+    targetAudience: profile.targetAudience,
     brandValues: profile.brandValues,
     brandPromise: profile.brandPromise,
     marketPosition: profile.marketPosition,

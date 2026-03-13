@@ -38,6 +38,78 @@
 	let showDeleteConfirm = false;
 	let deletingKeyId: string | null = null;
 
+	// Account info (balance + usage) per key
+	interface AccountBalance {
+		available: boolean;
+		amount?: number;
+		currency?: string;
+		reason?: string;
+	}
+
+	interface UsageDay {
+		date: string;
+		cost: number;
+		requests: number;
+	}
+
+	interface AccountUsage {
+		available: boolean;
+		daily: UsageDay[];
+		totalCost?: number;
+		totalRequests?: number;
+	}
+
+	interface AccountInfo {
+		balance: AccountBalance;
+		usage: AccountUsage;
+		loading: boolean;
+		error?: string;
+	}
+
+	let accountInfo: Record<string, AccountInfo> = {};
+
+	async function loadAccountInfo(keyId: string) {
+		accountInfo[keyId] = {
+			...accountInfo[keyId],
+			loading: true,
+			error: undefined
+		};
+		accountInfo = accountInfo;
+
+		try {
+			const response = await fetch(`/api/admin/ai-keys/${encodeURIComponent(keyId)}/account-info`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch (${response.status})`);
+			}
+			const data = await response.json();
+			accountInfo[keyId] = {
+				balance: data.balance,
+				usage: data.usage,
+				loading: false
+			};
+		} catch (err) {
+			accountInfo[keyId] = {
+				balance: { available: false, reason: 'Failed to load' },
+				usage: { available: false, daily: [] },
+				loading: false,
+				error: err instanceof Error ? err.message : 'Unknown error'
+			};
+		}
+		accountInfo = accountInfo;
+	}
+
+	function loadAllAccountInfo() {
+		for (const key of keys) {
+			if (key.enabled !== false) {
+				loadAccountInfo(key.id);
+			}
+		}
+	}
+
+	function formatCurrency(amount: number): string {
+		return `$${amount.toFixed(2)}`;
+	}
+
 	// OpenAI models loaded from API
 	let openaiChatModels: ModelWithPricing[] = [];
 	let openaiVoiceModels: ModelWithPricing[] = [];
@@ -339,6 +411,7 @@
 	onMount(() => {
 		loadOpenAIModels();
 		loadWaveSpeedPricing();
+		loadAllAccountInfo();
 	});
 
 	function toggleModel(modelId: string) {
@@ -725,6 +798,111 @@
 							</div>
 						</div>
 					{/if}
+					<!-- Account Info: Balance & Usage -->
+					{#if true}
+						{@const info = accountInfo[key.id]}
+					<div class="account-info-section">
+						<div class="account-info-row">
+							<!-- Balance -->
+							<div class="balance-display">
+								<div class="balance-label">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<line x1="12" y1="1" x2="12" y2="23" />
+										<path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+									</svg>
+									{#if key.provider === 'openai'}
+										30-Day Spend
+									{:else}
+										Balance
+									{/if}
+								</div>
+								{#if info?.loading}
+									<div class="balance-value balance-loading">
+										<span class="loading-dot"></span>
+										<span class="loading-dot"></span>
+										<span class="loading-dot"></span>
+									</div>
+								{:else if info?.balance?.available}
+									<div class="balance-value">
+										{formatCurrency(info.balance.amount ?? 0)}
+									</div>
+								{:else if info?.balance}
+									<div class="balance-value balance-na" title={info.balance.reason || ''}>
+										N/A
+									</div>
+								{:else}
+									<div class="balance-value balance-na">
+										—
+									</div>
+								{/if}
+								<button
+									class="btn-icon-xs"
+									on:click={() => loadAccountInfo(key.id)}
+									aria-label="Refresh account info"
+									disabled={info?.loading}
+								>
+									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+										stroke-width="2" class:spinning={info?.loading}>
+										<polyline points="23 4 23 10 17 10" />
+										<polyline points="1 20 1 14 7 14" />
+										<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+									</svg>
+								</button>
+							</div>
+
+							<!-- Usage summary -->
+							{#if info?.usage?.available && info.usage.totalRequests}
+								<div class="usage-summary">
+									<span class="usage-stat">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+										</svg>
+										{info.usage.totalRequests} requests
+									</span>
+									{#if info.usage.totalCost}
+										<span class="usage-stat">
+											{formatCurrency(info.usage.totalCost)} spent
+										</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
+
+						<!-- Usage Chart -->
+						{#if info?.usage?.available && info.usage.daily.length > 0}
+							{@const daily = info.usage.daily}
+							{@const maxCost = Math.max(...daily.map(d => d.cost), 0.01)}
+							<div class="usage-chart-container">
+								<div class="usage-chart-header">
+									<span class="usage-chart-title">Daily Usage (30 days)</span>
+									<span class="usage-chart-max">{formatCurrency(maxCost)} peak</span>
+								</div>
+								<div class="usage-chart">
+									<svg viewBox="0 0 {daily.length * 14} 48" preserveAspectRatio="none" class="usage-bars">
+										{#each daily as day, i}
+											{@const barHeight = Math.max((day.cost / maxCost) * 40, 1)}
+											<rect
+												x={i * 14 + 2}
+												y={48 - barHeight - 4}
+												width="10"
+												height={barHeight}
+												rx="2"
+												class="usage-bar"
+											>
+												<title>{day.date}: {formatCurrency(day.cost)} ({day.requests} requests)</title>
+											</rect>
+										{/each}
+									</svg>
+								</div>
+							</div>
+						{:else if info && !info.loading && info.usage?.available}
+							<div class="usage-chart-empty">
+								No usage data in the last 30 days
+							</div>
+						{/if}
+					</div>
+					{/if}
+
 					<div class="key-meta">
 						<span>Added {new Date(key.createdAt).toLocaleDateString()}</span>
 					</div>
@@ -1581,6 +1759,180 @@
 	.key-meta {
 		font-size: 0.875rem;
 		color: var(--color-text-secondary);
+	}
+
+	/* Account Info Section */
+	.account-info-section {
+		margin-top: var(--spacing-md);
+		padding-top: var(--spacing-md);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.account-info-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+		flex-wrap: wrap;
+	}
+
+	.balance-display {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.balance-label {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-weight: 500;
+	}
+
+	.balance-value {
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--color-text);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.balance-loading {
+		display: flex;
+		gap: 3px;
+		align-items: center;
+	}
+
+	.loading-dot {
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: var(--color-text-secondary);
+		animation: dotPulse 1.2s ease-in-out infinite;
+	}
+
+	.loading-dot:nth-child(2) {
+		animation-delay: 0.2s;
+	}
+
+	.loading-dot:nth-child(3) {
+		animation-delay: 0.4s;
+	}
+
+	@keyframes dotPulse {
+		0%, 80%, 100% { opacity: 0.3; }
+		40% { opacity: 1; }
+	}
+
+	.balance-na {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.btn-icon-xs {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: var(--color-text-secondary);
+		transition: all var(--transition-fast);
+		padding: 0;
+	}
+
+	.btn-icon-xs:hover {
+		background: var(--color-background);
+		color: var(--color-text);
+	}
+
+	.btn-icon-xs:disabled {
+		opacity: 0.3;
+		cursor: default;
+	}
+
+	.spinning {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.usage-summary {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-md);
+	}
+
+	.usage-stat {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+	}
+
+	/* Usage Chart */
+	.usage-chart-container {
+		margin-top: var(--spacing-sm);
+	}
+
+	.usage-chart-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: var(--spacing-xs);
+	}
+
+	.usage-chart-title {
+		font-size: 0.75rem;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.usage-chart-max {
+		font-size: 0.75rem;
+		color: var(--color-text-secondary);
+	}
+
+	.usage-chart {
+		width: 100%;
+		height: 48px;
+		overflow: hidden;
+		border-radius: var(--radius-sm);
+		background: var(--color-background);
+	}
+
+	.usage-bars {
+		width: 100%;
+		height: 100%;
+	}
+
+	.usage-bar {
+		fill: var(--color-primary);
+		opacity: 0.7;
+		transition: opacity var(--transition-fast);
+	}
+
+	.usage-bar:hover {
+		opacity: 1;
+	}
+
+	.usage-chart-empty {
+		margin-top: var(--spacing-sm);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		font-style: italic;
 	}
 
 	.modal-overlay {

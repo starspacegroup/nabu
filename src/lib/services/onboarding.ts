@@ -9,8 +9,7 @@ import type {
   OnboardingMessage,
   OnboardingStep,
   OnboardingStepConfig,
-  BrandStyleGuide,
-  TargetAudience
+  BrandStyleGuide
 } from '$lib/types/onboarding';
 import type { ChatMessage, ChatMessageContentPart } from '$lib/services/openai-chat';
 import type { D1Database } from '@cloudflare/workers-types';
@@ -445,16 +444,16 @@ export function buildBrandContextString(brandData: Partial<BrandProfile>): strin
   if (brandData.toneOfVoice) contextParts.push(`Tone of Voice: ${brandData.toneOfVoice}`);
   if (brandData.communicationStyle)
     contextParts.push(`Communication Style: ${brandData.communicationStyle}`);
-  if (brandData.brandPersonalityTraits?.length)
+  if (brandData.brandPersonalityTraits)
     contextParts.push(
-      `Personality Traits: ${brandData.brandPersonalityTraits.join(', ')}`
+      `Personality Traits: ${brandData.brandPersonalityTraits}`
     );
 
   // Audience
   if (brandData.targetAudience)
-    contextParts.push(`Target Audience: ${JSON.stringify(brandData.targetAudience)}`);
-  if (brandData.customerPainPoints?.length)
-    contextParts.push(`Customer Pain Points: ${brandData.customerPainPoints.join(', ')}`);
+    contextParts.push(`Target Audience: ${brandData.targetAudience}`);
+  if (brandData.customerPainPoints)
+    contextParts.push(`Customer Pain Points: ${brandData.customerPainPoints}`);
   if (brandData.valueProposition)
     contextParts.push(`Value Proposition: ${brandData.valueProposition}`);
 
@@ -477,14 +476,14 @@ export function buildBrandContextString(brandData: Partial<BrandProfile>): strin
   // Market
   if (brandData.marketPosition)
     contextParts.push(`Market Position: ${brandData.marketPosition}`);
-  if (brandData.competitors?.length)
-    contextParts.push(`Competitors: ${brandData.competitors.join(', ')}`);
-  if (brandData.uniqueSellingPoints?.length)
-    contextParts.push(`USPs: ${brandData.uniqueSellingPoints.join(', ')}`);
+  if (brandData.competitors)
+    contextParts.push(`Competitors: ${brandData.competitors}`);
+  if (brandData.uniqueSellingPoints)
+    contextParts.push(`USPs: ${brandData.uniqueSellingPoints}`);
 
   // Story
-  if (brandData.brandValues?.length)
-    contextParts.push(`Brand Values: ${brandData.brandValues.join(', ')}`);
+  if (brandData.brandValues)
+    contextParts.push(`Brand Values: ${brandData.brandValues}`);
   if (brandData.brandPromise)
     contextParts.push(`Brand Promise: ${brandData.brandPromise}`);
   if (brandData.originStory)
@@ -598,6 +597,25 @@ Use this knowledge to maintain consistency across all brand touchpoints. Referen
 }
 
 /**
+ * Convert a JSON-encoded DB value to a human-readable string.
+ * Handles backward compatibility where fields were previously stored as JSON arrays/objects
+ * but are now treated as plain text.
+ */
+function jsonToReadableString(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => typeof item === 'string' ? item : JSON.stringify(item)).join(', ');
+    }
+    if (typeof parsed === 'string') return parsed;
+    // Object — return raw JSON for user to re-edit in text system
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+/**
  * Map a database row to a BrandProfile object
  */
 export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
@@ -613,15 +631,15 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     elevatorPitch: (row.elevator_pitch as string) || undefined,
     brandArchetype: (row.brand_archetype as BrandProfile['brandArchetype']) || undefined,
     brandPersonalityTraits: row.brand_personality_traits
-      ? JSON.parse(row.brand_personality_traits as string)
+      ? jsonToReadableString(row.brand_personality_traits as string)
       : undefined,
     toneOfVoice: (row.tone_of_voice as string) || undefined,
     communicationStyle: (row.communication_style as string) || undefined,
     targetAudience: row.target_audience
-      ? JSON.parse(row.target_audience as string)
+      ? jsonToReadableString(row.target_audience as string)
       : undefined,
     customerPainPoints: row.customer_pain_points
-      ? JSON.parse(row.customer_pain_points as string)
+      ? jsonToReadableString(row.customer_pain_points as string)
       : undefined,
     valueProposition: (row.value_proposition as string) || undefined,
     primaryColor: (row.primary_color as string) || undefined,
@@ -646,13 +664,17 @@ export function mapRowToProfile(row: Record<string, unknown>): BrandProfile {
     logoHorizontalUrl: (row.logo_horizontal_url as string) || undefined,
     logoVerticalUrl: (row.logo_vertical_url as string) || undefined,
     industry: (row.industry as string) || undefined,
-    competitors: row.competitors ? JSON.parse(row.competitors as string) : undefined,
+    competitors: row.competitors
+      ? jsonToReadableString(row.competitors as string)
+      : undefined,
     uniqueSellingPoints: row.unique_selling_points
-      ? JSON.parse(row.unique_selling_points as string)
+      ? jsonToReadableString(row.unique_selling_points as string)
       : undefined,
     marketPosition: (row.market_position as BrandProfile['marketPosition']) || undefined,
     originStory: (row.origin_story as string) || undefined,
-    brandValues: row.brand_values ? JSON.parse(row.brand_values as string) : undefined,
+    brandValues: row.brand_values
+      ? jsonToReadableString(row.brand_values as string)
+      : undefined,
     brandPromise: (row.brand_promise as string) || undefined,
     styleGuide: row.style_guide ? JSON.parse(row.style_guide as string) : undefined,
     sortOrder: (row.sort_order as number) ?? 0,
@@ -821,22 +843,22 @@ export async function updateBrandProfile(
     marketPosition: 'market_position',
     originStory: 'origin_story',
     brandPromise: 'brand_promise',
+    brandPersonalityTraits: 'brand_personality_traits',
+    brandValues: 'brand_values',
+    competitors: 'competitors',
+    uniqueSellingPoints: 'unique_selling_points',
+    customerPainPoints: 'customer_pain_points',
+    targetAudience: 'target_audience',
     onboardingStep: 'onboarding_step',
     conversationId: 'conversation_id',
     status: 'status'
   };
 
   const jsonFields: Record<string, string> = {
-    brandPersonalityTraits: 'brand_personality_traits',
-    colorPalette: 'color_palette',
-    brandValues: 'brand_values',
-    competitors: 'competitors',
-    uniqueSellingPoints: 'unique_selling_points',
-    customerPainPoints: 'customer_pain_points'
+    colorPalette: 'color_palette'
   };
 
   const objectFields: Record<string, string> = {
-    targetAudience: 'target_audience',
     styleGuide: 'style_guide'
   };
 
@@ -1128,7 +1150,8 @@ RULES:
 - Do NOT guess or infer values that weren't discussed
 - If the user explicitly stated a brand name, include it as "brandName"
 - Preserve exact spelling, capitalization, and special characters (e.g. "*Space" not "Space")
-- For array fields (brandPersonalityTraits, colorPalette, brandValues, competitors, uniqueSellingPoints, customerPainPoints), return JSON arrays
+- For array fields (colorPalette), return JSON arrays
+- For text fields (brandPersonalityTraits, brandValues, competitors, uniqueSellingPoints, customerPainPoints, targetAudience), return plain text strings (comma-separated if multiple values)
 - For fields with no clear value from the conversation, omit them entirely
 - Return ONLY valid JSON, no markdown, no explanation
 - If nothing was clearly established, return an empty object {}`;

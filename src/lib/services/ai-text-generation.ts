@@ -44,10 +44,10 @@ export interface BrandContext {
   toneOfVoice?: string;
   communicationStyle?: string;
   brandArchetype?: string;
-  brandPersonalityTraits?: string[] | string;
+  brandPersonalityTraits?: string;
   valueProposition?: string;
-  targetAudience?: string | Record<string, unknown>;
-  brandValues?: string[] | string;
+  targetAudience?: string;
+  brandValues?: string;
   brandPromise?: string;
   marketPosition?: string;
   originStory?: string;
@@ -117,6 +117,26 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
       key: 'brand_promise',
       label: 'Brand Promise',
       promptTemplate: 'Write a concise brand promise (1 sentence) that communicates the core commitment the brand makes to its customers.'
+    },
+    {
+      key: 'target_audience',
+      label: 'Target Audience',
+      promptTemplate: 'Describe the ideal target audience for this brand, including key demographics, interests, and behaviors in 2-4 sentences.'
+    },
+    {
+      key: 'customer_pain_points',
+      label: 'Customer Pain Points',
+      promptTemplate: 'Identify the top customer pain points this brand addresses, describing each in a brief sentence.'
+    },
+    {
+      key: 'unique_selling_points',
+      label: 'Unique Selling Points',
+      promptTemplate: 'List the unique selling points that differentiate this brand from competitors, describing each in a brief sentence.'
+    },
+    {
+      key: 'brand_values',
+      label: 'Brand Values',
+      promptTemplate: 'Describe the core values that guide this brand, explaining what each value means in the context of the brand identity.'
     }
   ],
   descriptions: [
@@ -154,6 +174,11 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
       key: 'industry',
       label: 'Industry Description',
       promptTemplate: 'Write a brief industry description (1-2 sentences) that defines the market or sector the brand operates in.'
+    },
+    {
+      key: 'competitors',
+      label: 'Competitors',
+      promptTemplate: 'Identify the main competitors for this brand, briefly describing each and what they offer in the same market.'
     },
     {
       key: 'logo_concept',
@@ -288,10 +313,7 @@ export function buildBrandContextPrompt(
       parts.push(`- **Archetype**: ${brandProfile.brandArchetype}`);
     }
     if (brandProfile.brandPersonalityTraits) {
-      const traits = Array.isArray(brandProfile.brandPersonalityTraits)
-        ? brandProfile.brandPersonalityTraits.join(', ')
-        : brandProfile.brandPersonalityTraits;
-      parts.push(`- **Personality Traits**: ${traits}`);
+      parts.push(`- **Personality Traits**: ${brandProfile.brandPersonalityTraits}`);
     }
     if (brandProfile.toneOfVoice) {
       parts.push(`- **Tone of Voice**: ${brandProfile.toneOfVoice}`);
@@ -305,19 +327,13 @@ export function buildBrandContextPrompt(
   if (brandProfile.targetAudience) {
     parts.push('');
     parts.push('## Target Audience');
-    const audience = typeof brandProfile.targetAudience === 'string'
-      ? brandProfile.targetAudience
-      : JSON.stringify(brandProfile.targetAudience, null, 2);
-    parts.push(audience);
+    parts.push(brandProfile.targetAudience);
   }
 
   // Brand values
   if (brandProfile.brandValues) {
     parts.push('');
-    const values = Array.isArray(brandProfile.brandValues)
-      ? brandProfile.brandValues.join(', ')
-      : brandProfile.brandValues;
-    parts.push(`## Brand Values: ${values}`);
+    parts.push(`## Brand Values: ${brandProfile.brandValues}`);
   }
 
   // Origin story

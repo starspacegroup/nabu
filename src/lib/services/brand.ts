@@ -134,17 +134,11 @@ const FIELD_TO_COLUMN: Record<string, string> = {
 
 /** Fields stored as JSON arrays in the database */
 const JSON_ARRAY_FIELDS = new Set([
-  'brandPersonalityTraits',
-  'colorPalette',
-  'brandValues',
-  'competitors',
-  'uniqueSellingPoints',
-  'customerPainPoints'
+  'colorPalette'
 ]);
 
 /** Fields stored as JSON objects in the database */
 const JSON_OBJECT_FIELDS = new Set([
-  'targetAudience',
   'styleGuide'
 ]);
 
@@ -183,6 +177,14 @@ export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: str
   // Market
   marketPosition: { category: 'descriptions', keys: ['market_position', 'positioning'] },
   industry: { category: 'descriptions', keys: ['industry'] },
+  // Audience
+  targetAudience: { category: 'messaging', keys: ['target_audience'] },
+  customerPainPoints: { category: 'messaging', keys: ['customer_pain_points', 'pain_points'] },
+  // Market (list fields)
+  competitors: { category: 'descriptions', keys: ['competitors'] },
+  uniqueSellingPoints: { category: 'messaging', keys: ['unique_selling_points', 'usps'] },
+  // Story (list fields)
+  brandValues: { category: 'messaging', keys: ['brand_values', 'values'] },
 };
 
 /**
@@ -204,6 +206,11 @@ export const FIELD_TO_PRESET_KEY: Record<string, { category: string; presetKey: 
   originStory: { category: 'descriptions', presetKey: 'origin_story' },
   marketPosition: { category: 'descriptions', presetKey: 'market_position' },
   industry: { category: 'descriptions', presetKey: 'industry' },
+  targetAudience: { category: 'messaging', presetKey: 'target_audience' },
+  customerPainPoints: { category: 'messaging', presetKey: 'customer_pain_points' },
+  competitors: { category: 'descriptions', presetKey: 'competitors' },
+  uniqueSellingPoints: { category: 'messaging', presetKey: 'unique_selling_points' },
+  brandValues: { category: 'messaging', presetKey: 'brand_values' },
 };
 
 /**
@@ -455,6 +462,9 @@ export async function updateBrandFieldWithVersion(
     dbValue = null;
   } else if (JSON_ARRAY_FIELDS.has(params.fieldName) || JSON_OBJECT_FIELDS.has(params.fieldName)) {
     dbValue = typeof params.newValue === 'string' ? params.newValue : JSON.stringify(params.newValue);
+  } else if (Array.isArray(params.newValue)) {
+    // Convert arrays to comma-separated text (e.g. from AI extraction)
+    dbValue = params.newValue.join(', ');
   } else {
     dbValue = String(params.newValue);
   }
@@ -553,8 +563,8 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
       title: 'Target Audience',
       icon: '🎯',
       fields: [
-        { key: 'targetAudience', label: 'Target Audience', value: profile.targetAudience, type: 'object' },
-        { key: 'customerPainPoints', label: 'Customer Pain Points', value: profile.customerPainPoints, type: 'list' },
+        { key: 'targetAudience', label: 'Target Audience', value: profile.targetAudience, type: 'text' },
+        { key: 'customerPainPoints', label: 'Customer Pain Points', value: profile.customerPainPoints, type: 'text' },
         { key: 'valueProposition', label: 'Value Proposition', value: profile.valueProposition, type: 'text' }
       ]
     },
@@ -590,8 +600,8 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
       icon: '📊',
       fields: [
         { key: 'industry', label: 'Industry', value: profile.industry, type: 'text' },
-        { key: 'competitors', label: 'Competitors', value: profile.competitors, type: 'list' },
-        { key: 'uniqueSellingPoints', label: 'Unique Selling Points', value: profile.uniqueSellingPoints, type: 'list' },
+        { key: 'competitors', label: 'Competitors', value: profile.competitors, type: 'text' },
+        { key: 'uniqueSellingPoints', label: 'Unique Selling Points', value: profile.uniqueSellingPoints, type: 'text' },
         { key: 'marketPosition', label: 'Market Position', value: profile.marketPosition, type: 'text' }
       ]
     },
@@ -601,7 +611,7 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
       icon: '📖',
       fields: [
         { key: 'originStory', label: 'Origin Story', value: profile.originStory, type: 'text' },
-        { key: 'brandValues', label: 'Brand Values', value: profile.brandValues, type: 'list' },
+        { key: 'brandValues', label: 'Brand Values', value: profile.brandValues, type: 'text' },
         { key: 'brandPromise', label: 'Brand Promise', value: profile.brandPromise, type: 'text' }
       ]
     }
