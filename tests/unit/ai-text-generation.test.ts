@@ -75,7 +75,7 @@ describe('AI Text Generation Service', () => {
         missionStatement: 'To empower businesses with innovative solutions',
         toneOfVoice: 'Professional but approachable',
         brandArchetype: 'The Creator',
-        brandPersonalityTraits: ['innovative', 'reliable', 'bold']
+        brandPersonalityTraits: 'innovative, reliable, bold'
       };
 
       const result = buildBrandContextPrompt(brandProfile);
@@ -118,7 +118,7 @@ describe('AI Text Generation Service', () => {
     it('should handle array personality traits by joining them', () => {
       const brandProfile = {
         brandName: 'Test Brand',
-        brandPersonalityTraits: ['bold', 'creative', 'trustworthy']
+        brandPersonalityTraits: 'bold, creative, trustworthy'
       };
 
       const result = buildBrandContextPrompt(brandProfile);

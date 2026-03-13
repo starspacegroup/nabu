@@ -482,7 +482,7 @@ describe('Brand Onboarding Service', () => {
 
     it('should serialize JSON fields correctly', async () => {
       await updateBrandProfile(mockDB as any, 'bp-123', {
-        brandPersonalityTraits: ['bold', 'innovative'],
+        brandPersonalityTraits: 'bold, innovative',
         colorPalette: ['#FF0000', '#00FF00']
       });
 

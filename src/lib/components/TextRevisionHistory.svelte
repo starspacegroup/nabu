@@ -145,7 +145,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
 <div class="modal-backdrop" on:click={handleBackdropClick} role="dialog" aria-modal="true" aria-label="Text revision history">
 	<div class="modal-content">
 		<div class="modal-header">

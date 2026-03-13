@@ -82,12 +82,12 @@ describe('Onboarding service - additional branch coverage', () => {
       run: vi.fn().mockResolvedValue({ success: true })
     };
     await updateBrandProfile(mockDB as any, 'profile-1', {
-      targetAudience: ['developers', 'designers'] as any
+      colorPalette: ['#FF0000', '#00FF00']
     });
     expect(mockDB.bind).toHaveBeenCalled();
     const bindArgs = mockDB.bind.mock.calls[0];
     // Should be JSON-stringified
-    const jsonArg = bindArgs.find((a: string) => typeof a === 'string' && a.includes('developers'));
+    const jsonArg = bindArgs.find((a: string) => typeof a === 'string' && a.includes('#FF0000'));
     expect(jsonArg).toBeTruthy();
   });
 });

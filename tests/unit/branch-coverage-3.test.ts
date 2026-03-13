@@ -28,8 +28,8 @@ describe('Onboarding service - getSystemPromptForStep branch directions', () => 
     const { getSystemPromptForStep } = await import('../../src/lib/services/onboarding');
     const result = getSystemPromptForStep('brand_identity', {
       brandName: 'TestBrand',
-      brandPersonalityTraits: [], // length is 0 = falsy
-      brandValues: [] // length is 0 = falsy
+      brandPersonalityTraits: '', // empty string = falsy
+      brandValues: '' // empty string = falsy
     });
     expect(result).toContain('TestBrand');
     expect(result).not.toContain('Personality Traits');
@@ -48,13 +48,13 @@ describe('Onboarding service - getSystemPromptForStep branch directions', () => 
       brandArchetype: 'creator',
       toneOfVoice: 'Professional',
       communicationStyle: 'Direct',
-      brandPersonalityTraits: ['Bold', 'Innovative'],
+      brandPersonalityTraits: 'Bold, Innovative',
       primaryColor: '#FF0000',
       secondaryColor: '#00FF00',
       accentColor: '#0000FF',
       valueProposition: 'Best in class',
       marketPosition: 'leader' as any,
-      brandValues: ['Quality', 'Innovation']
+      brandValues: 'Quality, Innovation'
     });
     expect(result).toContain('Acme');
     expect(result).toContain('Tech');
@@ -987,10 +987,10 @@ describe('Onboarding service - mapRowToProfile branches', () => {
     const profile = await getBrandProfile(mockDB as any, 'user-1');
     expect(profile).toBeDefined();
     expect(profile!.brandName).toBe('Acme Corp');
-    expect(profile!.brandPersonalityTraits).toEqual(['Bold', 'Innovative']);
-    expect(profile!.brandValues).toEqual(['Quality', 'Innovation']);
+    expect(profile!.brandPersonalityTraits).toBe('Bold, Innovative');
+    expect(profile!.brandValues).toBe('Quality, Innovation');
     expect(profile!.colorPalette).toEqual(['#111', '#222']);
-    expect(profile!.competitors).toEqual(['Competitor A']);
+    expect(profile!.competitors).toBe('Competitor A');
     expect(profile!.styleGuide).toEqual({ key: 'value' });
     expect(profile!.conversationId).toBe('conv-123');
     expect(profile!.industry).toBe('Tech');

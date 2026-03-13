@@ -5,7 +5,7 @@
  * and a placeholder card should appear in the gallery showing progress.
  * Once generation completes, the placeholder is replaced with the real asset.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 

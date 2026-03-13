@@ -729,6 +729,34 @@
 			year: 'numeric'
 		});
 	}
+
+	async function handleColorsBatchChange(e: CustomEvent<{ colors: { key: string; value: string }[] }>) {
+		if (!profile || isSaving) return;
+		const profileRecord = profile as unknown as Record<string, unknown>;
+		const changed = e.detail.colors.filter((c) => profileRecord[c.key] !== c.value);
+		if (changed.length === 0) return;
+		isSaving = true;
+		try {
+			for (const c of changed) {
+				const res = await fetch('/api/brand/update-field', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						profileId: profile.id,
+						fieldName: c.key,
+						newValue: c.value,
+						changeSource: 'manual'
+					})
+				});
+				if (!res.ok) throw new Error(`Failed to save ${c.key}`);
+			}
+			await loadProfile();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to save colors';
+		} finally {
+			isSaving = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -913,32 +941,7 @@
 							on:colorchange={(e) => {
 								saveField(e.detail.key, 'color', e.detail.value);
 							}}
-							on:colorsbatchchange={async (e) => {
-								if (!profile || isSaving) return;
-								const changed = e.detail.colors.filter((c) => profile?.[c.key] !== c.value);
-								if (changed.length === 0) return;
-								isSaving = true;
-								try {
-									for (const c of changed) {
-										const res = await fetch('/api/brand/update-field', {
-											method: 'PATCH',
-											headers: { 'Content-Type': 'application/json' },
-											body: JSON.stringify({
-												profileId: profile.id,
-												fieldName: c.key,
-												newValue: c.value,
-												changeSource: 'manual'
-											})
-										});
-										if (!res.ok) throw new Error(`Failed to save ${c.key}`);
-									}
-									await loadProfile();
-								} catch (err) {
-									error = err instanceof Error ? err.message : 'Failed to save colors';
-								} finally {
-									isSaving = false;
-								}
-							}}
+							on:colorsbatchchange={handleColorsBatchChange}
 							on:editlogo={() => switchTab('images')}
 							on:fontchange={async (e) => {
 								if (!profile) return;
@@ -2067,7 +2070,6 @@
 
 	.save-btn,
 	.edit-btn,
-	.cancel-btn,
 	.delete-btn,
 	.history-btn,
 	.push-btn {
@@ -2113,16 +2115,6 @@
 	.history-btn:hover {
 		background-color: var(--color-border);
 		color: var(--color-text);
-	}
-
-	.cancel-btn {
-		background-color: var(--color-border);
-		color: var(--color-text);
-	}
-
-	.cancel-btn:hover {
-		background-color: var(--color-text-secondary);
-		color: var(--color-background);
 	}
 
 	.delete-btn {

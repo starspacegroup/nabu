@@ -675,7 +675,7 @@
 	function applyPreset(preset: (typeof PRESET_THEMES)[0]) {
 		// Only apply brand color keys from the preset
 		for (const key of ALL_BRAND_KEYS) {
-			const value = (preset.colors as Record<string, string>)[key];
+			const value = (preset.colors as unknown as Record<string, string>)[key];
 			if (value) setColor(key, value);
 		}
 		showPresets = false;
@@ -689,7 +689,7 @@
 		// Only fill empty brand color slots (not layout/status)
 		for (const key of ALL_BRAND_KEYS) {
 			if (key === 'primaryColor') continue;
-			const value = (theme as Record<string, string>)[key];
+			const value = (theme as unknown as Record<string, string>)[key];
 			if (value && (!localColors[key] || localColors[key] === '')) {
 				setColor(key, value);
 			}
@@ -703,7 +703,7 @@
 		// Only generate brand colors (layout/status are auto-derived)
 		for (const key of ALL_BRAND_KEYS) {
 			if (key === 'primaryColor') continue;
-			const value = (theme as Record<string, string>)[key];
+			const value = (theme as unknown as Record<string, string>)[key];
 			if (value) setColor(key, value);
 		}
 	}

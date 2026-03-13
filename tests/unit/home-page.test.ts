@@ -21,25 +21,25 @@ describe.skip('Home Page – Marketing Landing', () => {
 	});
 
 	it('should render the hero title', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		const title = screen.getByText(/No brand yet/i);
 		expect(title).toBeTruthy();
 	});
 
 	it('should render the hero description', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		const description = screen.getByText(/Whether you're starting from zero/i);
 		expect(description).toBeTruthy();
 	});
 
 	it('should render the badge', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		const badge = screen.getByText(/Brand Building & Marketing Automation/i);
 		expect(badge).toBeTruthy();
 	});
 
 	it('should render CTA buttons for unauthenticated users', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Start Building Your Brand')).toBeTruthy();
 		expect(screen.getByText('Sign In')).toBeTruthy();
 	});
@@ -58,7 +58,7 @@ describe.skip('Home Page – Marketing Landing', () => {
 	});
 
 	it('should render brand identity feature cards', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Start From Scratch')).toBeTruthy();
 		expect(screen.getByText('Colors & Visual Identity')).toBeTruthy();
 		expect(screen.getByText('Logo & Typography')).toBeTruthy();
@@ -68,7 +68,7 @@ describe.skip('Home Page – Marketing Landing', () => {
 	});
 
 	it('should render content type cards', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Text & Copy')).toBeTruthy();
 		expect(screen.getByText('Audio')).toBeTruthy();
 		expect(screen.getByText('Images')).toBeTruthy();
@@ -76,38 +76,38 @@ describe.skip('Home Page – Marketing Landing', () => {
 	});
 
 	it('should render the auto-publish banner', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Schedule & auto-publish to social media')).toBeTruthy();
 	});
 
 	it('should render how-it-works steps', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Create Your Brand')).toBeTruthy();
 		expect(screen.getByText('Create Your Content')).toBeTruthy();
 		expect(screen.getByText('Automate & Publish')).toBeTruthy();
 	});
 
 	it('should render the audience section', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('New Founders')).toBeTruthy();
 		expect(screen.getByText('Small Business Owners')).toBeTruthy();
 		expect(screen.getByText('Content Creators')).toBeTruthy();
 	});
 
 	it('should render the CTA section', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Your brand starts here')).toBeTruthy();
 	});
 
 	it('should render the search trigger with keyboard shortcut', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		const searchButton = screen.getByLabelText('Open command palette');
 		expect(searchButton).toBeTruthy();
 		expect(screen.getByText('Ctrl+K')).toBeTruthy();
 	});
 
 	it('should render value prop stats', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		expect(screen.getByText('Zero')).toBeTruthy();
 		expect(screen.getByText('Brand Required to Start')).toBeTruthy();
 		expect(screen.getByText('Complete')).toBeTruthy();
@@ -116,7 +116,7 @@ describe.skip('Home Page – Marketing Landing', () => {
 	});
 
 	it('should have proper meta description', () => {
-		render(Page, { props: { data: { user: null, hasAIProviders: false } } });
+		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
 		const meta = document.querySelector('meta[name="description"]');
 		expect(meta?.getAttribute('content')).toContain('No brand? No problem');
 	});
