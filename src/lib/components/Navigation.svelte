@@ -7,6 +7,13 @@
 	let userDropdownOpen = false;
 
 	export let onCommandPaletteClick: () => void = () => {};
+
+	let isMac = false;
+	import { onMount } from 'svelte';
+	onMount(() => {
+		isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+	});
+
 	export let user: {
 		id: string;
 		login: string;
@@ -82,7 +89,7 @@
 						<circle cx="11" cy="11" r="8"></circle>
 						<path d="m21 21-4.35-4.35"></path>
 					</svg>
-					<kbd class="command-palette-kbd">⌘K</kbd>
+					<kbd class="command-palette-kbd">{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
 				</button>
 			</div>
 
