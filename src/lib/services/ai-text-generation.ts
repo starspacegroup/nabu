@@ -202,6 +202,16 @@ export const TEXT_GENERATION_PRESETS: Record<string, TextGenerationPreset[]> = {
   ],
   voice: [
     {
+      key: 'brand_archetype',
+      label: 'Brand Archetype',
+      promptTemplate: 'Identify the brand archetype (based on the 12 Jungian archetypes) that best fits this brand, and explain in 2-3 sentences why it is the right fit.'
+    },
+    {
+      key: 'personality_traits',
+      label: 'Personality Traits',
+      promptTemplate: 'List 5-7 key personality traits that define this brand\'s character, with a brief explanation of how each trait manifests in the brand\'s communications and behavior.'
+    },
+    {
       key: 'tone_guidelines',
       label: 'Tone Guidelines',
       promptTemplate: 'Write tone-of-voice guidelines (5-8 bullet points) describing how the brand should sound in all communications.'

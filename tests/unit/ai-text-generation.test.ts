@@ -56,6 +56,12 @@ describe('AI Text Generation Service', () => {
       const descriptionKeys = TEXT_GENERATION_PRESETS.descriptions.map((p) => p.key);
       expect(descriptionKeys).toContain('short_bio');
     });
+
+    it('should include brand_archetype and personality_traits in voice presets', () => {
+      const voiceKeys = TEXT_GENERATION_PRESETS.voice.map((p) => p.key);
+      expect(voiceKeys).toContain('brand_archetype');
+      expect(voiceKeys).toContain('personality_traits');
+    });
   });
 
   // ─── Brand Context Prompt Builder ────────────────────────────

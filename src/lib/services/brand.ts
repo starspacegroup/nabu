@@ -176,6 +176,8 @@ export const FIELD_TO_TEXT_MAPPING: Record<string, { category: string; keys: str
   // Personality → Voice
   toneOfVoice: { category: 'voice', keys: ['tone', 'tone_of_voice', 'tone_guidelines'] },
   communicationStyle: { category: 'voice', keys: ['communication_style', 'style_guidelines'] },
+  brandArchetype: { category: 'voice', keys: ['brand_archetype', 'archetype'] },
+  brandPersonalityTraits: { category: 'voice', keys: ['personality_traits', 'brand_personality_traits'] },
   // Story → Descriptions
   originStory: { category: 'descriptions', keys: ['origin_story', 'about_us', 'long_bio'] },
   // Market
@@ -197,6 +199,8 @@ export const FIELD_TO_PRESET_KEY: Record<string, { category: string; presetKey: 
   brandPromise: { category: 'messaging', presetKey: 'brand_promise' },
   toneOfVoice: { category: 'voice', presetKey: 'tone_guidelines' },
   communicationStyle: { category: 'voice', presetKey: 'communication_style' },
+  brandArchetype: { category: 'voice', presetKey: 'brand_archetype' },
+  brandPersonalityTraits: { category: 'voice', presetKey: 'personality_traits' },
   originStory: { category: 'descriptions', presetKey: 'origin_story' },
   marketPosition: { category: 'descriptions', presetKey: 'market_position' },
   industry: { category: 'descriptions', presetKey: 'industry' },
@@ -538,8 +542,8 @@ export function getBrandFieldsSummary(profile: BrandProfile): BrandFieldSection[
       title: 'Brand Personality',
       icon: '🎭',
       fields: [
-        { key: 'brandArchetype', label: 'Brand Archetype', value: profile.brandArchetype, type: 'archetype' },
-        { key: 'brandPersonalityTraits', label: 'Personality Traits', value: profile.brandPersonalityTraits, type: 'list' },
+        { key: 'brandArchetype', label: 'Brand Archetype', value: profile.brandArchetype, type: 'text' },
+        { key: 'brandPersonalityTraits', label: 'Personality Traits', value: profile.brandPersonalityTraits, type: 'text' },
         { key: 'toneOfVoice', label: 'Tone of Voice', value: profile.toneOfVoice, type: 'text' },
         { key: 'communicationStyle', label: 'Communication Style', value: profile.communicationStyle, type: 'text' }
       ]

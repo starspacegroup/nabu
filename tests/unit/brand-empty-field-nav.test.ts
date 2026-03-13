@@ -197,6 +197,14 @@ describe('Brand Profile - Field click → Text tab navigation', () => {
       expect(FIELD_TO_PRESET_KEY.communicationStyle).toEqual({ category: 'voice', presetKey: 'communication_style' });
     });
 
+    it('should map brandArchetype → voice/brand_archetype', () => {
+      expect(FIELD_TO_PRESET_KEY.brandArchetype).toEqual({ category: 'voice', presetKey: 'brand_archetype' });
+    });
+
+    it('should map brandPersonalityTraits → voice/personality_traits', () => {
+      expect(FIELD_TO_PRESET_KEY.brandPersonalityTraits).toEqual({ category: 'voice', presetKey: 'personality_traits' });
+    });
+
     it('should map originStory → descriptions/origin_story', () => {
       expect(FIELD_TO_PRESET_KEY.originStory).toEqual({ category: 'descriptions', presetKey: 'origin_story' });
     });
