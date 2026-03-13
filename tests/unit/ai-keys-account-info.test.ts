@@ -245,14 +245,110 @@ describe('AI Keys Account Info API', () => {
       });
     });
 
-    it('should report balance not available for unsupported providers', async () => {
+    it('should fetch Anthropic usage data successfully', async () => {
       const mockKV = {
         get: vi.fn().mockResolvedValue(
           JSON.stringify({
             id: 'ant-key-1',
             provider: 'anthropic',
-            apiKey: 'sk-ant-test',
+            apiKey: 'sk-ant-test-key-123',
             name: 'Anthropic Key'
+          })
+        )
+      };
+
+      const mockDB = {
+        prepare: vi.fn().mockReturnValue({
+          bind: vi.fn().mockReturnValue({
+            all: vi.fn().mockResolvedValue({ results: [] })
+          })
+        })
+      };
+
+      // Mock Anthropic token counting endpoint for key validation
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Map([
+          ['anthropic-ratelimit-requests-limit', '1000'],
+          ['anthropic-ratelimit-requests-remaining', '950'],
+          ['anthropic-ratelimit-tokens-limit', '100000'],
+          ['anthropic-ratelimit-tokens-remaining', '98000']
+        ]),
+        json: async () => ({ input_tokens: 4 })
+      });
+
+      const { GET } = await import(
+        '../../src/routes/api/admin/ai-keys/[id]/account-info/+server'
+      );
+
+      const response = await GET({
+        params: { id: 'ant-key-1' },
+        platform: { env: { KV: mockKV, DB: mockDB } },
+        locals: { user: { id: '1', isOwner: true } }
+      } as any);
+
+      const result = await response.json();
+      expect(result.balance.available).toBe(true);
+      expect(result.balance).toHaveProperty('rateLimits');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.anthropic.com/v1/messages/count_tokens',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-api-key': 'sk-ant-test-key-123'
+          })
+        })
+      );
+    });
+
+    it('should handle Anthropic API failure gracefully', async () => {
+      const mockKV = {
+        get: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            id: 'ant-key-2',
+            provider: 'anthropic',
+            apiKey: 'sk-ant-bad-key',
+            name: 'Bad Anthropic Key'
+          })
+        )
+      };
+
+      const mockDB = {
+        prepare: vi.fn().mockReturnValue({
+          bind: vi.fn().mockReturnValue({
+            all: vi.fn().mockResolvedValue({ results: [] })
+          })
+        })
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () => 'Invalid API key'
+      });
+
+      const { GET } = await import(
+        '../../src/routes/api/admin/ai-keys/[id]/account-info/+server'
+      );
+
+      const response = await GET({
+        params: { id: 'ant-key-2' },
+        platform: { env: { KV: mockKV, DB: mockDB } },
+        locals: { user: { id: '1', isOwner: true } }
+      } as any);
+
+      const result = await response.json();
+      expect(result.balance.available).toBe(false);
+      expect(result.balance.reason).toContain('401');
+    });
+
+    it('should report balance not available for unsupported providers', async () => {
+      const mockKV = {
+        get: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            id: 'mis-key-1',
+            provider: 'mistral',
+            apiKey: 'mistral-test-key',
+            name: 'Mistral Key'
           })
         )
       };
@@ -270,7 +366,7 @@ describe('AI Keys Account Info API', () => {
       );
 
       const response = await GET({
-        params: { id: 'ant-key-1' },
+        params: { id: 'mis-key-1' },
         platform: { env: { KV: mockKV, DB: mockDB } },
         locals: { user: { id: '1', isOwner: true } }
       } as any);
@@ -305,6 +401,18 @@ describe('AI Keys Account Info API', () => {
           })
         )
       };
+
+      // Mock Anthropic token counting endpoint
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Map([
+          ['anthropic-ratelimit-requests-limit', '1000'],
+          ['anthropic-ratelimit-requests-remaining', '999'],
+          ['anthropic-ratelimit-tokens-limit', '100000'],
+          ['anthropic-ratelimit-tokens-remaining', '100000']
+        ]),
+        json: async () => ({ input_tokens: 4 })
+      });
 
       const { GET } = await import(
         '../../src/routes/api/admin/ai-keys/[id]/account-info/+server'

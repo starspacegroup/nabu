@@ -122,7 +122,7 @@
 						class:active={$page.url.pathname.startsWith('/brand')}
 						on:click={closeMobileMenu}
 					>
-						Brand
+						Brands
 					</a>
 					{#if user.isOwner || user.isAdmin}
 						<a

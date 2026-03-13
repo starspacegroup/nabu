@@ -22,6 +22,220 @@
 	let keys = data.keys || [];
 	let showForm = false;
 	let editingKey: any = null;
+
+	// ── Robust Drag & Drop (pointer-event based, works on touch + mouse) ──
+
+	let dragState: {
+		fromIndex: number;
+		currentIndex: number;      // where item would be inserted
+		startY: number;
+		currentY: number;
+		clone: HTMLElement | null;
+		listEl: HTMLElement | null;
+		rects: DOMRect[];          // snapshot of card positions at drag start
+		scrollInterval: number | null;
+	} | null = null;
+
+	let savingOrder = false;
+	let listEl: HTMLElement | null = null;
+
+	$: isDragging = dragState !== null;
+	$: dropTargetIndex = dragState?.currentIndex ?? -1;
+	$: dragFromIndex = dragState?.fromIndex ?? -1;
+
+	async function saveOrder() {
+		savingOrder = true;
+		try {
+			const order = keys.map((k: any) => k.id);
+			const response = await fetch('/api/admin/ai-keys/reorder', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ order })
+			});
+			if (!response.ok) {
+				console.error('Failed to save order');
+			}
+		} catch (err) {
+			console.error('Failed to save order:', err);
+		} finally {
+			savingOrder = false;
+		}
+	}
+
+	/** Snapshot all card rects at pointer-down time so we don't re-measure during drag */
+	function snapshotRects(): DOMRect[] {
+		if (!listEl) return [];
+		const cards = listEl.querySelectorAll<HTMLElement>('.key-card');
+		return Array.from(cards).map(c => c.getBoundingClientRect());
+	}
+
+	/** Given a Y position, figure out which slot the item should drop into */
+	function calcDropIndex(y: number, fromIndex: number, rects: DOMRect[]): number {
+		for (let i = 0; i < rects.length; i++) {
+			const mid = rects[i].top + rects[i].height / 2;
+			if (y < mid) {
+				// When dragging downward, the visual positions shift, so adjust
+				return i <= fromIndex ? i : i;
+			}
+		}
+		return rects.length; // past the end
+	}
+
+	/** Convert a drop-slot index to the final array index after removal of source */
+	function slotToArrayIndex(slot: number, fromIndex: number): number {
+		if (slot <= fromIndex) return slot;
+		return slot - 1;
+	}
+
+	function startDrag(e: PointerEvent, index: number) {
+		// Only primary button (or touch)
+		if (e.button !== 0) return;
+
+		const handle = e.currentTarget as HTMLElement;
+		const card = handle.closest('.key-card') as HTMLElement;
+		if (!card || !listEl) return;
+
+		e.preventDefault();
+		handle.setPointerCapture(e.pointerId);
+
+		const rects = snapshotRects();
+		const rect = rects[index];
+		if (!rect) return;
+
+		// Create clone
+		const clone = card.cloneNode(true) as HTMLElement;
+		clone.style.cssText = `
+			position: fixed;
+			left: ${rect.left}px;
+			top: ${rect.top}px;
+			width: ${rect.width}px;
+			height: ${rect.height}px;
+			z-index: 10000;
+			pointer-events: none;
+			opacity: 0.95;
+			transform: scale(1.03);
+			box-shadow: 0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.15);
+			border-radius: var(--radius-lg);
+			border: 2px solid var(--color-primary);
+			transition: transform 0.1s ease, box-shadow 0.1s ease;
+			will-change: top;
+		`;
+		document.body.appendChild(clone);
+
+		dragState = {
+			fromIndex: index,
+			currentIndex: index,
+			startY: e.clientY,
+			currentY: e.clientY,
+			clone,
+			listEl,
+			rects,
+			scrollInterval: null
+		};
+
+		// Start auto-scroll
+		dragState.scrollInterval = window.setInterval(() => autoScroll(), 16);
+	}
+
+	function moveDrag(e: PointerEvent) {
+		if (!dragState) return;
+		e.preventDefault();
+
+		const dy = e.clientY - dragState.startY;
+		const originRect = dragState.rects[dragState.fromIndex];
+
+		if (dragState.clone) {
+			dragState.clone.style.top = `${originRect.top + dy}px`;
+		}
+
+		dragState.currentY = e.clientY;
+		dragState.currentIndex = calcDropIndex(e.clientY, dragState.fromIndex, dragState.rects);
+	}
+
+	function endDrag(e: PointerEvent) {
+		if (!dragState) return;
+
+		const { fromIndex, currentIndex, clone, scrollInterval } = dragState;
+
+		// Clear auto-scroll
+		if (scrollInterval !== null) clearInterval(scrollInterval);
+
+		// Remove clone
+		if (clone) clone.remove();
+
+		// Perform the reorder if position changed
+		const targetArrayIdx = slotToArrayIndex(currentIndex, fromIndex);
+		if (targetArrayIdx !== fromIndex) {
+			const newKeys = [...keys];
+			const [moved] = newKeys.splice(fromIndex, 1);
+			newKeys.splice(targetArrayIdx, 0, moved);
+			keys = newKeys;
+			saveOrder();
+		}
+
+		dragState = null;
+	}
+
+	function cancelDrag() {
+		if (!dragState) return;
+		if (dragState.scrollInterval !== null) clearInterval(dragState.scrollInterval);
+		if (dragState.clone) dragState.clone.remove();
+		dragState = null;
+	}
+
+	/** Auto-scroll when dragging near edges */
+	function autoScroll() {
+		if (!dragState) return;
+		const y = dragState.currentY;
+		const margin = 60;
+		const speed = 8;
+		if (y < margin) {
+			window.scrollBy(0, -speed);
+			refreshRectsOnScroll();
+		} else if (y > window.innerHeight - margin) {
+			window.scrollBy(0, speed);
+			refreshRectsOnScroll();
+		}
+	}
+
+	/** After auto-scroll, rects shift — re-snapshot */
+	function refreshRectsOnScroll() {
+		if (!dragState || !dragState.listEl) return;
+		dragState.rects = snapshotRects();
+		// Recalculate drop index with new rects
+		dragState.currentIndex = calcDropIndex(dragState.currentY, dragState.fromIndex, dragState.rects);
+	}
+
+	// Prevent native drag from interfering
+	function preventNativeDrag(e: DragEvent) {
+		e.preventDefault();
+	}
+
+	// Keyboard reorder for accessibility
+	function handleKeyReorder(e: KeyboardEvent, index: number) {
+		if (e.key === 'ArrowUp' && index > 0) {
+			e.preventDefault();
+			const newKeys = [...keys];
+			[newKeys[index - 1], newKeys[index]] = [newKeys[index], newKeys[index - 1]];
+			keys = newKeys;
+			saveOrder();
+			// Focus the moved card's handle after tick
+			requestAnimationFrame(() => {
+				const handles = listEl?.querySelectorAll<HTMLElement>('.drag-handle');
+				handles?.[index - 1]?.focus();
+			});
+		} else if (e.key === 'ArrowDown' && index < keys.length - 1) {
+			e.preventDefault();
+			const newKeys = [...keys];
+			[newKeys[index], newKeys[index + 1]] = [newKeys[index + 1], newKeys[index]];
+			keys = newKeys;
+			saveOrder();
+			requestAnimationFrame(() => {
+				const handles = listEl?.querySelectorAll<HTMLElement>('.drag-handle');
+				handles?.[index + 1]?.focus();
+			});
+		}
+	}
 	let formData = {
 		name: '',
 		provider: 'openai',
@@ -44,6 +258,13 @@
 		amount?: number;
 		currency?: string;
 		reason?: string;
+		rateLimits?: {
+			requestsLimit?: number;
+			requestsRemaining?: number;
+			tokensLimit?: number;
+			tokensRemaining?: number;
+		};
+		label?: string;
 	}
 
 	interface UsageDay {
@@ -614,7 +835,7 @@
 	<header class="page-header">
 		<h1>AI Provider Keys</h1>
 		<p class="page-description">
-			Manage API keys for AI providers like OpenAI, Anthropic, and others.
+			Manage API keys for AI providers. Drag to reorder — higher priority keys are tried first for AI generation.
 		</p>
 	</header>
 
@@ -650,14 +871,51 @@
 			<p>Add your first AI provider key to enable AI features.</p>
 		</div>
 	{:else}
-		<div class="keys-list">
-			{#each keys as key (key.id)}
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div class="keys-list" class:is-dragging={isDragging} bind:this={listEl} on:dragstart={preventNativeDrag}>
+			{#each keys as key, index (key.id)}
 				{@const keyModels = key.models || (key.model ? [key.model] : [])}
 				{@const keyVoiceModels = key.voiceModels || (key.voiceModel ? [key.voiceModel] : [])}
-				<div class="key-card">
+				<!-- Slot indicator — rendered between items via CSS, no DOM changes during drag -->
+				<div class="drop-slot" class:drop-slot-active={isDragging && dropTargetIndex === index && dragFromIndex !== index}>
+					<div class="drop-slot-inner">
+						<span class="drop-slot-dot"></span>
+						<span class="drop-slot-line"></span>
+						<span class="drop-slot-text">Priority #{index + 1}</span>
+						<span class="drop-slot-line"></span>
+						<span class="drop-slot-dot"></span>
+					</div>
+				</div>
+				<div
+					class="key-card"
+					class:is-dragged={dragFromIndex === index}
+					on:dragstart={preventNativeDrag}
+				>
 					<div class="key-header">
 						<div class="key-info">
-							<h3>{key.name}</h3>
+							<div class="key-title-row">
+								<!-- Drag handle: pointer events for unified mouse + touch -->
+								<button
+									class="drag-handle"
+									aria-label="Drag to reorder {key.name}. Use arrow keys."
+									on:pointerdown={(e) => startDrag(e, index)}
+									on:pointermove={moveDrag}
+									on:pointerup={endDrag}
+									on:pointercancel={cancelDrag}
+									on:keydown={(e) => handleKeyReorder(e, index)}
+								>
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+										<circle cx="8" cy="4" r="2" />
+										<circle cx="16" cy="4" r="2" />
+										<circle cx="8" cy="12" r="2" />
+										<circle cx="16" cy="12" r="2" />
+										<circle cx="8" cy="20" r="2" />
+										<circle cx="16" cy="20" r="2" />
+									</svg>
+								</button>
+								<span class="priority-badge" title="Priority order — tried first for AI generation">#{index + 1}</span>
+								<h3>{key.name}</h3>
+							</div>
 							<div class="key-badges">
 								<span class="key-provider">{key.provider}</span>
 								{#if keyModels.length > 0}
@@ -810,7 +1068,9 @@
 										<line x1="12" y1="1" x2="12" y2="23" />
 										<path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
 									</svg>
-									{#if key.provider === 'openai'}
+									{#if info?.balance?.label}
+										{info.balance.label}
+									{:else if key.provider === 'openai'}
 										30-Day Spend
 									{:else}
 										Balance
@@ -821,6 +1081,19 @@
 										<span class="loading-dot"></span>
 										<span class="loading-dot"></span>
 										<span class="loading-dot"></span>
+									</div>
+								{:else if info?.balance?.available && info.balance.rateLimits}
+									<div class="balance-value rate-limits">
+										{#if info.balance.rateLimits.requestsRemaining != null}
+											<span class="rate-limit-item" title="Requests: {info.balance.rateLimits.requestsRemaining?.toLocaleString()} / {info.balance.rateLimits.requestsLimit?.toLocaleString()}">
+												{info.balance.rateLimits.requestsRemaining?.toLocaleString()}/{info.balance.rateLimits.requestsLimit?.toLocaleString()} req
+											</span>
+										{/if}
+										{#if info.balance.rateLimits.tokensRemaining != null}
+											<span class="rate-limit-item" title="Tokens: {info.balance.rateLimits.tokensRemaining?.toLocaleString()} / {info.balance.rateLimits.tokensLimit?.toLocaleString()}">
+												{info.balance.rateLimits.tokensRemaining?.toLocaleString()}/{info.balance.rateLimits.tokensLimit?.toLocaleString()} tok
+											</span>
+										{/if}
 									</div>
 								{:else if info?.balance?.available}
 									<div class="balance-value">
@@ -908,7 +1181,27 @@
 					</div>
 				</div>
 			{/each}
+			<!-- Final drop slot (after last item) -->
+			<div class="drop-slot" class:drop-slot-active={isDragging && dropTargetIndex === keys.length && dragFromIndex !== keys.length - 1}>
+				<div class="drop-slot-inner">
+					<span class="drop-slot-dot"></span>
+					<span class="drop-slot-line"></span>
+					<span class="drop-slot-text">Priority #{keys.length}</span>
+					<span class="drop-slot-line"></span>
+					<span class="drop-slot-dot"></span>
+				</div>
+			</div>
 		</div>
+		{#if savingOrder}
+			<div class="save-order-indicator">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinning">
+					<polyline points="23 4 23 10 17 10" />
+					<polyline points="1 20 1 14 7 14" />
+					<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+				</svg>
+				Saving order...
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -1833,6 +2126,19 @@
 		color: var(--color-text-secondary);
 	}
 
+	.rate-limits {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	.rate-limit-item {
+		color: var(--color-text);
+		font-variant-numeric: tabular-nums;
+	}
+
 	.btn-icon-xs {
 		display: flex;
 		align-items: center;
@@ -2515,5 +2821,192 @@
 		font-size: 0.75rem;
 		color: var(--color-text-secondary);
 		margin-top: 4px;
+	}
+
+	/* ── Drag & Drop ── */
+	.keys-list {
+		position: relative;
+	}
+
+	.key-title-row {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.drag-handle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border: none;
+		background: transparent;
+		color: var(--color-text-secondary);
+		cursor: grab;
+		border-radius: var(--radius-sm);
+		transition: color 0.15s ease, background 0.15s ease;
+		flex-shrink: 0;
+		touch-action: none;   /* critical: prevents browser scroll/pan on touch */
+		-webkit-user-select: none;
+		user-select: none;
+		padding: 0;
+	}
+
+	.drag-handle:hover {
+		background: var(--color-background);
+		color: var(--color-primary);
+	}
+
+	.drag-handle:active {
+		cursor: grabbing;
+	}
+
+	.priority-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 28px;
+		height: 22px;
+		padding: 0 6px;
+		border-radius: var(--radius-sm);
+		background: var(--color-primary);
+		color: var(--color-background);
+		font-size: 0.75rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		flex-shrink: 0;
+		letter-spacing: -0.02em;
+	}
+
+	/* Card drag states */
+	.key-card {
+		transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease, box-shadow 0.2s ease;
+		position: relative;
+	}
+
+	.key-card.is-dragged {
+		opacity: 0.25;
+		transform: scale(0.97);
+		box-shadow: none;
+	}
+
+	/* ── Drop Slots ──
+	   Always in the DOM — height transitions from 0 to visible.
+	   No conditional {#if} blocks means no layout thrashing during drag.
+	*/
+	.drop-slot {
+		height: 0;
+		overflow: hidden;
+		transition: height 0.2s cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	.drop-slot-active {
+		height: 36px;
+	}
+
+	.drop-slot-inner {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 0;
+		opacity: 0;
+		transform: scaleX(0.7);
+		transition: opacity 0.15s ease 0.05s, transform 0.2s cubic-bezier(0.2, 0, 0, 1) 0.05s;
+	}
+
+	.drop-slot-active .drop-slot-inner {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	.drop-slot-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		flex-shrink: 0;
+		animation: none;
+	}
+
+	.drop-slot-active .drop-slot-dot {
+		animation: slotDotPulse 1s ease-in-out infinite;
+	}
+
+	@keyframes slotDotPulse {
+		0%, 100% { transform: scale(1); }
+		50% { transform: scale(1.4); }
+	}
+
+	.drop-slot-line {
+		flex: 1;
+		height: 2px;
+		background: var(--color-primary);
+		border-radius: 1px;
+	}
+
+	.drop-slot-text {
+		font-size: 0.688rem;
+		font-weight: 700;
+		color: var(--color-primary);
+		white-space: nowrap;
+		padding: 2px 10px;
+		background: var(--color-surface);
+		border: 1.5px solid var(--color-primary);
+		border-radius: var(--radius-sm);
+		letter-spacing: 0.01em;
+	}
+
+	/* Overlay during drag — subtle darken for non-dragged cards */
+	.keys-list.is-dragging .key-card:not(.is-dragged) {
+		transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease;
+	}
+
+	/* Save order indicator */
+	.save-order-indicator {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		justify-content: center;
+		padding: var(--spacing-sm) var(--spacing-md);
+		margin-top: var(--spacing-sm);
+		color: var(--color-text-secondary);
+		font-size: 0.813rem;
+		animation: fadeIn 0.2s ease;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	/* Mobile responsive, larger hit targets */
+	@media (max-width: 600px) {
+		.key-header {
+			flex-direction: column;
+			gap: var(--spacing-sm);
+		}
+
+		.key-actions {
+			align-self: flex-end;
+		}
+
+		.key-title-row h3 {
+			font-size: 1rem;
+		}
+
+		.drag-handle {
+			width: 44px;
+			height: 44px;
+		}
+
+		.account-info-row {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.drop-slot-active {
+			height: 40px;
+		}
 	}
 </style>

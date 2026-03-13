@@ -6,6 +6,13 @@ interface BalanceResult {
   amount?: number;
   currency?: string;
   reason?: string;
+  rateLimits?: {
+    requestsLimit?: number;
+    requestsRemaining?: number;
+    tokensLimit?: number;
+    tokensRemaining?: number;
+  };
+  label?: string;
 }
 
 interface UsageDay {
@@ -108,6 +115,52 @@ async function getOpenAIBalance(apiKey: string): Promise<BalanceResult> {
 }
 
 /**
+ * Fetch Anthropic account info via token counting endpoint
+ * Anthropic doesn't have a public billing API, but we can validate
+ * the key and extract rate limit info from response headers
+ */
+async function getAnthropicBalance(apiKey: string): Promise<BalanceResult> {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages/count_tokens', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-haiku-20240307',
+        messages: [{ role: 'user', content: 'hi' }]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return { available: false, reason: `API returned ${response.status}: ${errorText}` };
+    }
+
+    // Extract rate limit info from headers
+    const rateLimits = {
+      requestsLimit: parseInt(response.headers.get('anthropic-ratelimit-requests-limit') || '0') || undefined,
+      requestsRemaining: parseInt(response.headers.get('anthropic-ratelimit-requests-remaining') || '0') || undefined,
+      tokensLimit: parseInt(response.headers.get('anthropic-ratelimit-tokens-limit') || '0') || undefined,
+      tokensRemaining: parseInt(response.headers.get('anthropic-ratelimit-tokens-remaining') || '0') || undefined
+    };
+
+    return {
+      available: true,
+      rateLimits,
+      label: 'Rate Limits'
+    };
+  } catch (err) {
+    return {
+      available: false,
+      reason: err instanceof Error ? err.message : 'Failed to fetch Anthropic account info'
+    };
+  }
+}
+
+/**
  * Get local usage data from D1 ai_media_generations table
  */
 async function getLocalUsage(
@@ -184,6 +237,9 @@ export const GET: RequestHandler = async ({ params, platform, locals }) => {
       break;
     case 'openai':
       balance = await getOpenAIBalance(apiKey);
+      break;
+    case 'anthropic':
+      balance = await getAnthropicBalance(apiKey);
       break;
     default:
       balance = {
