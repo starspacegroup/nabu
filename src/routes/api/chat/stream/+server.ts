@@ -1,7 +1,7 @@
 import {
 	formatMessagesForOpenAI,
-	getEnabledOpenAIKey,
-	streamChatCompletion
+	getAllEnabledOpenAIKeys,
+	streamChatCompletionWithFallback
 } from '$lib/services/openai-chat';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -79,9 +79,9 @@ export async function POST({ request, platform, locals }: RequestEvent) {
 			throw error(400, 'conversationId is required');
 		}
 
-		// Get enabled OpenAI key
-		const aiKey = await getEnabledOpenAIKey(platform!);
-		if (!aiKey) {
+		// Get all enabled AI keys in priority order
+		const aiKeys = await getAllEnabledOpenAIKeys(platform!);
+		if (aiKeys.length === 0) {
 			throw error(503, 'No OpenAI API key configured');
 		}
 
@@ -113,11 +113,15 @@ export async function POST({ request, platform, locals }: RequestEvent) {
 					const metaData = `data: ${JSON.stringify({ meta: { assistantMessageId } })}\n\n`;
 					controller.enqueue(encoder.encode(metaData));
 
-					// Stream chat completion with selected model
-					for await (const chunk of streamChatCompletion(aiKey.apiKey, formattedMessages, {
+					// Stream with fallback across all AI keys
+					for await (const chunk of streamChatCompletionWithFallback(aiKeys, formattedMessages, {
 						model
 					})) {
-						if (chunk.type === 'content' && chunk.content) {
+						if (chunk.type === 'status' && chunk.status) {
+							// Forward status events to client
+							const statusData = `data: ${JSON.stringify({ status: chunk.status })}\n\n`;
+							controller.enqueue(encoder.encode(statusData));
+						} else if (chunk.type === 'content' && chunk.content) {
 							fullAssistantContent += chunk.content;
 							// Send content as SSE
 							const data = `data: ${JSON.stringify({ content: chunk.content })}\n\n`;
@@ -166,7 +170,8 @@ export async function POST({ request, platform, locals }: RequestEvent) {
 					}
 				} catch (err) {
 					console.error('Streaming error:', err);
-					const errorData = `data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`;
+					const message = err instanceof Error ? err.message : 'Stream failed';
+					const errorData = `data: ${JSON.stringify({ error: message })}\n\n`;
 					controller.enqueue(encoder.encode(errorData));
 				} finally {
 					controller.close();

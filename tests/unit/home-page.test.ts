@@ -22,7 +22,7 @@ describe.skip('Home Page – Marketing Landing', () => {
 
 	it('should render the hero title', () => {
 		render(Page, { props: { data: { user: undefined, hasAIProviders: false } } });
-		const title = screen.getByText(/No brand yet/i);
+		const title = screen.getByText(/Got Brand/i);
 		expect(title).toBeTruthy();
 	});
 

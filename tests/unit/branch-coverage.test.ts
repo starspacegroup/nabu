@@ -1416,7 +1416,12 @@ describe('Chat stream - branch coverage', () => {
         yield { type: 'content', content: 'Hi' };
         yield { type: 'usage', usage: { promptTokens: 10, completionTokens: 5 } };
       })()),
-      formatMessagesForOpenAI: vi.fn((msgs: any[]) => msgs)
+      formatMessagesForOpenAI: vi.fn((msgs: any[]) => msgs),
+      getAllEnabledOpenAIKeys: vi.fn().mockResolvedValue([{ apiKey: 'sk-test', provider: 'openai', id: 'k1', name: 'Test', enabled: true }]),
+      streamChatCompletionWithFallback: vi.fn().mockReturnValue((async function* () {
+        yield { type: 'content', content: 'Hi' };
+        yield { type: 'usage', usage: { promptTokens: 10, completionTokens: 5 } };
+      })())
     }));
 
     vi.doMock('$lib/utils/cost', () => ({

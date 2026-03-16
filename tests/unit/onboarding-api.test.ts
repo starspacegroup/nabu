@@ -27,7 +27,9 @@ vi.mock('$lib/services/onboarding', () => ({
 
 vi.mock('$lib/services/openai-chat', () => ({
   getEnabledOpenAIKey: vi.fn(),
-  streamChatCompletion: vi.fn()
+  streamChatCompletion: vi.fn(),
+  getAllEnabledOpenAIKeys: vi.fn(),
+  streamChatCompletionWithFallback: vi.fn()
 }));
 
 // Helper: create mock platform
@@ -285,10 +287,10 @@ describe('Onboarding API Endpoints', () => {
     });
 
     it('should return 503 when no AI key is configured', async () => {
-      const { getEnabledOpenAIKey } = await import('$lib/services/openai-chat');
+      const { getAllEnabledOpenAIKeys } = await import('$lib/services/openai-chat');
       const { getBrandProfile, addOnboardingMessage, getOnboardingMessages, buildConversationContext } = await import('$lib/services/onboarding');
 
-      vi.mocked(getEnabledOpenAIKey).mockResolvedValueOnce(null);
+      vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValueOnce([]);
       vi.mocked(getBrandProfile).mockResolvedValueOnce({
         id: 'bp-123',
         userId: 'user-123',

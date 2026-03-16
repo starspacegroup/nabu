@@ -190,7 +190,8 @@ describe('OpenAI Chat Service', () => {
 			const mockFetch = vi.fn().mockResolvedValue({
 				ok: false,
 				status: 401,
-				statusText: 'Unauthorized'
+				statusText: 'Unauthorized',
+				text: async () => JSON.stringify({ error: { message: 'Invalid API key' } })
 			});
 
 			globalThis.fetch = mockFetch as any;
@@ -201,7 +202,7 @@ describe('OpenAI Chat Service', () => {
 
 			// Test that the generator throws when we try to iterate
 			const stream = streamChatCompletion('sk-invalid', messages);
-			await expect(stream.next()).rejects.toThrow('OpenAI API error');
+			await expect(stream.next()).rejects.toThrow('Invalid or expired OpenAI API key');
 		});
 	});
 
@@ -322,7 +323,7 @@ describe('OpenAI Chat Service', () => {
 		});
 
 		it('should handle malformed JSON in SSE stream', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
 			const mockFetch = vi.fn().mockResolvedValue({
 				ok: true,
@@ -376,7 +377,7 @@ describe('OpenAI Chat Service', () => {
 
 	describe('createRealtimeSession error handling', () => {
 		it('should throw when client_secret is missing from response', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
 			const mockFetch = vi.fn().mockResolvedValue({
 				ok: true,
@@ -398,7 +399,7 @@ describe('OpenAI Chat Service', () => {
 		});
 
 		it('should throw when client_secret.value is missing', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
 			const mockFetch = vi.fn().mockResolvedValue({
 				ok: true,
@@ -434,7 +435,7 @@ describe('OpenAI Chat Service', () => {
 		});
 
 		it('should handle KV read errors gracefully', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 			const mockKV = {
 				get: vi.fn().mockRejectedValue(new Error('KV error'))
 			};

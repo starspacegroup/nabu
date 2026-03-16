@@ -300,7 +300,7 @@ describe('Onboarding Store', () => {
     });
 
     const sseData = [
-      'data: {"error":"Stream failed"}\n\n'
+      'data: {"error":"OpenAI rate limit exceeded"}\n\n'
     ];
 
     const encoder = new TextEncoder();
@@ -321,7 +321,7 @@ describe('Onboarding Store', () => {
     await sendMessage('test');
 
     const state = get(onboardingStore) as any;
-    expect(state.error).toBe('Stream failed');
+    expect(state.error).toBe('OpenAI rate limit exceeded');
     expect(state.isStreaming).toBe(false);
   });
 

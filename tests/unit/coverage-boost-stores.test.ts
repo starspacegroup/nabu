@@ -515,9 +515,9 @@ describe('Onboarding Store - Extended branch coverage', () => {
     expect(state.profile.onboardingStep).toBe('colors');
   });
 
-  it('sendMessage should handle error event in SSE stream (error swallowed as malformed chunk)', async () => {
-    // json.error throws, but the catch treats non-'Stream failed' errors as malformed chunks and continues
-    const sseData = 'data: {"error":"Server error"}\n\ndata: {"content":"OK"}\n\ndata: [DONE]\n\n';
+  it('sendMessage should propagate server error from SSE stream', async () => {
+    // Server errors in json.error are now properly propagated to the store
+    const sseData = 'data: {"error":"Server error"}\n\n';
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -544,41 +544,7 @@ describe('Onboarding Store - Extended branch coverage', () => {
 
     await sendMessage('test');
     const state = get(onboardingStore) as any;
-    // Error from json.error is caught by the inner try-catch and treated as malformed chunk (continued)
-    expect(state.error).toBeNull();
-    expect(state.isStreaming).toBe(false);
-  });
-
-  it('sendMessage should propagate Stream failed error', async () => {
-    // Only 'Stream failed' errors bypass the malformed-chunk filter
-    const sseData = 'data: {"error":"Stream failed"}\n\n';
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(sseData));
-        controller.close();
-      }
-    });
-
-    globalThis.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      body: stream
-    } as any);
-
-    const { sendMessage, onboardingStore } = await import('$lib/stores/onboarding');
-    onboardingStore.set({
-      profile: { id: 'p1', userId: 'u1' } as any,
-      messages: [],
-      currentStep: 'welcome',
-      isLoading: false,
-      isStreaming: false,
-      error: null
-    });
-
-    await sendMessage('test');
-    const state = get(onboardingStore) as any;
-    expect(state.error).toBe('Stream failed');
+    expect(state.error).toBe('Server error');
     expect(state.isStreaming).toBe(false);
   });
 

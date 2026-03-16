@@ -13,6 +13,7 @@ interface OnboardingState {
   currentStep: OnboardingStep;
   isLoading: boolean;
   isStreaming: boolean;
+  streamingStatus: string;
   error: string | null;
 }
 
@@ -22,6 +23,7 @@ const initialState: OnboardingState = {
   currentStep: 'welcome',
   isLoading: false,
   isStreaming: false,
+  streamingStatus: '',
   error: null
 };
 
@@ -207,11 +209,19 @@ export async function sendMessage(content: string, attachments?: OnboardingAttac
             // Append content to the assistant message
             onboardingStore.update((s) => ({
               ...s,
+              streamingStatus: '',
               messages: s.messages.map((m) =>
                 m.id === assistantMessageId
                   ? { ...m, content: m.content + json.content }
                   : m
               )
+            }));
+          }
+
+          if (json.status) {
+            onboardingStore.update((s) => ({
+              ...s,
+              streamingStatus: json.status.message
             }));
           }
 
@@ -256,8 +266,8 @@ export async function sendMessage(content: string, attachments?: OnboardingAttac
             throw new Error(json.error);
           }
         } catch (parseErr) {
-          // Skip malformed SSE chunks
-          if (parseErr instanceof Error && parseErr.message !== 'Stream failed') {
+          // Skip malformed SSE chunks (JSON parse errors), but re-throw server errors
+          if (parseErr instanceof SyntaxError) {
             continue;
           }
           throw parseErr;
@@ -265,11 +275,12 @@ export async function sendMessage(content: string, attachments?: OnboardingAttac
       }
     }
 
-    onboardingStore.update((s) => ({ ...s, isStreaming: false }));
+    onboardingStore.update((s) => ({ ...s, isStreaming: false, streamingStatus: '' }));
   } catch (err) {
     onboardingStore.update((s) => ({
       ...s,
       isStreaming: false,
+      streamingStatus: '',
       error: err instanceof Error ? err.message : 'Failed to send message'
     }));
   }

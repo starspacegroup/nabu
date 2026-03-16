@@ -49,6 +49,8 @@
 
 	let isLoading = false;
 	let streamingContent = '';
+	let streamingStatus = '';
+	let streamingKeyName = '';
 
 	let input = '';
 	let chatContainer: HTMLDivElement;
@@ -228,12 +230,21 @@
 
 						try {
 							const parsed = JSON.parse(data);
+							if (parsed.error) {
+								throw new Error(parsed.error);
+							}
+							if (parsed.status) {
+								streamingStatus = parsed.status.message;
+								streamingKeyName = parsed.status.keyName;
+							}
 							if (parsed.meta?.assistantMessageId) {
 								assistantMessageId = parsed.meta.assistantMessageId;
 							}
 							if (parsed.content) {
 								assistantContent += parsed.content;
 								streamingContent = assistantContent;
+								// Clear status once content starts flowing
+								streamingStatus = '';
 							}
 							if (parsed.usage) {
 								usageData = {
@@ -261,12 +272,15 @@
 				id: assistantMessageId
 			});
 			streamingContent = '';
+			streamingStatus = '';
+			streamingKeyName = '';
 		} catch (err) {
 			console.error('Send message error:', err);
+			const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
 			// Show error message
 			chatHistoryStore.addMessage(conversationId, {
 				role: 'assistant',
-				content: 'Sorry, I encountered an error. Please try again.'
+				content: `⚠️ ${errorMsg}`
 			});
 		} finally {
 			isLoading = false;
@@ -1159,6 +1173,11 @@
 				</div>
 				<div class="message-bubble">
 					<div class="message-content">{streamingContent}<span class="cursor">|</span></div>
+					{#if streamingKeyName}
+						<div class="message-meta">
+							<span class="streaming-provider">{streamingKeyName}</span>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -1185,11 +1204,15 @@
 					</svg>
 				</div>
 				<div class="message-bubble">
-					<div class="typing-indicator">
-						<span></span>
-						<span></span>
-						<span></span>
-					</div>
+					{#if streamingStatus}
+						<div class="streaming-status">{streamingStatus}</div>
+					{:else}
+						<div class="typing-indicator">
+							<span></span>
+							<span></span>
+							<span></span>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -1657,6 +1680,19 @@
 			transform: translateY(-10px);
 			opacity: 1;
 		}
+	}
+
+	.streaming-status {
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		font-style: italic;
+	}
+
+	.streaming-provider {
+		font-size: 0.7rem;
+		color: var(--color-text-secondary);
+		opacity: 0.8;
 	}
 
 	.unified-input-area {

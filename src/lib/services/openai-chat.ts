@@ -39,7 +39,7 @@ export interface RealtimeSessionResponse {
 }
 
 export interface StreamChunk {
-	type: 'content' | 'usage';
+	type: 'content' | 'usage' | 'status';
 	content?: string;
 	usage?: {
 		promptTokens: number;
@@ -47,6 +47,14 @@ export interface StreamChunk {
 		totalTokens: number;
 	};
 	model?: string;
+	status?: {
+		message: string;
+		keyName: string;
+		keyId: string;
+		model: string;
+		attempt: number;
+		totalKeys: number;
+	};
 }
 
 /**
@@ -76,6 +84,36 @@ export async function getEnabledOpenAIKey(platform: App.Platform): Promise<AIKey
 	} catch (err) {
 		console.error('Failed to get OpenAI key:', err);
 		return null;
+	}
+}
+
+/**
+ * Get all enabled OpenAI API keys from KV storage, in admin-sorted priority order.
+ */
+export async function getAllEnabledOpenAIKeys(platform: App.Platform): Promise<AIKey[]> {
+	try {
+		const keysList = await platform.env.KV.get('ai_keys_list');
+		if (!keysList) {
+			return [];
+		}
+
+		const keyIds = JSON.parse(keysList);
+		const keys: AIKey[] = [];
+
+		for (const keyId of keyIds) {
+			const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
+			if (keyData) {
+				const key = JSON.parse(keyData) as AIKey;
+				if (key.provider === 'openai' && key.enabled !== false) {
+					keys.push(key);
+				}
+			}
+		}
+
+		return keys;
+	} catch (err) {
+		console.error('Failed to get OpenAI keys:', err);
+		return [];
 	}
 }
 
@@ -117,7 +155,13 @@ export async function chatCompletion(
 	});
 
 	if (!response.ok) {
-		throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+		const errorBody = await response.text().catch(() => '');
+		let detail = response.statusText;
+		try {
+			const parsed = JSON.parse(errorBody);
+			detail = parsed?.error?.message || detail;
+		} catch { /* use statusText */ }
+		throw new Error(`OpenAI API error (${response.status}): ${detail}`);
 	}
 
 	const json = await response.json() as {
@@ -159,7 +203,22 @@ export async function* streamChatCompletion(
 	});
 
 	if (!response.ok) {
-		throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+		const errorBody = await response.text().catch(() => '');
+		let detail = response.statusText;
+		try {
+			const parsed = JSON.parse(errorBody);
+			detail = parsed?.error?.message || detail;
+		} catch { /* use statusText */ }
+		if (response.status === 401) {
+			throw new Error('Invalid or expired OpenAI API key. Check your API key configuration.');
+		}
+		if (response.status === 429) {
+			throw new Error('OpenAI rate limit exceeded or insufficient quota. Please try again later.');
+		}
+		if (response.status === 404) {
+			throw new Error(`Model not available: ${model}. Check your OpenAI plan supports this model.`);
+		}
+		throw new Error(`OpenAI API error (${response.status}): ${detail}`);
 	}
 
 	const reader = response.body?.getReader();
@@ -209,6 +268,78 @@ export async function* streamChatCompletion(
 			}
 		}
 	}
+}
+
+/**
+ * Stream chat completion with fallback across multiple AI keys in priority order.
+ * Tries each enabled key and emits status events so the client can show live progress.
+ * Falls back to the next key if the current one fails.
+ */
+export async function* streamChatCompletionWithFallback(
+	keys: AIKey[],
+	messages: ChatMessage[],
+	options: {
+		model?: string;
+		temperature?: number;
+		maxTokens?: number;
+	} = {}
+): AsyncGenerator<StreamChunk, void, unknown> {
+	if (keys.length === 0) {
+		throw new Error('No AI keys configured');
+	}
+
+	const model = options.model || 'gpt-4o';
+	const errors: string[] = [];
+
+	for (let i = 0; i < keys.length; i++) {
+		const key = keys[i];
+		const attempt = i + 1;
+
+		// Emit status: trying this key
+		if (i === 0) {
+			yield {
+				type: 'status',
+				status: {
+					message: `Using ${key.name} (${model})`,
+					keyName: key.name,
+					keyId: key.id,
+					model,
+					attempt,
+					totalKeys: keys.length
+				}
+			};
+		} else {
+			yield {
+				type: 'status',
+				status: {
+					message: `${keys[i - 1].name} failed — trying ${key.name} (attempt ${attempt}/${keys.length})`,
+					keyName: key.name,
+					keyId: key.id,
+					model,
+					attempt,
+					totalKeys: keys.length
+				}
+			};
+		}
+
+		try {
+			for await (const chunk of streamChatCompletion(key.apiKey, messages, options)) {
+				yield chunk;
+			}
+			// Success — we're done
+			return;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			errors.push(`${key.name}: ${msg}`);
+			console.error(`AI key "${key.name}" failed (attempt ${attempt}/${keys.length}):`, msg);
+			// Continue to next key
+		}
+	}
+
+	// All keys failed
+	throw new Error(
+		`All ${keys.length} AI key${keys.length > 1 ? 's' : ''} failed:\n${errors.join('\n')}`
+	);
 }
 
 /**

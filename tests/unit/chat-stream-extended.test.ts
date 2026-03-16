@@ -7,13 +7,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('$lib/services/openai-chat', () => ({
 	formatMessagesForOpenAI: vi.fn((messages) => messages),
 	getEnabledOpenAIKey: vi.fn(),
-	streamChatCompletion: vi.fn()
+	streamChatCompletion: vi.fn(),
+	getAllEnabledOpenAIKeys: vi.fn(),
+	streamChatCompletionWithFallback: vi.fn()
 }));
 
 import {
 	formatMessagesForOpenAI,
 	getEnabledOpenAIKey,
 	streamChatCompletion,
+	getAllEnabledOpenAIKeys,
+	streamChatCompletionWithFallback,
 	type AIKey
 } from '$lib/services/openai-chat';
 import { POST } from '../../src/routes/api/chat/stream/+server';
@@ -70,7 +74,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should return 503 when no OpenAI key is configured', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue(null);
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([]);
 
 		await expect(
 			POST(createMockEvent() as unknown as Parameters<typeof POST>[0])
@@ -78,8 +82,8 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should return streaming response when key is available', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
-		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{ apiKey: 'test-key', id: 'k1', name: 'Test', provider: 'openai', enabled: true } as AIKey]);
+		vi.mocked(streamChatCompletionWithFallback).mockImplementation(async function* () {
 			yield { type: 'content' as const, content: 'Hello' };
 			yield { type: 'content' as const, content: ' world' };
 			yield {
@@ -97,8 +101,8 @@ describe('Chat Stream API - Extended Coverage', () => {
 
 	it('should handle streaming errors gracefully', async () => {
 		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
-		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{ apiKey: 'test-key', id: 'k1', name: 'Test', provider: 'openai', enabled: true } as AIKey]);
+		vi.mocked(streamChatCompletionWithFallback).mockImplementation(async function* () {
 			throw new Error('Stream failed');
 		});
 
@@ -112,9 +116,9 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should format messages before streaming', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{ apiKey: 'test-key', id: 'k1', name: 'Test', provider: 'openai', enabled: true } as AIKey]);
 		vi.mocked(formatMessagesForOpenAI).mockReturnValue([{ role: 'user', content: 'formatted' }]);
-		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+		vi.mocked(streamChatCompletionWithFallback).mockImplementation(async function* () {
 			yield { type: 'content', content: 'response' };
 		});
 
@@ -124,7 +128,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 	});
 
 	it('should re-throw errors with status property', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockRejectedValue({ status: 404, message: 'Not found' });
+		vi.mocked(getAllEnabledOpenAIKeys).mockRejectedValue({ status: 404, message: 'Not found' });
 
 		await expect(
 			POST(createMockEvent() as unknown as Parameters<typeof POST>[0])
@@ -133,7 +137,7 @@ describe('Chat Stream API - Extended Coverage', () => {
 
 	it('should throw 500 for unknown errors', async () => {
 		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-		vi.mocked(getEnabledOpenAIKey).mockRejectedValue(new Error('Unknown error'));
+		vi.mocked(getAllEnabledOpenAIKeys).mockRejectedValue(new Error('Unknown error'));
 
 		await expect(
 			POST(createMockEvent() as unknown as Parameters<typeof POST>[0])
@@ -142,9 +146,9 @@ describe('Chat Stream API - Extended Coverage', () => {
 		consoleSpy.mockRestore();
 	});
 
-	it('should pass model parameter to streamChatCompletion', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
-		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+	it('should pass model parameter to streamChatCompletionWithFallback', async () => {
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{ apiKey: 'test-key', id: 'k1', name: 'Test', provider: 'openai', enabled: true } as AIKey]);
+		vi.mocked(streamChatCompletionWithFallback).mockImplementation(async function* () {
 			yield { type: 'content', content: 'response' };
 		});
 
@@ -158,25 +162,25 @@ describe('Chat Stream API - Extended Coverage', () => {
 			}) as unknown as Parameters<typeof POST>[0]
 		);
 
-		// Verify streamChatCompletion was called with the model option
-		expect(streamChatCompletion).toHaveBeenCalledWith(
-			'test-key',
+		// Verify streamChatCompletionWithFallback was called with keys array and model option
+		expect(streamChatCompletionWithFallback).toHaveBeenCalledWith(
+			expect.any(Array),
 			expect.any(Array),
 			expect.objectContaining({ model: 'gpt-4o-mini' })
 		);
 	});
 
 	it('should use default model when not specified', async () => {
-		vi.mocked(getEnabledOpenAIKey).mockResolvedValue({ apiKey: 'test-key' } as AIKey);
-		vi.mocked(streamChatCompletion).mockImplementation(async function* () {
+		vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{ apiKey: 'test-key', id: 'k1', name: 'Test', provider: 'openai', enabled: true } as AIKey]);
+		vi.mocked(streamChatCompletionWithFallback).mockImplementation(async function* () {
 			yield { type: 'content', content: 'response' };
 		});
 
 		await POST(createMockEvent() as unknown as Parameters<typeof POST>[0]);
 
-		// Verify streamChatCompletion was called with default model
-		expect(streamChatCompletion).toHaveBeenCalledWith(
-			'test-key',
+		// Verify streamChatCompletionWithFallback was called with default model
+		expect(streamChatCompletionWithFallback).toHaveBeenCalledWith(
+			expect.any(Array),
 			expect.any(Array),
 			expect.objectContaining({ model: 'gpt-4o' })
 		);

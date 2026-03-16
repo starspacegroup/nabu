@@ -19,8 +19,8 @@ import type { BrandContentContext } from '$lib/services/onboarding';
 import { updateBrandFieldWithVersion } from '$lib/services/brand';
 import { getBrandTexts, getBrandAssetSummary } from '$lib/services/brand-assets';
 import {
-  getEnabledOpenAIKey,
-  streamChatCompletion,
+  getAllEnabledOpenAIKeys,
+  streamChatCompletionWithFallback,
   chatCompletion
 } from '$lib/services/openai-chat';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
@@ -49,9 +49,9 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(403, 'Forbidden');
   }
 
-  // Get enabled AI key
-  const aiKey = await getEnabledOpenAIKey(platform!);
-  if (!aiKey) {
+  // Get all enabled AI keys in priority order
+  const aiKeys = await getAllEnabledOpenAIKeys(platform!);
+  if (aiKeys.length === 0) {
     throw error(503, 'No AI provider configured. Please configure an OpenAI API key.');
   }
 
@@ -98,12 +98,16 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
       const encoder = new TextEncoder();
 
       try {
-        for await (const chunk of streamChatCompletion(aiKey.apiKey, conversationMessages, {
+        for await (const chunk of streamChatCompletionWithFallback(aiKeys, conversationMessages, {
           model: 'gpt-4o',
           temperature: 0.8,
           maxTokens: 1500
         })) {
-          if (chunk.type === 'content' && chunk.content) {
+          if (chunk.type === 'status' && chunk.status) {
+            // Forward status events to client
+            const statusData = `data: ${JSON.stringify({ status: chunk.status })}\n\n`;
+            controller.enqueue(encoder.encode(statusData));
+          } else if (chunk.type === 'content' && chunk.content) {
             fullContent += chunk.content;
             const data = `data: ${JSON.stringify({ content: chunk.content })}\n\n`;
             controller.enqueue(encoder.encode(data));
@@ -158,7 +162,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
           if (extractionPrompt) {
             const extractionResponse = await chatCompletion(
-              aiKey.apiKey,
+              aiKeys[0].apiKey,
               [{ role: 'system', content: extractionPrompt }],
               { model: 'gpt-4o-mini', temperature: 0.1, maxTokens: 512, jsonMode: true }
             );
@@ -220,7 +224,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
         }
       } catch (err) {
         console.error('Onboarding chat stream error:', err);
-        const errorData = `data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`;
+        const message = err instanceof Error ? err.message : 'Stream failed';
+        const errorData = `data: ${JSON.stringify({ error: message })}\n\n`;
         controller.enqueue(encoder.encode(errorData));
       } finally {
         controller.close();

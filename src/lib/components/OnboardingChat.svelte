@@ -464,6 +464,13 @@
 					</div>
 				{/each}
 
+				{#if $onboardingStore.streamingStatus}
+					<div class="streaming-status-bar" in:fade={{ duration: 150 }}>
+						<span class="status-icon">⟳</span>
+						<span class="status-text">{$onboardingStore.streamingStatus}</span>
+					</div>
+				{/if}
+
 				{#if stepTransition}
 					<div class="step-transition" in:fly={{ y: 20, duration: 400 }} out:fade={{ duration: 300 }}>
 						<span class="transition-icon">✅</span>
@@ -937,6 +944,26 @@
 	@keyframes blink {
 		0%, 100% { opacity: 1; }
 		50% { opacity: 0; }
+	}
+
+	.streaming-status-bar {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-xs) var(--spacing-md);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		font-style: italic;
+	}
+
+	.streaming-status-bar .status-icon {
+		animation: spin 1s linear infinite;
+		display: inline-block;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	/* Error message */

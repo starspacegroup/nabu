@@ -57,13 +57,12 @@
 				Brand Building &amp; Marketing Automation
 			</div>
 			<h1 class="hero-title">
-				No brand yet?<br />
-				<span class="hero-gradient">Start here.</span>
+				Got Brand?
 			</h1>
 			<p class="hero-description">
 				Whether you're starting from zero or refining what you already have, Nabu walks you through
-				building a complete brand identity — logo, colors, voice, typography — then helps you
-				market it with automated content across every social platform.
+				building a brand's complete identity — logo, colors, voice, typography — then helps you
+				market it with content connected and automated across multiple platforms.
 			</p>
 			<div class="hero-actions">
 				{#if data.user}

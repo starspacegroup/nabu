@@ -64,7 +64,9 @@ vi.mock('$lib/utils/attachments', () => ({
 vi.mock('$lib/services/openai-chat', () => ({
   formatMessagesForOpenAI: vi.fn().mockReturnValue([]),
   getEnabledOpenAIKey: vi.fn(),
-  streamChatCompletion: vi.fn()
+  streamChatCompletion: vi.fn(),
+  getAllEnabledOpenAIKeys: vi.fn(),
+  streamChatCompletionWithFallback: vi.fn()
 }));
 
 vi.mock('$lib/utils/cost', () => ({
@@ -110,7 +112,7 @@ import {
 
 import { createFileArchiveEntry } from '$lib/services/file-archive';
 import { getAttachmentType } from '$lib/utils/attachments';
-import { getEnabledOpenAIKey, streamChatCompletion } from '$lib/services/openai-chat';
+import { getEnabledOpenAIKey, streamChatCompletion, getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } from '$lib/services/openai-chat';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -1101,7 +1103,7 @@ describe('Chat Stream API - uncovered branches', () => {
 
   it('POST: should throw 503 when no AI key configured', async () => {
     const { POST } = await import('../../src/routes/api/chat/stream/+server');
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue(null);
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([]);
     try {
       await POST({
         request: new Request('http://localhost', {

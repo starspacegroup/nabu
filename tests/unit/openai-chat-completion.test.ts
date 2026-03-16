@@ -111,13 +111,14 @@ describe('chatCompletion', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
-      statusText: 'Unauthorized'
+      statusText: 'Unauthorized',
+      text: async () => JSON.stringify({ error: { message: 'Invalid API key' } })
     });
 
     const { chatCompletion } = await import('$lib/services/openai-chat');
     await expect(
       chatCompletion('sk-bad', [{ role: 'user', content: 'Hello' }])
-    ).rejects.toThrow('OpenAI API error: 401 Unauthorized');
+    ).rejects.toThrow('OpenAI API error (401): Invalid API key');
   });
 
   it('should return empty string when choices is empty', async () => {

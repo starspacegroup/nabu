@@ -44,7 +44,9 @@ globalThis.Response = SpyResponse;
 vi.mock('$lib/services/openai-chat', () => ({
   getEnabledOpenAIKey: vi.fn(),
   streamChatCompletion: vi.fn(),
-  formatMessagesForOpenAI: vi.fn((msgs: any[]) => msgs)
+  formatMessagesForOpenAI: vi.fn((msgs: any[]) => msgs),
+  getAllEnabledOpenAIKeys: vi.fn(),
+  streamChatCompletionWithFallback: vi.fn()
 }));
 
 vi.mock('$lib/services/onboarding', () => ({
@@ -107,12 +109,6 @@ describe('POST /api/chat/stream - Extended coverage', () => {
   it('should return 400 when conversationId is missing', async () => {
     const { POST } = await import('../../src/routes/api/chat/stream/+server');
 
-    const { getEnabledOpenAIKey } = await import('$lib/services/openai-chat');
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
-      apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
-
     const request = new Request('http://localhost', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,14 +144,15 @@ describe('POST /api/chat/stream - Extended coverage', () => {
 
   it('should stream responses with content and usage chunks', async () => {
     const { POST } = await import('../../src/routes/api/chat/stream/+server');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
 
     // Create an async iterator that yields content then usage
     async function* mockStream() {
@@ -167,7 +164,7 @@ describe('POST /api/chat/stream - Extended coverage', () => {
         usage: { promptTokens: 10, completionTokens: 5 }
       };
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const request = new Request('http://localhost', {
       method: 'POST',
@@ -201,19 +198,20 @@ describe('POST /api/chat/stream - Extended coverage', () => {
 
   it('should handle unexpected throw during stream setup', async () => {
     const { POST } = await import('../../src/routes/api/chat/stream/+server');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
 
     async function* mockStream(): AsyncGenerator<any> {
       throw new Error('Stream blew up');
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const request = new Request('http://localhost', {
       method: 'POST',
@@ -238,19 +236,20 @@ describe('POST /api/chat/stream - Extended coverage', () => {
 
   it('should not persist when no platform.context', async () => {
     const { POST } = await import('../../src/routes/api/chat/stream/+server');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
 
     async function* mockStream() {
       yield { type: 'content', content: 'Hi' };
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const platformNoContext = { ...mockPlatform, context: undefined };
     const request = new Request('http://localhost', {
@@ -380,14 +379,14 @@ describe('POST /api/onboarding/chat', () => {
 
   it('should return 503 when no AI key available', async () => {
     const { getBrandProfile } = await import('$lib/services/onboarding');
-    const { getEnabledOpenAIKey } = await import('$lib/services/openai-chat');
+    const { getAllEnabledOpenAIKeys } = await import('$lib/services/openai-chat');
 
     vi.mocked(getBrandProfile).mockResolvedValue({
       id: 'p1',
       userId: 'user-123',
       onboardingStep: 'welcome'
     } as any);
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue(null);
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([]);
 
     const { POST } = await import('../../src/routes/api/onboarding/chat/+server');
     try {
@@ -414,7 +413,7 @@ describe('POST /api/onboarding/chat', () => {
       buildConversationContext,
       getNextStep
     } = await import('$lib/services/onboarding');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
@@ -423,10 +422,11 @@ describe('POST /api/onboarding/chat', () => {
       userId: 'user-123',
       onboardingStep: 'welcome'
     } as any);
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
     vi.mocked(addOnboardingMessage).mockResolvedValue({ id: 'msg-1' } as any);
     vi.mocked(getOnboardingMessages).mockResolvedValue([]);
     vi.mocked(buildConversationContext).mockReturnValue([]);
@@ -440,7 +440,7 @@ describe('POST /api/onboarding/chat', () => {
         usage: { promptTokens: 10, completionTokens: 5 }
       };
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const { POST } = await import('../../src/routes/api/onboarding/chat/+server');
     const response = await POST({
@@ -472,7 +472,7 @@ describe('POST /api/onboarding/chat', () => {
       getNextStep,
       STEP_COMPLETE_MARKER
     } = await import('$lib/services/onboarding');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
@@ -481,10 +481,11 @@ describe('POST /api/onboarding/chat', () => {
       userId: 'user-123',
       onboardingStep: 'welcome'
     } as any);
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
     vi.mocked(addOnboardingMessage).mockResolvedValue({ id: 'msg-1' } as any);
     vi.mocked(getOnboardingMessages).mockResolvedValue([]);
     vi.mocked(buildConversationContext).mockReturnValue([]);
@@ -493,7 +494,7 @@ describe('POST /api/onboarding/chat', () => {
     async function* mockStream() {
       yield { type: 'content', content: `Great!${STEP_COMPLETE_MARKER}` };
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const { POST } = await import('../../src/routes/api/onboarding/chat/+server');
     const response = await POST({
@@ -519,7 +520,7 @@ describe('POST /api/onboarding/chat', () => {
       getOnboardingMessages,
       buildConversationContext
     } = await import('$lib/services/onboarding');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
@@ -528,10 +529,11 @@ describe('POST /api/onboarding/chat', () => {
       userId: 'user-123',
       onboardingStep: 'welcome'
     } as any);
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
     vi.mocked(addOnboardingMessage).mockResolvedValue({ id: 'msg-1' } as any);
     vi.mocked(getOnboardingMessages).mockResolvedValue([]);
     vi.mocked(buildConversationContext).mockReturnValue([]);
@@ -539,7 +541,7 @@ describe('POST /api/onboarding/chat', () => {
     async function* mockStream(): AsyncGenerator<any> {
       throw new Error('AI error');
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const { POST } = await import('../../src/routes/api/onboarding/chat/+server');
     const response = await POST({
@@ -554,7 +556,7 @@ describe('POST /api/onboarding/chat', () => {
 
     const result = await readStreamResponse(response);
 
-    expect(result).toContain('"error":"Stream failed"');
+    expect(result).toContain('"error":"AI error"');
   });
 
   it('should not persist when no platform.context', async () => {
@@ -564,7 +566,7 @@ describe('POST /api/onboarding/chat', () => {
       getOnboardingMessages,
       buildConversationContext
     } = await import('$lib/services/onboarding');
-    const { getEnabledOpenAIKey, streamChatCompletion } = await import(
+    const { getAllEnabledOpenAIKeys, streamChatCompletionWithFallback } = await import(
       '$lib/services/openai-chat'
     );
 
@@ -573,10 +575,11 @@ describe('POST /api/onboarding/chat', () => {
       userId: 'user-123',
       onboardingStep: 'welcome'
     } as any);
-    vi.mocked(getEnabledOpenAIKey).mockResolvedValue({
+    vi.mocked(getAllEnabledOpenAIKeys).mockResolvedValue([{
       apiKey: 'sk-test',
-      provider: 'openai'
-    } as any);
+      provider: 'openai',
+      id: 'k1', name: 'Test', enabled: true
+    }] as any);
     vi.mocked(addOnboardingMessage).mockResolvedValue({ id: 'msg-1' } as any);
     vi.mocked(getOnboardingMessages).mockResolvedValue([]);
     vi.mocked(buildConversationContext).mockReturnValue([]);
@@ -584,7 +587,7 @@ describe('POST /api/onboarding/chat', () => {
     async function* mockStream() {
       yield { type: 'content', content: 'Hello' };
     }
-    vi.mocked(streamChatCompletion).mockReturnValue(mockStream() as any);
+    vi.mocked(streamChatCompletionWithFallback).mockReturnValue(mockStream() as any);
 
     const { POST } = await import('../../src/routes/api/onboarding/chat/+server');
     const response = await POST({
