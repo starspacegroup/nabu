@@ -10,8 +10,8 @@ import {
   getSystemPromptForStep
 } from '$lib/services/onboarding';
 import {
-  getEnabledOpenAIKey,
-  streamChatCompletion
+  getFirstEnabledAIKey,
+  streamChatCompletionWithFallback
 } from '$lib/services/openai-chat';
 
 export const POST: RequestHandler = async ({ locals, platform }) => {
@@ -22,8 +22,8 @@ export const POST: RequestHandler = async ({ locals, platform }) => {
   // Create a new brand profile
   const profile = await createBrandProfile(platform!.env.DB, locals.user.id);
 
-  // Get AI key
-  const aiKey = await getEnabledOpenAIKey(platform!);
+  // Get AI key (any supported provider)
+  const aiKey = await getFirstEnabledAIKey(platform!);
   if (!aiKey) {
     // Still return the profile even without AI — user can configure later
     return json({
@@ -38,8 +38,8 @@ export const POST: RequestHandler = async ({ locals, platform }) => {
   let welcomeMessage = '';
 
   try {
-    for await (const chunk of streamChatCompletion(
-      aiKey.apiKey,
+    for await (const chunk of streamChatCompletionWithFallback(
+      [aiKey],
       [
         { role: 'system', content: systemPrompt },
         {
@@ -48,7 +48,7 @@ export const POST: RequestHandler = async ({ locals, platform }) => {
             "I'm starting the brand onboarding process. Please welcome me and ask whether I have an existing brand or am starting from scratch."
         }
       ],
-      { model: 'gpt-4o', temperature: 0.8, maxTokens: 800 }
+      { temperature: 0.8, maxTokens: 800 }
     )) {
       if (chunk.type === 'content' && chunk.content) {
         welcomeMessage += chunk.content;

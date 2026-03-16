@@ -19,9 +19,9 @@ import type { BrandContentContext } from '$lib/services/onboarding';
 import { updateBrandFieldWithVersion } from '$lib/services/brand';
 import { getBrandTexts, getBrandAssetSummary } from '$lib/services/brand-assets';
 import {
-  getAllEnabledOpenAIKeys,
+  getAllEnabledAIKeys,
   streamChatCompletionWithFallback,
-  chatCompletion
+  chatCompletionWithKey
 } from '$lib/services/openai-chat';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
 import type { OnboardingStep } from '$lib/types/onboarding';
@@ -49,10 +49,10 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(403, 'Forbidden');
   }
 
-  // Get all enabled AI keys in priority order
-  const aiKeys = await getAllEnabledOpenAIKeys(platform!);
+  // Get all enabled AI keys in priority order (any supported provider)
+  const aiKeys = await getAllEnabledAIKeys(platform!);
   if (aiKeys.length === 0) {
-    throw error(503, 'No AI provider configured. Please configure an OpenAI API key.');
+    throw error(503, 'No AI provider configured. Add an API key in Admin → AI Keys.');
   }
 
   // Persist user message (with attachments metadata if any)
@@ -99,7 +99,6 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
       try {
         for await (const chunk of streamChatCompletionWithFallback(aiKeys, conversationMessages, {
-          model: 'gpt-4o',
           temperature: 0.8,
           maxTokens: 1500
         })) {
@@ -161,10 +160,10 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
           );
 
           if (extractionPrompt) {
-            const extractionResponse = await chatCompletion(
-              aiKeys[0].apiKey,
+            const extractionResponse = await chatCompletionWithKey(
+              aiKeys[0],
               [{ role: 'system', content: extractionPrompt }],
-              { model: 'gpt-4o-mini', temperature: 0.1, maxTokens: 512, jsonMode: true }
+              { temperature: 0.1, maxTokens: 512, jsonMode: true }
             );
 
             extracted = parseExtractionResponse(extractionResponse);

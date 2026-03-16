@@ -18,7 +18,7 @@ export const load: ServerLoad = async ({ platform, locals, params }) => {
           const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
           if (keyData) {
             const key = JSON.parse(keyData);
-            if (key.enabled !== false && key.provider === 'openai') {
+            if (key.enabled !== false && (key.provider === 'openai' || key.provider === 'anthropic')) {
               hasAIProviders = true;
               break;
             }

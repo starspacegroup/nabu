@@ -232,7 +232,44 @@ export const MODEL_PRICING: Record<
 		outputPer1M: 2.40,
 		type: 'voice',
 		displayName: 'GPT-4o mini Realtime'
-	}
+	},
+	// ── Anthropic Claude models ──
+	'claude-sonnet-4-20250514': {
+		inputPer1M: 3.0,
+		outputPer1M: 15.0,
+		type: 'text' as const,
+		displayName: 'Claude Sonnet 4'
+	},
+	'claude-3-5-sonnet-20241022': {
+		inputPer1M: 3.0,
+		outputPer1M: 15.0,
+		type: 'text' as const,
+		displayName: 'Claude 3.5 Sonnet'
+	},
+	'claude-3-5-sonnet-latest': {
+		inputPer1M: 3.0,
+		outputPer1M: 15.0,
+		type: 'text' as const,
+		displayName: 'Claude 3.5 Sonnet'
+	},
+	'claude-3-opus-20240229': {
+		inputPer1M: 15.0,
+		outputPer1M: 75.0,
+		type: 'text' as const,
+		displayName: 'Claude 3 Opus'
+	},
+	'claude-3-haiku-20240307': {
+		inputPer1M: 0.25,
+		outputPer1M: 1.25,
+		type: 'text' as const,
+		displayName: 'Claude 3 Haiku'
+	},
+	'claude-3-5-haiku-20241022': {
+		inputPer1M: 1.0,
+		outputPer1M: 5.0,
+		type: 'text' as const,
+		displayName: 'Claude 3.5 Haiku'
+	},
 };
 
 // Default pricing for unknown models (use gpt-4o pricing as fallback)

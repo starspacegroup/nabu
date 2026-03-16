@@ -6,6 +6,7 @@
 
 	interface ModelWithPricing {
 		id: string;
+		displayName?: string;
 		pricing?: {
 			input: number;
 			output: number;
@@ -339,20 +340,26 @@
 	let modelsLoadedFromApi = false;
 
 	const providers = [
-		{ value: 'openai', label: 'OpenAI', models: [] as string[] },
+		{ value: 'openai', label: 'OpenAI', models: [] as Array<{id: string, displayName: string, pricing?: {input: number, output: number, cached?: number}}> },
 		{
 			value: 'anthropic',
 			label: 'Anthropic',
-			models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku']
+			models: [
+				{ id: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4', pricing: { input: 3, output: 15 } },
+				{ id: 'claude-3-5-sonnet-20241022', displayName: 'Claude 3.5 Sonnet', pricing: { input: 3, output: 15 } },
+				{ id: 'claude-3-5-haiku-20241022', displayName: 'Claude 3.5 Haiku', pricing: { input: 1, output: 5 } },
+				{ id: 'claude-3-opus-20240229', displayName: 'Claude 3 Opus', pricing: { input: 15, output: 75 } },
+				{ id: 'claude-3-haiku-20240307', displayName: 'Claude 3 Haiku', pricing: { input: 0.25, output: 1.25 } }
+			]
 		},
-		{ value: 'google', label: 'Google (Gemini)', models: ['gemini-pro', 'gemini-pro-vision'] },
+		{ value: 'google', label: 'Google (Gemini)', models: [{id: 'gemini-pro', displayName: 'Gemini Pro'}, {id: 'gemini-pro-vision', displayName: 'Gemini Pro Vision'}] },
 		{
 			value: 'mistral',
 			label: 'Mistral AI',
-			models: ['mistral-large', 'mistral-medium', 'mistral-small']
+			models: [{id: 'mistral-large', displayName: 'Mistral Large'}, {id: 'mistral-medium', displayName: 'Mistral Medium'}, {id: 'mistral-small', displayName: 'Mistral Small'}]
 		},
-		{ value: 'cohere', label: 'Cohere', models: ['command', 'command-light'] },
-		{ value: 'wavespeed', label: 'WaveSpeed AI', models: [] as string[] }
+		{ value: 'cohere', label: 'Cohere', models: [{id: 'command', displayName: 'Command'}, {id: 'command-light', displayName: 'Command Light'}] },
+		{ value: 'wavespeed', label: 'WaveSpeed AI', models: [] as Array<{id: string, displayName: string, pricing?: {input: number, output: number, cached?: number}}> }
 	];
 
 	// Format pricing for display
@@ -460,7 +467,7 @@
 			? openaiChatModels.filter((m) => m.pricing)
 			: providers
 					.find((p) => p.value === formData.provider)
-					?.models.map((m) => ({ id: m, pricing: undefined, ownedBy: '', created: 0 })) || [];
+					?.models.map((m) => ({ id: m.id, displayName: m.displayName, pricing: m.pricing, ownedBy: '', created: 0 })) || [];
 
 	// Get voice models with pricing only
 	$: filteredVoiceModels = openaiVoiceModels.filter((m) => m.pricing || m.audioPricing);
@@ -681,9 +688,21 @@
 		showForm = true;
 		editingKey = key;
 		// Support both old single model format and new multiple models format
-		const existingModels = key.models || (key.model ? [key.model] : []);
+		let existingModels = key.models || (key.model ? [key.model] : []);
 		const existingVoiceModels = key.voiceModels || (key.voiceModel ? [key.voiceModel] : []);
 		const existingVideoModels = key.videoModels || [];
+
+		// Migrate legacy short Anthropic model names to full API IDs
+		if (key.provider === 'anthropic') {
+			const aliasMap: Record<string, string> = {
+				'claude-3-opus': 'claude-3-opus-20240229',
+				'claude-3-sonnet': 'claude-3-5-sonnet-20241022',
+				'claude-3-haiku': 'claude-3-haiku-20240307',
+				'claude-3.5-sonnet': 'claude-3-5-sonnet-20241022',
+				'claude-3.5-haiku': 'claude-3-5-haiku-20241022'
+			};
+			existingModels = existingModels.map((m: string) => aliasMap[m] || m);
+		}
 		formData = {
 			name: key.name,
 			provider: key.provider,
@@ -1744,7 +1763,7 @@
 									on:click={() => toggleModel(model.id)}
 								>
 									<div class="model-card-header">
-										<span class="model-name">{model.id}</span>
+										<span class="model-name">{model.displayName || model.id}</span>
 										<label class="toggle-switch-sm">
 											<input
 												type="checkbox"
@@ -1754,6 +1773,17 @@
 											<span class="slider-sm"></span>
 										</label>
 									</div>
+									<span class="model-api-id">{model.id}</span>
+									{#if model.pricing}
+										<div class="model-pricing">
+											<span class="price-tag">
+												<span class="price-label">In:</span> ${model.pricing.input}/M
+											</span>
+											<span class="price-tag">
+												<span class="price-label">Out:</span> ${model.pricing.output}/M
+											</span>
+										</div>
+									{/if}
 								</button>
 							{/each}
 						</div>
@@ -2507,7 +2537,7 @@
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: var(--spacing-sm);
-		max-height: 280px;
+		max-height: 480px;
 		overflow-y: auto;
 		padding: var(--spacing-xs);
 	}
@@ -2515,13 +2545,14 @@
 	.model-card {
 		display: flex;
 		flex-direction: column;
-		padding: var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 		background: var(--color-background);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
 		cursor: pointer;
 		transition: all var(--transition-fast);
 		text-align: left;
+		gap: 0;
 	}
 
 	.model-card:hover {
@@ -2542,23 +2573,33 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: var(--spacing-xs);
+		gap: var(--spacing-sm);
 	}
 
 	.model-name {
-		font-size: 0.813rem;
-		font-weight: 500;
+		font-size: 0.875rem;
+		font-weight: 600;
 		color: var(--color-text);
+		flex: 1;
+		word-break: break-word;
+	}
+
+	.model-api-id {
+		font-size: 0.688rem;
+		color: var(--color-text-secondary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		flex: 1;
+		margin-top: 2px;
+		opacity: 0.7;
+		font-family: monospace;
 	}
 
 	.model-pricing {
 		display: flex;
-		flex-direction: column;
-		gap: 2px;
+		flex-direction: row;
+		gap: var(--spacing-xs);
+		margin-top: var(--spacing-xs);
 	}
 
 	.price-row {
@@ -2577,11 +2618,11 @@
 	.price-tag {
 		display: inline-flex;
 		align-items: center;
-		gap: 2px;
-		font-size: 0.688rem;
+		gap: 3px;
+		font-size: 0.75rem;
 		color: var(--color-text-secondary);
 		background: var(--color-surface);
-		padding: 1px 4px;
+		padding: 2px 6px;
 		border-radius: var(--radius-sm);
 		font-family: monospace;
 	}
@@ -2603,7 +2644,8 @@
 
 	.price-label {
 		font-weight: 500;
-		opacity: 0.7;
+		opacity: 0.6;
+		font-family: inherit;
 	}
 
 	.loading-hint {
@@ -2763,7 +2805,7 @@
 		}
 
 		.model-grid {
-			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 		}
 
 		.section-header {

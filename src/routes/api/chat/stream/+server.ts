@@ -1,6 +1,6 @@
 import {
 	formatMessagesForOpenAI,
-	getAllEnabledOpenAIKeys,
+	getAllEnabledAIKeys,
 	streamChatCompletionWithFallback
 } from '$lib/services/openai-chat';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
@@ -79,10 +79,10 @@ export async function POST({ request, platform, locals }: RequestEvent) {
 			throw error(400, 'conversationId is required');
 		}
 
-		// Get all enabled AI keys in priority order
-		const aiKeys = await getAllEnabledOpenAIKeys(platform!);
+		// Get all enabled AI keys in priority order (any supported provider)
+		const aiKeys = await getAllEnabledAIKeys(platform!);
 		if (aiKeys.length === 0) {
-			throw error(503, 'No OpenAI API key configured');
+			throw error(503, 'No AI provider configured. Add an API key in Admin → AI Keys.');
 		}
 
 		// Use requested model or default to gpt-4o

@@ -8,6 +8,7 @@ import {
 } from '$lib/services/ai-text-generation';
 import { getBrandTexts } from '$lib/services/brand-assets';
 import { getBrandProfileForUser } from '$lib/services/brand';
+import { getFirstEnabledAIKey, chatCompletionWithKey } from '$lib/services/openai-chat';
 
 /**
  * GET /api/brand/assets/generate-text
@@ -51,10 +52,10 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(404, 'Brand profile not found');
   }
 
-  // Get OpenAI API key
-  const apiKey = await getOpenAIKey(platform);
-  if (!apiKey) {
-    throw error(400, 'No OpenAI API key configured. Add one in Admin → AI Keys.');
+  // Get AI key (any supported provider)
+  const aiKey = await getFirstEnabledAIKey(platform);
+  if (!aiKey) {
+    throw error(400, 'No AI provider configured. Add one in Admin → AI Keys.');
   }
 
   // Load existing text assets for context
