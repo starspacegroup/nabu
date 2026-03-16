@@ -470,7 +470,7 @@
 <div class="brands-page">
 	<header class="page-header">
 		<div class="header-left">
-			<h1 class="page-title">Got Brand?</h1>
+			<h1 class="page-title">Brands</h1>
 			<p class="page-subtitle">Manage your brand profiles</p>
 		</div>
 		<div class="header-actions">
