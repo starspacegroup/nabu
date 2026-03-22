@@ -548,13 +548,6 @@
 		margin: 0 0 var(--spacing-lg);
 	}
 
-	.hero-gradient {
-		background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
 	.hero-description {
 		font-size: 1.05rem;
 		line-height: 1.7;
