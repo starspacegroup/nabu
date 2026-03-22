@@ -156,6 +156,10 @@
 			cmd.description.toLowerCase().includes(query.toLowerCase())
 	);
 
+	$: if (browser) {
+		document.body.style.overflow = show ? 'hidden' : '';
+	}
+
 	$: if (show && !previousShow) {
 		// Only reset when transitioning from closed to open
 		previousShow = true;
@@ -232,6 +236,32 @@
 		endPreview();
 		show = false;
 	}
+
+	let commandsEl: HTMLDivElement;
+
+	function handleBackdropWheel(e: WheelEvent) {
+		e.preventDefault();
+		// Redirect all scrolling into the commands list
+		if (commandsEl) {
+			commandsEl.scrollTop += e.deltaY;
+		}
+	}
+
+	let touchStartY = 0;
+
+	function handleTouchStart(e: TouchEvent) {
+		touchStartY = e.touches[0].clientY;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		e.preventDefault();
+		// Redirect all touch scrolling into the commands list
+		if (commandsEl) {
+			const deltaY = touchStartY - e.touches[0].clientY;
+			commandsEl.scrollTop += deltaY;
+			touchStartY = e.touches[0].clientY;
+		}
+	}
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -240,6 +270,9 @@
 	<div
 		class="backdrop"
 		on:click={handleBackdropClick}
+		on:wheel|nonpassive={handleBackdropWheel}
+		on:touchstart|nonpassive={handleTouchStart}
+		on:touchmove|nonpassive={handleTouchMove}
 		role="presentation"
 		on:keydown={(e) => e.key === 'Escape' && closeCommandPalette()}
 	>
@@ -268,7 +301,7 @@
 				/>
 			</div>
 
-			<div class="commands">
+			<div class="commands" bind:this={commandsEl}>
 				{#each filteredCommands as command, i}
 					<button
 						class="command"
@@ -338,6 +371,7 @@
 		padding-top: 20vh;
 		z-index: 1000;
 		animation: fadeIn 0.2s ease;
+		overscroll-behavior: contain;
 	}
 
 	@keyframes fadeIn {
