@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 
 	const navItems = [
 		{ path: '/admin', label: 'Dashboard', icon: 'home' },
@@ -9,10 +10,41 @@
 		{ path: '/admin/ai-keys', label: 'AI Keys', icon: 'sparkles' },
 		{ path: '/admin/cms', label: 'CMS', icon: 'document' }
 	];
+
+	let sidebarOpen = false;
+
+	function toggleSidebar() {
+		sidebarOpen = !sidebarOpen;
+	}
+
+	// Close sidebar on navigation
+	afterNavigate(() => {
+		sidebarOpen = false;
+	});
 </script>
 
 <div class="admin-layout">
-	<aside class="admin-sidebar">
+	<button class="mobile-menu-btn" on:click={toggleSidebar} aria-label="Toggle navigation menu">
+		{#if sidebarOpen}
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M18 6L6 18M6 6l12 12" />
+			</svg>
+		{:else}
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<line x1="3" y1="6" x2="21" y2="6" />
+				<line x1="3" y1="12" x2="21" y2="12" />
+				<line x1="3" y1="18" x2="21" y2="18" />
+			</svg>
+		{/if}
+	</button>
+
+	{#if sidebarOpen}
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div class="sidebar-overlay" on:click={() => (sidebarOpen = false)}></div>
+	{/if}
+
+	<aside class="admin-sidebar" class:open={sidebarOpen}>
 		<h2 class="admin-title">Admin Settings</h2>
 		<nav class="admin-nav">
 			{#each navItems as item}
@@ -130,36 +162,81 @@
 		background: var(--color-background);
 	}
 
-	.admin-sidebar {
-		width: 100%;
+	/* Mobile hamburger button */
+	.mobile-menu-btn {
+		position: fixed;
+		top: var(--spacing-sm);
+		left: var(--spacing-sm);
+		z-index: 1002;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border: none;
+		border-radius: var(--radius-md);
 		background: var(--color-surface);
-		border-bottom: 1px solid var(--color-border);
-		padding: var(--spacing-md);
+		color: var(--color-text);
+		cursor: pointer;
+		transition: background var(--transition-fast);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.mobile-menu-btn:hover {
+		background: var(--color-surface-hover);
+	}
+
+	/* Overlay behind sidebar on mobile */
+	.sidebar-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 999;
+	}
+
+	.admin-sidebar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		width: 260px;
+		background: var(--color-surface);
+		border-right: 1px solid var(--color-border);
+		padding: var(--spacing-xl);
+		z-index: 1001;
+		transform: translateX(-100%);
+		transition: transform var(--transition-base);
+		overflow-y: auto;
+	}
+
+	.admin-sidebar.open {
+		transform: translateX(0);
 	}
 
 	.admin-title {
 		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--color-text);
-		margin-bottom: var(--spacing-md);
+		margin-bottom: var(--spacing-xl);
+		padding-top: var(--spacing-lg);
 	}
 
 	.admin-nav {
 		display: flex;
-		flex-direction: row;
-		overflow-x: auto;
-		gap: var(--spacing-sm);
+		flex-direction: column;
+		gap: var(--spacing-xs);
 	}
 
 	.nav-item {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
-		padding: var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border-radius: var(--radius-md);
 		color: var(--color-text-secondary);
 		text-decoration: none;
 		transition: all var(--transition-fast);
+		font-size: 0.9rem;
 	}
 
 	.nav-item:hover {
@@ -173,7 +250,7 @@
 	}
 
 	.nav-item span {
-		display: none;
+		display: inline;
 	}
 
 	.nav-icon {
@@ -183,37 +260,42 @@
 	.admin-content {
 		flex: 1;
 		padding: var(--spacing-md);
-		max-width: 1200px;
+		padding-top: calc(var(--spacing-md) + 48px);
+		max-width: 100%;
+		width: 100%;
+		box-sizing: border-box;
+		overflow-x: hidden;
 	}
 
 	@media (min-width: 769px) {
+		.mobile-menu-btn {
+			display: none;
+		}
+
+		.sidebar-overlay {
+			display: none;
+		}
+
 		.admin-layout {
 			flex-direction: row;
 		}
 
 		.admin-sidebar {
-			width: 250px;
-			border-bottom: none;
-			border-right: 1px solid var(--color-border);
-			padding: var(--spacing-xl);
+			position: sticky;
+			top: 65px;
+			height: calc(100vh - 65px);
+			transform: none;
+			flex-shrink: 0;
 		}
 
 		.admin-title {
+			padding-top: 0;
 			font-size: 1.5rem;
-			margin-bottom: var(--spacing-xl);
-		}
-
-		.admin-nav {
-			flex-direction: column;
-			overflow-x: visible;
-		}
-
-		.nav-item span {
-			display: inline;
 		}
 
 		.admin-content {
 			padding: var(--spacing-2xl);
+			padding-top: var(--spacing-2xl);
 		}
 	}
 </style>

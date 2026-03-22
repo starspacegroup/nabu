@@ -1843,11 +1843,11 @@
 	}
 
 	.page-header {
-		margin-bottom: var(--spacing-2xl);
+		margin-bottom: var(--spacing-lg);
 	}
 
 	.page-header h1 {
-		font-size: 2rem;
+		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--color-text);
 		margin-bottom: var(--spacing-sm);
@@ -1855,7 +1855,7 @@
 
 	.page-description {
 		color: var(--color-text-secondary);
-		font-size: 1.125rem;
+		font-size: 0.875rem;
 	}
 
 	.page-actions {
@@ -2001,6 +2001,8 @@
 		justify-content: space-between;
 		align-items: flex-start;
 		margin-bottom: var(--spacing-md);
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
 	}
 
 	.key-info {
@@ -2273,21 +2275,19 @@
 
 	.modal-overlay {
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
+		inset: 0;
 		background: rgba(0, 0, 0, 0.5);
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		justify-content: center;
-		z-index: 1000;
+		z-index: 1100;
+		padding: 0;
 	}
 
 	.modal {
 		background: var(--color-surface);
-		border-radius: var(--radius-lg);
-		width: 90%;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		width: 100%;
 		max-width: 500px;
 		max-height: 90vh;
 		overflow: auto;
@@ -2295,6 +2295,18 @@
 
 	.modal-sm {
 		max-width: 400px;
+	}
+
+	@media (min-width: 640px) {
+		.modal-overlay {
+			align-items: center;
+			padding: var(--spacing-lg);
+		}
+
+		.modal {
+			border-radius: var(--radius-lg);
+			width: 90%;
+		}
 	}
 
 	.modal-header {
@@ -2811,6 +2823,20 @@
 		.section-header {
 			flex-direction: row;
 			align-items: center;
+		}
+	}
+
+	@media (min-width: 769px) {
+		.page-header {
+			margin-bottom: var(--spacing-2xl);
+		}
+
+		.page-header h1 {
+			font-size: 2rem;
+		}
+
+		.page-description {
+			font-size: 1.125rem;
 		}
 	}
 

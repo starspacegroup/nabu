@@ -439,7 +439,7 @@
 	}
 
 	.page-header h1 {
-		font-size: 1.75rem;
+		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--color-text);
 		margin-bottom: var(--spacing-sm);
@@ -488,9 +488,11 @@
 	/* Tabs */
 	.tabs {
 		display: flex;
-		gap: var(--spacing-xs);
+		gap: 0;
 		border-bottom: 1px solid var(--color-border);
-		margin-bottom: var(--spacing-xl);
+		margin-bottom: var(--spacing-lg);
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.tab {
@@ -502,10 +504,11 @@
 		border: none;
 		border-bottom: 2px solid transparent;
 		color: var(--color-text-secondary);
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 		font-weight: 500;
 		cursor: pointer;
 		transition: all var(--transition-fast);
+		white-space: nowrap;
 	}
 
 	.tab:hover {
@@ -837,6 +840,24 @@
 
 		.form-row {
 			flex-direction: column;
+		}
+
+		.log-timeline {
+			padding-left: var(--spacing-lg);
+		}
+
+		.log-header {
+			flex-wrap: wrap;
+		}
+	}
+
+	@media (min-width: 769px) {
+		.page-header h1 {
+			font-size: 1.75rem;
+		}
+
+		.tabs {
+			margin-bottom: var(--spacing-xl);
 		}
 	}
 </style>

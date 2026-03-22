@@ -151,15 +151,15 @@
 
 <style>
 	.brands-admin {
-		max-width: 1000px;
+		width: 100%;
 	}
 
 	.page-header {
-		margin-bottom: var(--spacing-xl);
+		margin-bottom: var(--spacing-lg);
 	}
 
 	.page-header h1 {
-		font-size: 1.75rem;
+		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--color-text);
 		margin-bottom: var(--spacing-xs);
@@ -167,14 +167,14 @@
 
 	.subtitle {
 		color: var(--color-text-secondary);
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 	}
 
 	.controls {
 		display: flex;
-		gap: var(--spacing-md);
+		gap: var(--spacing-sm);
 		margin-bottom: var(--spacing-lg);
-		flex-wrap: wrap;
+		flex-direction: column;
 	}
 
 	.search-box {
@@ -211,7 +211,7 @@
 	}
 
 	.filter-select {
-		padding: var(--spacing-sm) var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-xl) var(--spacing-sm) var(--spacing-md);
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
@@ -290,7 +290,7 @@
 	}
 
 	.owner-cell {
-		min-width: 200px;
+		min-width: 150px;
 	}
 
 	.owner-info {
@@ -390,11 +390,40 @@
 	}
 
 	@media (max-width: 768px) {
+		.brands-table th:nth-child(2),
+		.brands-table td:nth-child(2),
 		.brands-table th:nth-child(4),
 		.brands-table td:nth-child(4),
 		.brands-table th:nth-child(5),
 		.brands-table td:nth-child(5) {
 			display: none;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.brands-table th:nth-child(3),
+		.brands-table td:nth-child(3) {
+			display: none;
+		}
+	}
+
+	@media (min-width: 640px) {
+		.controls {
+			flex-direction: row;
+		}
+	}
+
+	@media (min-width: 769px) {
+		.page-header h1 {
+			font-size: 1.75rem;
+		}
+
+		.subtitle {
+			font-size: 0.9375rem;
+		}
+
+		.page-header {
+			margin-bottom: var(--spacing-xl);
 		}
 	}
 </style>

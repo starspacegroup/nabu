@@ -433,17 +433,17 @@
 
 <style>
 	.users-page {
-		padding: var(--spacing-md);
+		padding: 0;
 		max-width: 1400px;
 		margin: 0 auto;
 	}
 
 	.page-header {
-		margin-bottom: var(--spacing-xl);
+		margin-bottom: var(--spacing-lg);
 	}
 
 	.page-header h1 {
-		font-size: 1.5rem;
+		font-size: 1.25rem;
 		font-weight: 600;
 		color: var(--color-text);
 		margin: 0 0 var(--spacing-sm) 0;
@@ -452,6 +452,7 @@
 	.page-description {
 		color: var(--color-text-secondary);
 		margin: 0;
+		font-size: 0.875rem;
 	}
 
 	.search-section {
@@ -602,6 +603,7 @@
 
 	.users-table {
 		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	table {
@@ -616,22 +618,34 @@
 
 	th {
 		text-align: left;
-		padding: var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-md);
 		font-weight: 500;
 		color: var(--color-text-secondary);
-		font-size: 0.875rem;
+		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
+		white-space: nowrap;
 	}
 
 	td {
-		padding: var(--spacing-md);
+		padding: var(--spacing-sm) var(--spacing-md);
 		border-bottom: 1px solid var(--color-border);
 		color: var(--color-text);
+		font-size: 0.875rem;
 	}
 
 	tr:last-child td {
 		border-bottom: none;
+	}
+
+	/* Hide less important columns on mobile */
+	@media (max-width: 640px) {
+		th:nth-child(2),
+		td:nth-child(2),
+		th:nth-child(4),
+		td:nth-child(4) {
+			display: none;
+		}
 	}
 
 	.user-cell {
@@ -725,18 +739,31 @@
 		inset: 0;
 		background: rgba(0, 0, 0, 0.5);
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		justify-content: center;
-		z-index: 1000;
-		padding: var(--spacing-lg);
+		z-index: 1100;
+		padding: 0;
 	}
 
 	.modal {
 		background: var(--color-surface);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		width: 100%;
 		max-width: 500px;
 		box-shadow: var(--shadow-lg);
+		max-height: 90vh;
+		overflow-y: auto;
+	}
+
+	@media (min-width: 640px) {
+		.modal-overlay {
+			align-items: center;
+			padding: var(--spacing-lg);
+		}
+
+		.modal {
+			border-radius: var(--radius-lg);
+		}
 	}
 
 	.modal-header {
@@ -873,12 +900,12 @@
 	}
 
 	@media (min-width: 769px) {
-		.users-page {
-			padding: var(--spacing-xl);
+		.page-header h1 {
+			font-size: 1.75rem;
 		}
 
-		.page-header h1 {
-			font-size: 2rem;
+		.page-description {
+			font-size: 1rem;
 		}
 	}
 </style>
