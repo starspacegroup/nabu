@@ -101,48 +101,24 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
   };
   const userPrompt = buildTextGenerationPrompt(params);
 
-  // Call OpenAI Chat Completions
-  const model = 'gpt-4o-mini';
+  // Call AI via the shared helper (supports OpenAI, Anthropic, etc.)
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      })
-    });
+    const generatedText = await chatCompletionWithKey(
+      aiKey,
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      { temperature: 0.7, maxTokens: 1000 }
+    );
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const errMsg =
-        (err as Record<string, Record<string, string>>)?.error?.message ||
-        `OpenAI API error: ${response.status}`;
-      throw error(502, errMsg);
-    }
-
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string; }; }>;
-      usage?: { total_tokens?: number; };
-    };
-
-    const generatedText = data.choices?.[0]?.message?.content?.trim();
     if (!generatedText) {
       throw error(502, 'No text generated from AI');
     }
 
     return json({
       text: generatedText,
-      model,
-      tokensUsed: data.usage?.total_tokens || 0
+      model: aiKey.model || aiKey.provider
     });
   } catch (err) {
     // Re-throw SvelteKit errors
@@ -153,26 +129,3 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     throw error(502, errMsg);
   }
 };
-
-// ─── Helpers ─────────────────────────────────────────────────────
-
-async function getOpenAIKey(platform: App.Platform): Promise<string | null> {
-  try {
-    const keysList = await platform.env.KV.get('ai_keys_list');
-    if (!keysList) return null;
-
-    const keyIds = JSON.parse(keysList);
-    for (const keyId of keyIds) {
-      const keyData = await platform.env.KV.get(`ai_key:${keyId}`);
-      if (keyData) {
-        const key = JSON.parse(keyData);
-        if (key.enabled !== false && key.provider === 'openai') {
-          return key.apiKey;
-        }
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
