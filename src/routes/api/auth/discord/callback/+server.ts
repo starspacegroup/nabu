@@ -6,6 +6,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
+	const authMode = state?.startsWith('link:') ? 'link' : 'login';
 
 	if (!code) {
 		throw redirect(302, '/auth/login?error=no_code');
@@ -105,8 +106,8 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 			}
 		}
 
-		// Check for linking mode - if user is already logged in
-		const existingSessionCookie = cookies.get('session');
+		// Only explicit profile-driven OAuth flows should be treated as account linking.
+		const existingSessionCookie = authMode === 'link' ? cookies.get('session') : undefined;
 		let existingUser = null;
 		let isLinkingMode = false;
 
@@ -137,7 +138,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 						'SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_account_id = ?'
 					)
 						.bind('discord', discordUser.id)
-						.first<{ user_id: string }>();
+						.first<{ user_id: string; }>();
 
 					if (existingOAuth && existingOAuth.user_id !== existingUser.id) {
 						// Discord account is linked to a different user - merge the accounts
@@ -172,7 +173,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					'SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_account_id = ?'
 				)
 					.bind('discord', discordUser.id)
-					.first<{ user_id: string }>();
+					.first<{ user_id: string; }>();
 
 				if (linkedAccount) {
 					// Log in as the linked user
@@ -198,7 +199,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 								'SELECT provider_account_id FROM oauth_accounts WHERE user_id = ? AND provider = ?'
 							)
 								.bind(linkedUser.id, 'github')
-								.first<{ provider_account_id: string }>();
+								.first<{ provider_account_id: string; }>();
 
 							if (githubLink && githubLink.provider_account_id === appOwnerId) {
 								isOwner = true;
@@ -247,7 +248,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 					'SELECT id, is_admin FROM users WHERE id = ?'
 				)
 					.bind(userId)
-					.first<{ id: string; is_admin: number }>();
+					.first<{ id: string; is_admin: number; }>();
 
 				if (existingUserRecord) {
 					// Update existing user

@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 // GET - Redirect to GitHub OAuth
 export const GET: RequestHandler = async ({ platform, url }) => {
 	let clientId = platform?.env?.GITHUB_CLIENT_ID;
+	const mode = url.searchParams.get('mode') === 'link' ? 'link' : 'login';
 
 	// Try to fetch from KV if environment variable not set
 	if (!clientId && platform?.env?.KV) {
@@ -24,7 +25,7 @@ export const GET: RequestHandler = async ({ platform, url }) => {
 	}
 
 	// Generate state for CSRF protection
-	const state = crypto.randomUUID();
+	const state = `${mode}:${crypto.randomUUID()}`;
 
 	// Store state in cookie for validation in callback
 	// In production, store in session/KV with expiry

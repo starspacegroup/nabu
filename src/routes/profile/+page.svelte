@@ -53,8 +53,7 @@
 	});
 
 	function connectAccount(providerId: string) {
-		// Redirect to OAuth flow - the callback will detect we're logged in and link the account
-		window.location.href = `/api/auth/${providerId}`;
+		window.location.href = `/api/auth/${providerId}?mode=link`;
 	}
 
 	async function unlinkAccount(providerId: string) {

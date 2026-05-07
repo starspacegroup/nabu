@@ -6,6 +6,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
+	const authMode = state?.startsWith('link:') ? 'link' : 'login';
 
 	if (!code) {
 		throw redirect(302, '/auth/login?error=no_code');
@@ -83,8 +84,8 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 
 		const githubUser = await userResponse.json();
 
-		// Check for linking mode - if user is already logged in
-		const existingSessionCookie = cookies.get('session');
+		// Only explicit profile-driven OAuth flows should be treated as account linking.
+		const existingSessionCookie = authMode === 'link' ? cookies.get('session') : undefined;
 		let existingUser = null;
 		let isLinkingMode = false;
 

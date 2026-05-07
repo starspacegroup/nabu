@@ -56,6 +56,30 @@ describe('GitHub Auth API', () => {
 				expect(err.status).toBe(302);
 				expect(err.location).toContain('github.com/login/oauth/authorize');
 				expect(err.location).toContain('client_id=env-client-id');
+				expect(err.location).toContain('state=login%3Astate-uuid');
+			}
+		});
+
+		it('should mark profile-initiated GitHub OAuth as link mode', async () => {
+			vi.stubGlobal('crypto', { randomUUID: () => 'state-uuid' });
+
+			const mockPlatform = {
+				env: {
+					GITHUB_CLIENT_ID: 'env-client-id'
+				}
+			};
+
+			const { GET } = await import('../../src/routes/api/auth/github/+server');
+
+			try {
+				await GET({
+					platform: mockPlatform,
+					url: new URL('http://localhost:4277/api/auth/github?mode=link')
+				} as any);
+				expect.fail('Should have thrown redirect');
+			} catch (err: any) {
+				expect(err.status).toBe(302);
+				expect(err.location).toContain('state=link%3Astate-uuid');
 			}
 		});
 
@@ -264,6 +288,82 @@ describe('GitHub Auth API', () => {
 			expect(response.headers.get('Set-Cookie')).toContain('session=');
 			expect(response.headers.get('Set-Cookie')).toContain('Path=/');
 			expect(response.headers.get('Set-Cookie')).toContain('HttpOnly');
+		});
+
+		it('should treat stale session cookies as normal login unless link mode was explicit', async () => {
+			const staleSession = btoa(
+				JSON.stringify({ id: 'stale-user', login: 'stale', email: 'stale@example.com' })
+			)
+				.replace(/\+/g, '-')
+				.replace(/\//g, '_')
+				.replace(/=+$/, '');
+
+			const mockCookies = {
+				set: vi.fn(),
+				delete: vi.fn(),
+				get: vi.fn().mockReturnValue(staleSession)
+			};
+
+			let callCount = 0;
+			const mockPlatform = {
+				env: {
+					GITHUB_CLIENT_ID: 'test-client',
+					GITHUB_CLIENT_SECRET: 'test-secret',
+					DB: {
+						prepare: vi.fn().mockImplementation(() => ({
+							bind: vi.fn().mockImplementation(() => ({
+								first: vi.fn().mockImplementation(() => {
+									callCount += 1;
+									if (callCount === 1) {
+										return Promise.resolve({ user_id: 'canonical-user' });
+									}
+									if (callCount === 2) {
+										return Promise.resolve({
+											id: 'canonical-user',
+											email: 'real@example.com',
+											name: 'Real User',
+											github_login: 'realuser',
+											github_avatar_url: 'https://example.com/avatar.png',
+											is_admin: 0
+										});
+									}
+									return Promise.resolve(null);
+								}),
+								run: vi.fn().mockResolvedValue({})
+							}))
+						}))
+					}
+				}
+			};
+
+			globalThis.fetch = vi
+				.fn()
+				.mockResolvedValueOnce({
+					ok: true,
+					json: vi.fn().mockResolvedValue({ access_token: 'valid-token' })
+				})
+				.mockResolvedValueOnce({
+					ok: true,
+					json: vi.fn().mockResolvedValue({
+						id: 12345,
+						login: 'realuser',
+						name: 'Real User',
+						email: 'real@example.com',
+						avatar_url: 'https://example.com/avatar.png'
+					})
+				});
+
+			const { GET } = await import('../../src/routes/api/auth/github/callback/+server');
+
+			const response = await GET({
+				url: new URL('http://localhost:4277/api/auth/github/callback?code=test-code&state=login:state-uuid'),
+				cookies: mockCookies,
+				platform: mockPlatform
+			} as any);
+
+			expect(response.status).toBe(302);
+			expect(response.headers.get('Location')).toBe('http://localhost:4277/');
+			expect(response.headers.get('Set-Cookie')).toContain('session=');
 		});
 
 		it('should redirect non-owner to home', async () => {
