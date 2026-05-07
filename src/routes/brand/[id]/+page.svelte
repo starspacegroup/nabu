@@ -12,6 +12,7 @@
 	import TextRevisionHistory from '$lib/components/TextRevisionHistory.svelte';
 	import { labelToKey } from '$lib/utils/text';
 	import { FIELD_TO_TEXT_MAPPING, FIELD_TO_PRESET_KEY, IMAGE_FIELDS, getMatchingProfileField } from '$lib/services/brand';
+	import { getEmptyTextFields } from '$lib/services/brand-ai-fill';
 
 	export let data: PageData;
 
@@ -156,6 +157,13 @@
 
 	// Pending text edit — set when navigating from profile field to auto-open editor
 	let pendingTextEdit: { category: string; presetKey: string; fieldValue?: string } | null = null;
+
+	// AI fill empty fields
+	let aiFilling = false;
+	let aiFillResults: Array<{ field: string; label: string; status: 'success' | 'error'; value?: string; error?: string }> | null = null;
+	let aiFillMessage: string | null = null;
+
+	$: emptyTextFieldCount = profile ? getEmptyTextFields(profile).length : 0;
 
 	// Text revision history modal
 	let textHistoryId: string | null = null;
@@ -730,6 +738,40 @@
 		});
 	}
 
+	async function fillEmptyFieldsWithAI() {
+		if (!profile || aiFilling) return;
+		aiFilling = true;
+		aiFillResults = null;
+		aiFillMessage = null;
+		error = null;
+
+		try {
+			const res = await fetch('/api/brand/assets/fill-empty-fields', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ brandProfileId: profile.id })
+			});
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ message: 'Failed to fill fields' }));
+				throw new Error(err.message || 'Failed to fill fields');
+			}
+
+			const result = await res.json();
+			aiFillResults = result.results;
+			aiFillMessage = result.totalFilled > 0
+				? `Filled ${result.totalFilled} field${result.totalFilled !== 1 ? 's' : ''} with AI${result.totalFailed > 0 ? ` (${result.totalFailed} failed)` : ''}`
+				: result.message || 'No fields to fill';
+
+			await loadProfile();
+			setTimeout(() => { aiFillMessage = null; aiFillResults = null; }, 5000);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to fill empty fields';
+		} finally {
+			aiFilling = false;
+		}
+	}
+
 	async function handleColorsBatchChange(e: CustomEvent<{ colors: { key: string; value: string }[] }>) {
 		if (!profile || isSaving) return;
 		const profileRecord = profile as unknown as Record<string, unknown>;
@@ -824,7 +866,22 @@
 					<div class="progress-fill" style="width: {completionPercent}%"></div>
 				</div>
 				<div class="completion-detail">
-					{filledFields} of {totalFields} fields completed
+					<span>{filledFields} of {totalFields} fields completed</span>
+					{#if data.hasAIProviders && emptyTextFieldCount > 0}
+						<button
+							class="ai-fill-btn"
+							on:click={fillEmptyFieldsWithAI}
+							disabled={aiFilling}
+							aria-label="Use AI to fill {emptyTextFieldCount} empty text fields"
+						>
+							{#if aiFilling}
+								<span class="ai-fill-spinner"></span>
+								Filling {emptyTextFieldCount} fields…
+							{:else}
+								✨ AI Fill {emptyTextFieldCount} Empty Fields
+							{/if}
+						</button>
+					{/if}
 				</div>
 			</div>
 		</header>
@@ -842,6 +899,14 @@
 			<div class="success-banner">
 				<span>✅ {pushSuccessMessage}</span>
 				<button on:click={() => (pushSuccessMessage = null)} aria-label="Dismiss">×</button>
+			</div>
+		{/if}
+
+		<!-- AI fill success -->
+		{#if aiFillMessage}
+			<div class="success-banner">
+				<span>✨ {aiFillMessage}</span>
+				<button on:click={() => { aiFillMessage = null; aiFillResults = null; }} aria-label="Dismiss">×</button>
 			</div>
 		{/if}
 
@@ -1515,9 +1580,52 @@
 	}
 
 	.completion-detail {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		font-size: 0.75rem;
 		color: var(--color-text-secondary);
 		margin-top: var(--spacing-xs);
+	}
+
+	/* AI Fill button */
+	.ai-fill-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background-color: var(--color-primary);
+		color: var(--color-background);
+		border: none;
+		border-radius: var(--radius-sm);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: background-color var(--transition-fast), opacity var(--transition-fast);
+	}
+
+	.ai-fill-btn:hover:not(:disabled) {
+		background-color: var(--color-primary-hover);
+	}
+
+	.ai-fill-btn:disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
+	}
+
+	.ai-fill-spinner {
+		display: inline-block;
+		width: 12px;
+		height: 12px;
+		border: 2px solid var(--color-background);
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: ai-fill-spin 0.6s linear infinite;
+	}
+
+	@keyframes ai-fill-spin {
+		to { transform: rotate(360deg); }
 	}
 
 	/* Error banner */
