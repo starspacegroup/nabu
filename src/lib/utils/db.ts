@@ -16,6 +16,14 @@ export interface Session {
 	expires_at: Date;
 }
 
+export interface SessionUserRecord {
+	id: string;
+	email?: string | null;
+	name?: string | null;
+	login?: string | null;
+	isAdmin?: boolean;
+}
+
 /**
  * Create a new user in the database
  */
@@ -46,6 +54,34 @@ export async function findUserByEmail(db: D1Database, email: string): Promise<Us
 export async function findUserById(db: D1Database, id: string): Promise<User | null> {
 	const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
 	return await stmt.bind(id).first<User>();
+}
+
+/**
+ * Ensure an authenticated session user has a matching row in the users table.
+ * This heals sessions created when OAuth succeeded but the follow-up DB write failed.
+ */
+export async function ensureSessionUserRecord(
+	db: D1Database,
+	user: SessionUserRecord | null | undefined
+): Promise<void> {
+	if (!user?.id) {
+		return;
+	}
+
+	const existingUser = await db.prepare('SELECT id FROM users WHERE id = ?').bind(user.id).first();
+	if (existingUser) {
+		return;
+	}
+
+	const email = user.email?.trim() || `${user.id}@session.local`;
+	const name = user.name?.trim() || user.login?.trim() || null;
+
+	await db
+		.prepare(
+			'INSERT INTO users (id, email, name, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+		)
+		.bind(user.id, email, name, user.isAdmin ? 1 : 0)
+		.run();
 }
 
 /**

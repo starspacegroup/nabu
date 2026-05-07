@@ -1,5 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { ensureSessionUserRecord } from '$lib/utils/db';
 
 // Auth handling hook
 const authHandler: Handle = async ({ event, resolve }) => {
@@ -30,11 +31,13 @@ const authHandler: Handle = async ({ event, resolve }) => {
 			// Check if user is admin from database (optional - don't fail auth if DB unavailable)
 			if (event.platform?.env?.DB) {
 				try {
+					await ensureSessionUserRecord(event.platform.env.DB, sessionData);
+
 					const userRecord = await event.platform.env.DB.prepare(
 						'SELECT is_admin FROM users WHERE id = ?'
 					)
 						.bind(sessionData.id)
-						.first<{ is_admin: number }>();
+						.first<{ is_admin: number; }>();
 
 					if (userRecord) {
 						sessionData.isAdmin = userRecord.is_admin === 1;

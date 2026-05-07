@@ -163,6 +163,91 @@ describe('Database Utilities', () => {
 		});
 	});
 
+	describe('ensureSessionUserRecord', () => {
+		it('should create a missing user row from session data', async () => {
+			const existingUserFirst = vi.fn().mockResolvedValueOnce(null);
+			const insertRun = vi.fn().mockResolvedValue({ success: true });
+
+			const bind = vi
+				.fn()
+				.mockReturnValueOnce({ first: existingUserFirst })
+				.mockReturnValueOnce({ run: insertRun });
+
+			const mockDb = {
+				prepare: vi.fn().mockReturnValue({
+					bind
+				})
+			};
+
+			const { ensureSessionUserRecord } = await import('../../src/lib/utils/db');
+			await ensureSessionUserRecord(mockDb as any, {
+				id: 'user-123',
+				email: 'test@example.com',
+				name: 'Test User',
+				isAdmin: true
+			});
+
+			expect(mockDb.prepare).toHaveBeenNthCalledWith(1, 'SELECT id FROM users WHERE id = ?');
+			expect(mockDb.prepare).toHaveBeenNthCalledWith(
+				2,
+				'INSERT INTO users (id, email, name, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+			);
+			expect(bind).toHaveBeenNthCalledWith(1, 'user-123');
+			expect(bind).toHaveBeenNthCalledWith(2, 'user-123', 'test@example.com', 'Test User', 1);
+			expect(insertRun).toHaveBeenCalledOnce();
+		});
+
+		it('should not insert when the user already exists', async () => {
+			const existingUserFirst = vi.fn().mockResolvedValueOnce({ id: 'user-123' });
+			const bind = vi.fn().mockReturnValue({ first: existingUserFirst });
+
+			const mockDb = {
+				prepare: vi.fn().mockReturnValue({
+					bind
+				})
+			};
+
+			const { ensureSessionUserRecord } = await import('../../src/lib/utils/db');
+			await ensureSessionUserRecord(mockDb as any, {
+				id: 'user-123',
+				email: 'test@example.com'
+			});
+
+			expect(mockDb.prepare).toHaveBeenCalledOnce();
+			expect(bind).toHaveBeenCalledOnce();
+		});
+
+		it('should fall back to a synthetic email and login as the display name', async () => {
+			const existingUserFirst = vi.fn().mockResolvedValueOnce(null);
+			const insertRun = vi.fn().mockResolvedValue({ success: true });
+			const bind = vi
+				.fn()
+				.mockReturnValueOnce({ first: existingUserFirst })
+				.mockReturnValueOnce({ run: insertRun });
+
+			const mockDb = {
+				prepare: vi.fn().mockReturnValue({
+					bind
+				})
+			};
+
+			const { ensureSessionUserRecord } = await import('../../src/lib/utils/db');
+			await ensureSessionUserRecord(mockDb as any, {
+				id: 'user-456',
+				login: 'fallback-login'
+			});
+
+			expect(bind).toHaveBeenNthCalledWith(
+				2,
+				'user-456',
+				'user-456@session.local',
+				'fallback-login',
+				0
+			);
+			expect(insertRun).toHaveBeenCalledOnce();
+		});
+	});
+
 	describe('createSession', () => {
 		it('should create a new session with default expiry', async () => {
 			const mockSession = {
