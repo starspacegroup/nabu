@@ -8,6 +8,7 @@
 		{ path: '/admin/brands', label: 'Brands', icon: 'brand' },
 		{ path: '/admin/auth-keys', label: 'Auth Keys', icon: 'key' },
 		{ path: '/admin/ai-keys', label: 'AI Keys', icon: 'sparkles' },
+		{ path: '/admin/core-principle-questions', label: 'Core Principles Questions', icon: 'list' },
 		{ path: '/admin/cms', label: 'CMS', icon: 'document' }
 	];
 
@@ -142,6 +143,23 @@
 							<line x1="16" y1="13" x2="8" y2="13" />
 							<line x1="16" y1="17" x2="8" y2="17" />
 							<polyline points="10 9 9 9 8 9" />
+						</svg>
+					{:else if item.icon === 'list'}
+						<svg
+							class="nav-icon"
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<line x1="8" y1="6" x2="21" y2="6" />
+							<line x1="8" y1="12" x2="21" y2="12" />
+							<line x1="8" y1="18" x2="21" y2="18" />
+							<circle cx="4" cy="6" r="1" />
+							<circle cx="4" cy="12" r="1" />
+							<circle cx="4" cy="18" r="1" />
 						</svg>
 					{/if}
 					<span>{item.label}</span>

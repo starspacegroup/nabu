@@ -23,6 +23,10 @@ import {
   streamChatCompletionWithFallback,
   chatCompletionWithKey
 } from '$lib/services/openai-chat';
+import {
+  buildCorePrincipleQuestionsPromptBlock,
+  listCorePrincipleQuestions
+} from '$lib/services/core-principle-questions';
 import { calculateCost, getModelDisplayName } from '$lib/utils/cost';
 import type { OnboardingStep } from '$lib/types/onboarding';
 
@@ -90,6 +94,18 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
     profile,
     contentContext
   );
+
+  if (step === 'brand_story' && typeof conversationMessages[0]?.content === 'string') {
+    const activeCorePrincipleQuestions = await listCorePrincipleQuestions(platform!.env.DB, true);
+    const corePrinciplePromptBlock = buildCorePrincipleQuestionsPromptBlock(
+      activeCorePrincipleQuestions
+    );
+
+    if (corePrinciplePromptBlock) {
+      conversationMessages[0].content =
+        conversationMessages[0].content + `\n\n${corePrinciplePromptBlock}`;
+    }
+  }
 
   // Stream AI response
   let fullContent = '';
